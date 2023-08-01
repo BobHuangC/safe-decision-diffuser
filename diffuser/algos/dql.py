@@ -55,6 +55,7 @@ class DiffusionQL(Algo):
             next_rng(),
             next_rng(),
             jnp.zeros((10, self.observation_dim)),
+            conditions={},
         )
 
         def get_lr(lr_decay=False):
@@ -132,13 +133,15 @@ class DiffusionQL(Algo):
             rewards = batch["rewards"]
             next_observations = batch["next_observations"]
             dones = batch["dones"]
+            conditions = batch["conditions"]
+            next_conditions = batch["next_conditions"]
 
             # Compute the target Q values (without gradient)
             if self.config.max_q_backup:
                 samples = self.config.max_q_backup_samples
                 next_action = self.policy.apply(
-                    tgt_params["policy"], rng, next_observations, repeat=samples
-                )
+                    tgt_params["policy"], rng, next_observations, next_conditions, repeat=samples
+                )  # should be 'next_conditions'
                 next_action = jnp.clip(next_action, -self.max_action, self.max_action)
                 next_obs_repeat = jnp.repeat(
                     jnp.expand_dims(next_observations, axis=1), samples, axis=1
@@ -156,7 +159,7 @@ class DiffusionQL(Algo):
                     tgt_q = jnp.minimum(tgt_q1_max, tgt_q2_max)
             else:
                 next_action = self.policy.apply(
-                    tgt_params["policy"], rng, next_observations
+                    tgt_params["policy"], rng, next_observations, conditions
                 )
                 tgt_q1 = self.qf.apply(
                     tgt_params["qf1"], next_observations, next_action
@@ -181,7 +184,7 @@ class DiffusionQL(Algo):
 
         return value_loss_fn
 
-    def get_diff_terms(self, params, observations, actions, dones, rng):
+    def get_diff_terms(self, params, observations, actions, dones, conditions, rng):
         rng, split_rng = jax.random.split(rng)
         ts = jax.random.randint(
             split_rng, dones.shape, minval=0, maxval=self.diffusion.num_timesteps
@@ -192,6 +195,7 @@ class DiffusionQL(Algo):
             split_rng,
             observations,
             actions,
+            conditions,
             ts,
             method=self.policy.loss,
         )
@@ -201,7 +205,7 @@ class DiffusionQL(Algo):
             )["pred_xstart"]
         else:
             rng, split_rng = jax.random.split(rng)
-            pred_astart = self.policy.apply(params["policy"], split_rng, observations)
+            pred_astart = self.policy.apply(params["policy"], split_rng, observations, conditions)
         terms["pred_astart"] = pred_astart
 
         action_dist = self.policy_dist.apply(params["policy_dist"], pred_astart)
@@ -225,9 +229,10 @@ class DiffusionQL(Algo):
             observations = batch["observations"]
             actions = batch["actions"]
             dones = batch["dones"]
+            conditions = batch["conditions"]
 
             terms, ts, _ = self.get_diff_terms(
-                params, observations, actions, dones, rng
+                params, observations, actions, dones, conditions, rng
             )
             diff_loss = terms["loss"].mean()
             pred_astart = terms["pred_astart"]

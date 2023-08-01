@@ -464,7 +464,7 @@ class GaussianDiffusion:
         # nonzero_mask = (
         #   (t != 0).astype(np.float32).reshape((-1, *([1] * (len(x.shape) - 1))))
         # )
-        nonzero_mask = (t != 0).astype(np.float32).reshape(-1, 1, 1)
+        nonzero_mask = (t != 0).astype(np.float32).reshape(-1, *(1 for _ in range(len(x.shape) - 1)))
         if cond_fn is not None:
             out["mean"] = self.condition_mean(
                 cond_fn, out, x, t, model_kwargs=model_kwargs

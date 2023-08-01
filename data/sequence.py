@@ -194,7 +194,7 @@ class QLearningDataset(SequenceDataset):
         )
 
     def get_conditions(self, observations):
-        raise AttributeError("QLearningDataset does not support conditioning")
+        return {}
 
     def __getitem__(self, idx):
         path_ind, start, end, mask_end = self._indices[idx]
@@ -204,6 +204,8 @@ class QLearningDataset(SequenceDataset):
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
         next_observations = self._data.normed_next_observations[path_ind, start:end].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
+        conditions = self.get_conditions(observations)
+        next_conditions = self.get_conditions(next_observations)
 
         return dict(
             observations=observations,
@@ -211,4 +213,6 @@ class QLearningDataset(SequenceDataset):
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
+            conditions=conditions,
+            next_conditions=next_conditions,
         )

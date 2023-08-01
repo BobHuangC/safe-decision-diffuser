@@ -1,7 +1,12 @@
+import importlib
 import torch
+import gym
+import numpy as np
 from ml_collections import ConfigDict
 
+from data.dataset import get_d4rl_dataset
 from utilities.utils import set_random_seed, to_arch
+from utilities.sampler import TrajSampler
 from utilities.data_utils import cycle, numpy_collate
 from diffuser.trainer.base_trainer import BaseTrainer
 from diffuser.policy import DiffuserPolicy
@@ -110,3 +115,38 @@ class DiffuserTrainer(BaseTrainer):
             deterministic=True,
         )
         return trajs
+
+    def _setup_d4rl(self):
+        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+
+        norm_reward = self._cfgs.norm_reward
+        if "antmaze" in self._cfgs.env:
+            norm_reward = False
+
+        if self._cfgs.dataset_class in ["QLearningDataset"]:
+            include_next_obs = True
+        else:
+            include_next_obs = False
+
+        dataset = get_d4rl_dataset(
+            eval_sampler.env,
+            max_traj_length=self._cfgs.max_traj_length,
+            norm_reward=norm_reward,
+            include_next_obs=include_next_obs,
+            termination_penalty=self._cfgs.termination_penalty,
+        )
+        dataset["rewards"] = (
+            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
+        )
+        dataset["actions"] = np.clip(
+            dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
+        )
+
+        dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
+            dataset,
+            returns_scale=self._cfgs.returns_scale,
+            horizon=self._cfgs.horizon,
+            max_traj_length=self._cfgs.max_traj_length,
+        )
+        eval_sampler.set_normalizer(dataset.normalizer)
+        return dataset, eval_sampler

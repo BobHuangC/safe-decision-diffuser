@@ -1,5 +1,6 @@
 from functools import partial
 from typing import Tuple
+from einops import repeat
 
 import flax.linen as nn
 import jax
@@ -24,6 +25,8 @@ class PolicyNet(nn.Module):
 
     @nn.compact
     def __call__(self, state, action, t):
+        if len(t.shape) < len(action.shape) - 1:
+            t = repeat(t, "b -> b n", n=action.shape[1])
         time_embed = TimeEmbedding(self.time_embed_size, self.act)(t)
         x = jnp.concatenate([state, action, time_embed], axis=-1)
 
@@ -59,12 +62,12 @@ class DiffusionPolicy(nn.Module):
             use_layer_norm=self.use_layer_norm,
         )
 
-    def __call__(self, rng, observations, deterministic=False, repeat=None):
+    def __call__(self, rng, observations, conditions, deterministic=False, repeat=None):
         return getattr(self, f"{self.sample_method}_sample")(
-            rng, observations, deterministic, repeat
+            rng, observations, conditions, deterministic, repeat
         )
 
-    def ddpm_sample(self, rng, observations, deterministic=False, repeat=None):
+    def ddpm_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
 
@@ -74,10 +77,11 @@ class DiffusionPolicy(nn.Module):
             rng_key=rng,
             model_forward=partial(self.base_net, observations),
             shape=shape,
+            conditions=conditions,
             clip_denoised=True,
         )
 
-    def dpm_sample(self, rng, observations, deterministic=False, repeat=None):
+    def dpm_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
         noise_clip = True
@@ -120,7 +124,7 @@ class DiffusionPolicy(nn.Module):
 
         return out
 
-    def ddim_sample(self, rng, observations, deterministic=False, repeat=None):
+    def ddim_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
 
@@ -130,17 +134,16 @@ class DiffusionPolicy(nn.Module):
             rng_key=rng,
             model_forward=partial(self.base_net, observations),
             shape=shape,
+            conditions=conditions,
             clip_denoised=True,
         )
 
-    def forward(self, observations, actions, t):
-        return self.base_net(observations, actions, t)
-
-    def loss(self, rng_key, observations, actions, ts):
+    def loss(self, rng_key, observations, actions, conditions, ts):
         terms = self.diffusion.training_losses(
             rng_key,
             model_forward=partial(self.base_net, observations),
             x_start=actions,
+            conditions=conditions,
             t=ts,
         )
         return terms

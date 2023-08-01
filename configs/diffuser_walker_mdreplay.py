@@ -16,6 +16,8 @@ def get_config():
     config.dataset_class = "SequenceDataset"
     config.max_traj_length = 1000
     config.horizon = 100
+    config.returns_scale = 400.0
+    config.termination_penalty = -100.0
 
     config.seed = 42
     config.algo_cfg = getattr(

@@ -22,15 +22,17 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
     def act(self, params, rng, observations, deterministic):
+        conditions = {}
         return self.policy.apply(
-            params["policy"], rng, observations, deterministic, repeat=None
+            params["policy"], rng, observations, conditions, deterministic, repeat=None
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
-            params["policy"], key, observations, deterministic, repeat=num_samples
+            params["policy"], key, observations, conditions, deterministic, repeat=num_samples
         )
         q1 = self.qf.apply(params["qf1"], observations, actions)
         q2 = self.qf.apply(params["qf2"], observations, actions)
@@ -42,10 +44,12 @@ class SamplerPolicy(object):  # used for dql
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpmensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             repeat=num_samples,
             method=self.policy.ddpm_sample,
@@ -60,10 +64,12 @@ class SamplerPolicy(object):  # used for dql
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpmensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             repeat=num_samples,
             method=self.policy.dpm_sample,
@@ -77,30 +83,36 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpm_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.dpm_sample,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddim_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.ddim_sample,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpm_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.ddpm_sample,
         )
@@ -149,12 +161,12 @@ class DiffuserPolicy(object):
     def ddim_act(self, params, rng, observations, deterministic):  # deterministic is not used
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
-        plan_observations = self.policy.apply(
+        plan_observations = self.planner.apply(
             self.params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
-            method=self.policy.ddim_sample,
+            method=self.planner.ddim_sample,
         )
         obs_comb = jnp.concatenate([plan_observations[:, 0], plan_observations[:, 1]], axis=-1)
         actions = self.inv_model.apply(

@@ -83,7 +83,6 @@ class BaseTrainer:
             metrics = {"epoch": epoch}
 
             with Timer() as train_timer:
-                # for _ in range(1):
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
                     batch = batch_to_jax(next(self._dataloader))
                     metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
