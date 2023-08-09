@@ -156,9 +156,9 @@ class Dataset:
         setattr(self, key, val)
 
 
-class D4RLDataset(Dataset):
-    def __init__(self, env: gym.Env, clip_to_eps: bool = True, eps: float = 1e-5, **kwargs):
-        self.raw_dataset = dataset = d4rl.qlearning_dataset(env)
+class DSRLDataset(Dataset):
+    def __init__(self, env: gymnasium.Env, clip_to_eps: bool = True, eps: float = 1e-5, **kwargs):
+        self.raw_dataset = dataset = env.get_dataset()
 
         if clip_to_eps:
             lim = 1 - eps

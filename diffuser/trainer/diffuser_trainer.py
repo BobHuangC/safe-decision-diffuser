@@ -1,10 +1,10 @@
 import importlib
 import torch
-import gym
+import gymnasium
 import numpy as np
 from ml_collections import ConfigDict
 
-from data.dataset import get_d4rl_dataset
+from data.dataset import get_dsrl_dataset
 from utilities.utils import set_random_seed, to_arch
 from utilities.sampler import TrajSampler
 from utilities.data_utils import cycle, numpy_collate
@@ -116,8 +116,8 @@ class DiffuserTrainer(BaseTrainer):
         )
         return trajs
 
-    def _setup_d4rl(self):
-        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+    def _setup_dsrl(self):
+        eval_sampler = TrajSampler(gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length)
 
         norm_reward = self._cfgs.norm_reward
         if "antmaze" in self._cfgs.env:
@@ -128,7 +128,7 @@ class DiffuserTrainer(BaseTrainer):
         else:
             include_next_obs = False
 
-        dataset = get_d4rl_dataset(
+        dataset = get_dsrl_dataset(
             eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
             norm_reward=norm_reward,

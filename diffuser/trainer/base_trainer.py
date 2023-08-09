@@ -17,13 +17,13 @@ from collections import deque
 
 import absl
 import absl.flags
-import gym
+import gymnasium
 import jax
 import jax.numpy as jnp
 import numpy as np
 import tqdm
 
-from data.dataset import get_d4rl_dataset
+from data.dataset import get_dsrl_dataset
 from diffuser.constants import (
     DATASET,
     DATASET_ABBR_MAP,
@@ -206,6 +206,8 @@ class BaseTrainer:
             dataset, eval_sampler = self._setup_d4rl()
         elif dataset_type == DATASET.RLUP:
             dataset, eval_sampler = self._setup_rlup()
+        elif dataset_type == DATASET.DSRL:
+            dataset, eval_sampler = self._setup_dsrl()
         else:
             raise NotImplementedError
 
