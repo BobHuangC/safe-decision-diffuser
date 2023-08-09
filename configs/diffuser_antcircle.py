@@ -27,6 +27,8 @@ def get_config():
     config.batch_size = 256
     config.reward_scale = 1
     config.reward_bias = 0
+    config.cost_scale = 1
+    config.cost_bias = 0
     config.clip_action = 0.999
     config.dim = 128
     # config.dim_mults = "1-4-8"
@@ -47,6 +49,7 @@ def get_config():
     config.sample_method = "ddpm"
     config.policy_temp = 1.0
     config.norm_reward = False
+    config.cost_reward = False
 
     config.save_model = False
     config.logging = WandBLogger.get_default_config()
