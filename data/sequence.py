@@ -32,17 +32,21 @@ class SequenceDataset(torch.utils.data.Dataset):
         use_padding: bool = True,
         use_action: bool = True,
         include_returns: bool = True,
+        include_cost_returns: bool = True,
         discount: float = 0.99,
         returns_scale: float = 1.0,
+        cost_returns_scale: float = 1.0,
         use_future_masks: bool = False,
     ) -> None:
         self.include_returns = include_returns
+        self.include_cost_returns = include_cost_returns
         self.use_action = use_action
         self.use_future_masks = use_future_masks
         self.use_padding = use_padding
         self.max_traj_length = max_traj_length
         self.horizon = horizon
         self.returns_scale = returns_scale
+        self.cost_returns_scale = cost_returns_scale
         self.discrete_action = discrete_action
         if discrete_action:
             raise NotImplementedError
@@ -154,18 +158,24 @@ class SequenceDataset(torch.utils.data.Dataset):
         masks[: mask_end - start] = 1.0
 
         conditions = self.get_conditions(observations)
+
+        ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
+
         if self.include_returns:
             rewards = self._data.rewards[path_ind, start:]
             discounts = self.discounts[: len(rewards)]
             returns = (discounts * rewards).sum(axis=0).squeeze(-1)
             returns = np.array([returns / self.returns_scale], dtype=np.float32)
-            ret_dict = dict(
-                samples=observations, conditions=conditions, masks=masks, returns=returns
+            ret_dict["returns"] = returns
+
+        if self.include_cost_returns:
+            costs = self._data.costs[path_ind, start:]
+            discounts = self.discounts[: len(costs)]
+            cost_returns = (discounts * costs).sum(axis=0).squeeze(-1)
+            cost_returns = np.array(
+                [cost_returns / self.cost_returns_scale], dtype=np.float32
             )
-        else:
-            ret_dict = dict(
-                samples=observations, conditions=conditions, masks=masks
-            )
+            ret_dict["cost_returns"] = cost_returns
 
         if self.use_action:
             ret_dict["actions"] = actions
@@ -204,8 +214,7 @@ class QLearningDataset(SequenceDataset):
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
         next_observations = self._data.normed_next_observations[path_ind, start:end].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
-        conditions = self.get_conditions(observations)
-        next_conditions = self.get_conditions(next_observations)
+        costs = self._data.costs[path_ind, start:end].squeeze(0)
 
         return dict(
             observations=observations,
@@ -213,6 +222,5 @@ class QLearningDataset(SequenceDataset):
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
-            conditions=conditions,
-            next_conditions=next_conditions,
+            costs=costs,
         )

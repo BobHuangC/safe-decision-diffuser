@@ -9,14 +9,14 @@ conda activate safediff
 pip install -e .
 ```
 
-Apart from this, you'll have to setup your MuJoCo environment and key as well. Please follow [D4RL](https://github.com/Farama-Foundation/D4RL) repo and setup the environment accordingly.
+Apart from this, you'll have to setup your MuJoCo environment and key as well. Please follow [DSRL](https://github.com/liuzuxin/DSRL) repo and setup the environment accordingly.
 
 ### Run Experiments
 
 You can run decision-diffuser experiments using the following command:
 
 ```bash
-python train.py --config configs/diffuser_walker_mdreplay.py
+python train.py --config configs/diffuser_antcircle.py
 ```
 
 By default we use `ddpm` solver. To use `dpm`, set `--sample_method=dpm` and `-algo_cfg.num_timesteps=1000`.
