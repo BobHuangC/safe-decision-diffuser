@@ -7,12 +7,12 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-
+    
     config.trainer = "DiffuserTrainer"
     config.type = "model-free"
 
-    config.env = "walker2d-medium-replay-v2"
-    config.dataset = "d4rl"
+    config.env = "OfflineAntCircle-v0"
+    config.dataset = "dsrl"
     config.dataset_class = "SequenceDataset"
     config.max_traj_length = 1000
     config.horizon = 100
