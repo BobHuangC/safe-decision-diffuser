@@ -214,13 +214,15 @@ class QLearningDataset(SequenceDataset):
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
         next_observations = self._data.normed_next_observations[path_ind, start:end].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
-        costs = self._data.costs[path_ind, start:end].squeeze(0)
-
-        return dict(
+        item_dict = dict(
             observations=observations,
             actions=actions,
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
-            costs=costs,
         )
+        
+        if self.include_cost_returns:
+            item_dict["costs"] = self._data.costs[path_ind, start:end].squeeze(0)
+
+        return item_dict
