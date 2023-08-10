@@ -18,12 +18,13 @@ from collections import deque
 import absl
 import absl.flags
 import gymnasium
+import gym
 import jax
 import jax.numpy as jnp
 import numpy as np
 import tqdm
 
-from data.dataset import get_dsrl_dataset
+from data.dataset import get_d4rl_dataset, get_dsrl_dataset
 from diffuser.constants import (
     DATASET,
     DATASET_ABBR_MAP,
@@ -194,7 +195,7 @@ class BaseTrainer:
         )
 
         dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
-            dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length
+            dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns = False
         )
         eval_sampler.set_normalizer(dataset.normalizer)
         return dataset, eval_sampler

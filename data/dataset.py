@@ -15,6 +15,8 @@
 """Utils to generate trajectory based dataset with multi-step reward."""
 
 from typing import List
+import d4rl
+import gym
 import dsrl
 import gymnasium
 import numpy as np
@@ -24,7 +26,29 @@ from utilities.deprecation import deprecated
 from utilities.data_utils import atleast_nd
 
 
-def split_into_trajectories(
+def split_into_trajectories_d4rl(
+    observations, actions, rewards, masks, dones_float, next_observations
+):
+    trajs = [[]]
+
+    for i in tqdm(range(len(observations))):
+        trajs[-1].append(
+            (
+                observations[i],
+                actions[i],
+                rewards[i],
+                masks[i],
+                dones_float[i],
+                next_observations[i],
+            )
+        )
+        if dones_float[i] == 1.0 and i + 1 < len(observations):
+            trajs.append([])
+
+    return trajs
+
+
+def split_into_trajectories_dsrl(
     observations, actions, rewards, masks, dones_float, next_observations, costs
 ):
     trajs = [[]]
@@ -45,6 +69,56 @@ def split_into_trajectories(
             trajs.append([])
 
     return trajs
+
+
+def get_d4rl_dataset(
+    env,
+    max_traj_length: int,
+    norm_reward: bool = False,
+    termination_penalty: float = None,
+    include_next_obs: bool = False,
+):
+    # set `sorting=True` to sort the dataset according to trajectory return
+    trajs = get_d4rl_trajs(env, norm_reward=norm_reward)
+    n_trajs = len(trajs)
+
+    dataset = {}
+    obs_dim, act_dim = trajs[0][0][0].shape[0], trajs[0][0][1].shape[0]
+    dataset["observations"] = np.zeros(
+        (n_trajs, max_traj_length, obs_dim), dtype=np.float32
+    )
+    dataset["actions"] = np.zeros(
+        (n_trajs, max_traj_length, act_dim), dtype=np.float32
+    )
+    dataset["rewards"] = np.zeros((n_trajs, max_traj_length, 1), dtype=np.float32)
+    dataset["terminals"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
+    dataset["dones_float"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
+    dataset["traj_lengths"] = np.zeros((n_trajs,), dtype=np.int32)
+    if include_next_obs:
+        dataset["next_observations"] = np.zeros((n_trajs, max_traj_length, obs_dim), dtype=np.float32)
+
+    for idx, traj in enumerate(trajs):
+        traj_length = len(traj)
+        dataset["traj_lengths"][idx] = traj_length
+        dataset["observations"][idx, :traj_length] = atleast_nd(
+            np.stack([ts[0] for ts in traj], axis=0), n=2,
+        )
+        dataset["actions"][idx, :traj_length] = atleast_nd(
+            np.stack([ts[1] for ts in traj], axis=0), n=2,
+        )
+        dataset["rewards"][idx, :traj_length] = atleast_nd(
+            np.stack([ts[2] for ts in traj], axis=0), n=2,
+        )
+        dataset["terminals"][idx, :traj_length] = np.stack([bool(1 - ts[3]) for ts in traj], axis=0)
+        dataset["dones_float"][idx, :traj_length] = np.stack([ts[4] for ts in traj], axis=0)
+        if include_next_obs:
+            dataset["next_observations"][idx, :traj_length] = atleast_nd(
+                np.stack([ts[5] for ts in traj], axis=0), n=2,
+            )
+        if dataset["terminals"][idx].any() and termination_penalty is not None:
+            dataset["rewards"][idx, traj_length - 1] += termination_penalty
+
+    return Dataset(**dataset)
 
 
 def get_dsrl_dataset(
@@ -156,6 +230,41 @@ class Dataset:
         setattr(self, key, val)
 
 
+class D4RLDataset(Dataset):
+    def __init__(self, env: gym.Env, clip_to_eps: bool = True, eps: float = 1e-5, **kwargs):
+        self.raw_dataset = dataset = d4rl.qlearning_dataset(env)
+
+        if clip_to_eps:
+            lim = 1 - eps
+            dataset["actions"] = np.clip(dataset["actions"], -lim, lim)
+
+        dones_float = np.zeros_like(dataset["rewards"])
+
+        for i in range(len(dones_float) - 1):
+            if (
+                np.linalg.norm(
+                    dataset["observations"][i + 1] - dataset["next_observations"][i]
+                )
+                > 1e-6
+                or dataset["terminals"][i] == 1.0
+            ):
+                dones_float[i] = 1
+            else:
+                dones_float[i] = 0
+
+        dones_float[-1] = 1
+
+        super().__init__(
+            observations=dataset["observations"].astype(np.float32),
+            actions=dataset["actions"].astype(np.float32),
+            rewards=dataset["rewards"].astype(np.float32),
+            masks=1.0 - dataset["terminals"].astype(np.float32),
+            dones_float=dones_float.astype(np.float32),
+            next_observations=dataset["next_observations"].astype(np.float32),
+            **kwargs,
+        )
+
+
 class DSRLDataset(Dataset):
     def __init__(self, env: gymnasium.Env, clip_to_eps: bool = True, eps: float = 1e-5, **kwargs):
         self.raw_dataset = dataset = env.get_dataset()
@@ -206,10 +315,36 @@ def compute_cost_returns(traj):
     return episode_cost_return
 
 
+def get_d4rl_trajs(env, sorting: bool = False, norm_reward: bool = False):
+    env = gym.make(env) if isinstance(env, str) else env
+    dataset = D4RLDataset(env, verbose=False)
+    trajs = split_into_trajectories_d4rl(
+        dataset.observations,
+        dataset.actions,
+        dataset.rewards,
+        dataset.masks,
+        dataset.dones_float,
+        dataset.next_observations,
+    )
+    if sorting:
+        trajs.sort(key=compute_returns)
+
+    if norm_reward:
+        returns = [compute_returns(traj) for traj in trajs]
+        norm = (max(returns) - min(returns)) / 1000
+        for traj in tqdm(trajs):
+            for i, ts in enumerate(traj):
+                traj[i] = ts[:2] + (ts[2] / norm,) + ts[3:]
+
+    # NOTE: this raw_dataset is not sorted
+    # return trajs, dataset.raw_dataset
+    return trajs
+
+
 def get_dsrl_trajs(env, sorting: bool = False, norm_reward: bool = False):
     env = gym.make(env) if isinstance(env, str) else env
     dataset = DSRLDataset(env, verbose=False)
-    trajs = split_into_trajectories(
+    trajs = split_into_trajectories_dsrl(
         dataset.observations,
         dataset.actions,
         dataset.rewards,
@@ -243,6 +378,34 @@ def nstep_cost_prefix(costs, nstep=5, gamma=0.9):
     gammas = np.array([gamma**i for i in range(nstep)])
     nstep_costs = np.convolve(costs, gammas)[nstep - 1 :]
     return nstep_costs
+
+
+@deprecated(replacement="get_traj_dataset")
+def get_nstep_d4rl_dataset(env, nstep=5, gamma=0.9, sorting=True, norm_reward=False):
+    gammas = np.array([gamma**i for i in range(nstep)])
+    trajs = get_d4rl_trajs(env, sorting, norm_reward)
+
+    obss, acts, terms, next_obss, nstep_rews, dones_float = [], [], [], [], [], []
+    for traj in trajs:
+        L = len(traj)
+        rewards = np.array([ts[2] for ts in traj])
+        cum_rewards = np.convolve(rewards, gammas)[nstep - 1 :]
+        nstep_rews.append(cum_rewards)
+        next_obss.extend([traj[min(i + nstep - 1, L - 1)][-1] for i in range(L)])
+        obss.extend([traj[i][0] for i in range(L)])
+        acts.extend([traj[i][1] for i in range(L)])
+        terms.extend([bool(1 - traj[i][3]) for i in range(L)])
+        dones_float.extend(traj[i][4] for i in range(L))
+
+    dataset = {}
+    dataset["observations"] = np.stack(obss)
+    dataset["actions"] = np.stack(acts)
+    dataset["next_observations"] = np.stack(next_obss)
+    dataset["rewards"] = np.concatenate(nstep_rews)
+    dataset["terminals"] = np.stack(terms)
+    dataset["dones_float"] = np.stack(dones_float)
+
+    return dataset
 
 
 @deprecated(replacement="get_traj_dataset")
