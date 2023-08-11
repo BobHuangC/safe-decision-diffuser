@@ -14,7 +14,6 @@
 
 """dataset and sampler."""
 
-from data.dataset import Dataset
-from data.sampler import RandSampler
+from data_comp.sequence import QLearningDataset, SequenceDataset
 
-__all__ = ["Dataset", "RandSampler"]
+__all__ = ["SequenceDataset", "QLearningDataset"]

@@ -86,7 +86,7 @@ class SequenceDataset(torch.utils.data.Dataset):
                     max_start = min(max_start, traj_length - 1)
             else:
                 max_start = min(
-                    traj_length - 1, self.max_traj_length - self.horizon + 1
+                    traj_length, self.max_traj_length - self.horizon + 1
                 )
                 if not self.use_padding:
                     max_start = min(max_start, traj_length - self.horizon + 1)

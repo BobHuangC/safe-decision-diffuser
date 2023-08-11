@@ -129,8 +129,11 @@ class DiffusionQL(Algo):
             rewards = batch["rewards"]
             next_observations = batch["next_observations"]
             dones = batch["dones"]
-            conditions = batch["conditions"]
-            next_conditions = batch["next_conditions"]
+            # conditions = batch["conditions"]
+            # next_conditions = batch["next_conditions"]
+
+            conditions = {}
+            next_conditions = {}
 
             # Compute the target Q values (without gradient)
             if self.config.max_q_backup:
@@ -231,7 +234,8 @@ class DiffusionQL(Algo):
             observations = batch["observations"]
             actions = batch["actions"]
             dones = batch["dones"]
-            conditions = batch["conditions"]
+            # conditions = batch["conditions"]
+            conditions = {}
 
             terms, ts, _ = self.get_diff_terms(
                 params, observations, actions, dones, conditions, rng

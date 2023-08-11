@@ -101,7 +101,7 @@ class TrajSampler(object):
             dones = []
 
             observation = self.env.reset()
-            observation = self._normalizer.normalize(observation, "observations")
+            # observation = self._normalizer.normalize(observation, "observations")
 
             done = False
             while not done:
@@ -113,9 +113,9 @@ class TrajSampler(object):
                     getattr(self.env, env_render_fn)()
                     time.sleep(0.01)
 
-                next_observation = self._normalizer.normalize(
-                    next_observation, "observations"
-                )
+                # next_observation = self._normalizer.normalize(
+                #     next_observation, "observations"
+                # )
                 observations.append(observation)
                 actions.append(action)
                 rewards.append(reward)

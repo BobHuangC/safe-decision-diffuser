@@ -12,9 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""dataset and sampler."""
+"""Dataset samplers."""
+from typing import Any
 
-from data.dataset import Dataset
-from data.sampler import RandSampler
+import numpy as np
 
-__all__ = ["Dataset", "RandSampler"]
+Array = Any
+
+
+class RandSampler(object):
+	"""A random sampler."""
+
+	def __init__(self, max_size: int, batch_size: int = 1) -> None:
+		self._max_size = max_size
+		self._batch_size = batch_size
+
+	def sample(self):
+		"""Return an array of sampled indices."""
+
+		return np.random.randint(self._max_size, size=self._batch_size)

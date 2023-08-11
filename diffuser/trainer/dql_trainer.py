@@ -26,6 +26,7 @@ class DiffusionQLTrainer(BaseTrainer):
         cfg.max_q_backup = False
         cfg.max_q_backup_topk = 1
         cfg.max_q_backup_samples = 10
+        cfg.nstep = 1
 
         # learning related
         cfg.lr = 3e-4
@@ -70,17 +71,17 @@ class DiffusionQLTrainer(BaseTrainer):
         self._wandb_logger = self._setup_logger()
 
         # setup dataset and eval_sample
-        dataset, self._eval_sampler = self._setup_dataset()
-        self._dataloader = cycle(
-            torch.utils.data.DataLoader(
-                dataset,
-                batch_size=self._cfgs.batch_size,
-                collate_fn=numpy_collate,
-                num_workers=0,
-                shuffle=True,
-                pin_memory=True,
-            )
-        )
+        self._dataset, self._eval_sampler = self._setup_dataset()
+        # self._dataloader = cycle(
+        #     torch.utils.data.DataLoader(
+        #         dataset,
+        #         batch_size=self._cfgs.batch_size,
+        #         collate_fn=numpy_collate,
+        #         num_workers=0,
+        #         shuffle=True,
+        #         pin_memory=True,
+        #     )
+        # )
         if self._cfgs.algo_cfg.target_entropy >= 0.0:
             action_space = self._eval_sampler.env.action_space
             self._cfgs.algo_cfg.target_entropy = -np.prod(action_space.shape).item()
