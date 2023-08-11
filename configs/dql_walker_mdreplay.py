@@ -16,6 +16,7 @@ def get_config():
     config.dataset_class = "QLearningDataset"
     config.max_traj_length = 1000
     config.horizon = 1
+    config.include_cost_returns = False
 
     config.seed = 42
     config.algo_cfg = getattr(

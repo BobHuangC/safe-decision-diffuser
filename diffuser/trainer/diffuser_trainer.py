@@ -117,65 +117,65 @@ class DiffuserTrainer(BaseTrainer):
         )
         return trajs
 
-    def _setup_d4rl(self):
-        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+    # def _setup_d4rl(self):
+    #     eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
 
-        norm_reward = self._cfgs.norm_reward
-        if "antmaze" in self._cfgs.env:
-            norm_reward = False
+    #     norm_reward = self._cfgs.norm_reward
+    #     if "antmaze" in self._cfgs.env:
+    #         norm_reward = False
 
-        if self._cfgs.dataset_class in ["QLearningDataset"]:
-            include_next_obs = True
-        else:
-            include_next_obs = False
+    #     if self._cfgs.dataset_class in ["QLearningDataset"]:
+    #         include_next_obs = True
+    #     else:
+    #         include_next_obs = False
 
-        dataset = get_d4rl_dataset(
-            eval_sampler.env,
-            max_traj_length=self._cfgs.max_traj_length,
-            norm_reward=norm_reward,
-            include_next_obs=include_next_obs,
-        )
-        dataset["rewards"] = (
-            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
-        )
-        dataset["actions"] = np.clip(
-            dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
-        )
+    #     dataset = get_d4rl_dataset(
+    #         eval_sampler.env,
+    #         max_traj_length=self._cfgs.max_traj_length,
+    #         norm_reward=norm_reward,
+    #         include_next_obs=include_next_obs,
+    #     )
+    #     dataset["rewards"] = (
+    #         dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
+    #     )
+    #     dataset["actions"] = np.clip(
+    #         dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
+    #     )
 
-        dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
-            dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns=False
-        )
-        eval_sampler.set_normalizer(dataset.normalizer)
-        return dataset, eval_sampler
-    
-    def _setup_dsrl(self):
-        eval_sampler = TrajSampler(gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length)
+    #     dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
+    #         dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns=False
+    #     )
+    #     eval_sampler.set_normalizer(dataset.normalizer)
+    #     return dataset, eval_sampler
 
-        norm_reward = self._cfgs.norm_reward
-        if "antmaze" in self._cfgs.env:
-            norm_reward = False
+    # def _setup_dsrl(self):
+    #     eval_sampler = TrajSampler(gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length)
 
-        if self._cfgs.dataset_class in ["QLearningDataset"]:
-            include_next_obs = True
-        else:
-            include_next_obs = False
+    #     norm_reward = self._cfgs.norm_reward
+    #     if "antmaze" in self._cfgs.env:
+    #         norm_reward = False
 
-        dataset = get_dsrl_dataset(
-            eval_sampler.env,
-            max_traj_length=self._cfgs.max_traj_length,
-            norm_reward=norm_reward,
-            include_next_obs=include_next_obs,
-            termination_penalty=self._cfgs.termination_penalty,
-        )
-        dataset["rewards"] = (
-            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
-        )
-        dataset["actions"] = np.clip(
-            dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
-        )
+    #     if self._cfgs.dataset_class in ["QLearningDataset"]:
+    #         include_next_obs = True
+    #     else:
+    #         include_next_obs = False
 
-        dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
-            dataset, returns_scale=self._cfgs.returns_scale, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns=True,
-        )
-        eval_sampler.set_normalizer(dataset.normalizer)
-        return dataset, eval_sampler
+    #     dataset = get_dsrl_dataset(
+    #         eval_sampler.env,
+    #         max_traj_length=self._cfgs.max_traj_length,
+    #         norm_reward=norm_reward,
+    #         include_next_obs=include_next_obs,
+    #         termination_penalty=self._cfgs.termination_penalty,
+    #     )
+    #     dataset["rewards"] = (
+    #         dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
+    #     )
+    #     dataset["actions"] = np.clip(
+    #         dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
+    #     )
+
+    #     dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
+    #         dataset, returns_scale=self._cfgs.returns_scale, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns=True,
+    #     )
+    #     eval_sampler.set_normalizer(dataset.normalizer)
+    #     return dataset, eval_sampler
