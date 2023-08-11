@@ -1,19 +1,14 @@
+import numpy as np
 import torch
 from ml_collections import ConfigDict
-import numpy as np
 
-from utilities.utils import set_random_seed, to_arch
-from utilities.data_utils import cycle, numpy_collate
-from diffuser.trainer.base_trainer import BaseTrainer
-from diffuser.policy import SamplerPolicy
-from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
 from diffuser.algos import DiffusionQL
-from diffuser.diffusion import (
-    GaussianDiffusion,
-    LossType,
-    ModelMeanType,
-    ModelVarType,
-)
+from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
+from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
+from diffuser.policy import SamplerPolicy
+from diffuser.trainer.base_trainer import BaseTrainer
+from utilities.data_utils import cycle, numpy_collate
+from utilities.utils import set_random_seed, to_arch
 
 
 class DiffusionQLTrainer(BaseTrainer):
@@ -161,9 +156,7 @@ class DiffusionQLTrainer(BaseTrainer):
         if self._cfgs.sample_method == "ddim":
             self._sampler_policy.act_method = "ensemble"
         trajs = self._eval_sampler.sample(
-            self._sampler_policy.update_params(
-                self._agent.train_params
-            ),
+            self._sampler_policy.update_params(self._agent.train_params),
             self._cfgs.eval_n_trajs,
             deterministic=True,
         )

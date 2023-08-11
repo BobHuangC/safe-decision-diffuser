@@ -1,18 +1,14 @@
 from functools import partial
 from typing import Tuple
-from einops import repeat
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from einops import repeat
 
-from diffuser.diffusion import (
-    GaussianDiffusion,
-    ModelMeanType,
-    _extract_into_tensor,
-)
+from diffuser.diffusion import GaussianDiffusion, ModelMeanType, _extract_into_tensor
 from diffuser.dpm_solver import DPM_Solver, NoiseScheduleVP
-from diffuser.nets.helpers import mish, TimeEmbedding, multiple_action_q_function
+from diffuser.nets.helpers import TimeEmbedding, mish, multiple_action_q_function
 from utilities.jax_utils import extend_and_repeat
 
 
@@ -67,7 +63,9 @@ class DiffusionPolicy(nn.Module):
             rng, observations, conditions, deterministic, repeat
         )
 
-    def ddpm_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
+    def ddpm_sample(
+        self, rng, observations, conditions, deterministic=False, repeat=None
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
 
@@ -81,7 +79,9 @@ class DiffusionPolicy(nn.Module):
             clip_denoised=True,
         )
 
-    def dpm_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
+    def dpm_sample(
+        self, rng, observations, conditions, deterministic=False, repeat=None
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
         noise_clip = True
@@ -124,7 +124,9 @@ class DiffusionPolicy(nn.Module):
 
         return out
 
-    def ddim_sample(self, rng, observations, conditions, deterministic=False, repeat=None):
+    def ddim_sample(
+        self, rng, observations, conditions, deterministic=False, repeat=None
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
 

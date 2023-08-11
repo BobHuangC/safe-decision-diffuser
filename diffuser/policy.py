@@ -1,4 +1,5 @@
 from functools import partial
+
 import jax
 import jax.numpy as jnp
 
@@ -32,7 +33,12 @@ class SamplerPolicy(object):  # used for dql
         rng, key = jax.random.split(rng)
         conditions = {}
         actions = self.policy.apply(
-            params["policy"], key, observations, conditions, deterministic, repeat=num_samples
+            params["policy"],
+            key,
+            observations,
+            conditions,
+            deterministic,
+            repeat=num_samples,
         )
         q1 = self.qf.apply(params["qf1"], observations, actions)
         q2 = self.qf.apply(params["qf2"], observations, actions)
@@ -128,9 +134,7 @@ class SamplerPolicy(object):  # used for dql
 
 
 class DiffuserPolicy(object):
-    def __init__(
-        self, planner, inv_model, act_method="ddpm"
-    ):
+    def __init__(self, planner, inv_model, act_method="ddpm"):
         self.planner = planner
         self.inv_model = inv_model
         self.act_method = act_method
@@ -150,7 +154,9 @@ class DiffuserPolicy(object):
             returns=returns,
             method=self.planner.ddpm_sample,
         )
-        obs_comb = jnp.concatenate([plan_observations[:, 0], plan_observations[:, 1]], axis=-1)
+        obs_comb = jnp.concatenate(
+            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
+        )
         actions = self.inv_model.apply(
             self.params["inv_model"],
             obs_comb,
@@ -158,7 +164,9 @@ class DiffuserPolicy(object):
         return actions
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
-    def ddim_act(self, params, rng, observations, deterministic):  # deterministic is not used
+    def ddim_act(
+        self, params, rng, observations, deterministic
+    ):  # deterministic is not used
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
         plan_observations = self.planner.apply(
@@ -168,7 +176,9 @@ class DiffuserPolicy(object):
             returns=returns,
             method=self.planner.ddim_sample,
         )
-        obs_comb = jnp.concatenate([plan_observations[:, 0], plan_observations[:, 1]], axis=-1)
+        obs_comb = jnp.concatenate(
+            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
+        )
         actions = self.inv_model.apply(
             self.params["inv_model"],
             obs_comb,

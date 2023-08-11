@@ -13,14 +13,15 @@
 # limitations under the License.
 
 from typing import List
-import torch
+
 import numpy as np
+import torch
 
 from utilities.normalization import DatasetNormalizer
 
 
 class SequenceDataset(torch.utils.data.Dataset):
-    """ DataLoader with customized sampler. """
+    """DataLoader with customized sampler."""
 
     def __init__(
         self,
@@ -56,7 +57,8 @@ class SequenceDataset(torch.utils.data.Dataset):
 
         self._data = data
         self.normalizer = DatasetNormalizer(
-            self._data, normalizer,
+            self._data,
+            normalizer,
         )
 
         self._keys = list(data.keys()).remove("traj_lengths")
@@ -83,7 +85,9 @@ class SequenceDataset(torch.utils.data.Dataset):
                 if not self.use_padding:
                     max_start = min(max_start, traj_length - 1)
             else:
-                max_start = min(traj_length - 1, self.max_traj_length - self.horizon + 1)
+                max_start = min(
+                    traj_length - 1, self.max_traj_length - self.horizon + 1
+                )
                 if not self.use_padding:
                     max_start = min(max_start, traj_length - self.horizon + 1)
 
@@ -196,11 +200,14 @@ class QLearningDataset(SequenceDataset):
         super().normalize(keys)
 
         array = self._data["next_observations"].reshape(
-            self.n_episodes * self.max_traj_length, *self._data["next_observations"].shape[2:]
+            self.n_episodes * self.max_traj_length,
+            *self._data["next_observations"].shape[2:],
         )
         normed = self.normalizer(array, "observations")
         self._data["normed_next_observations"] = normed.reshape(
-            self.n_episodes, self.max_traj_length, *self._data["next_observations"].shape[2:]
+            self.n_episodes,
+            self.max_traj_length,
+            *self._data["next_observations"].shape[2:],
         )
 
     def get_conditions(self, observations):
@@ -212,7 +219,9 @@ class QLearningDataset(SequenceDataset):
         observations = self._data.normed_observations[path_ind, start:end].squeeze(0)
         actions = self._data.actions[path_ind, start:end].squeeze(0)
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
-        next_observations = self._data.normed_next_observations[path_ind, start:end].squeeze(0)
+        next_observations = self._data.normed_next_observations[
+            path_ind, start:end
+        ].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
         item_dict = dict(
             observations=observations,
@@ -221,7 +230,7 @@ class QLearningDataset(SequenceDataset):
             next_observations=next_observations,
             dones=dones,
         )
-        
+
         if self.include_cost_returns:
             item_dict["costs"] = self._data.costs[path_ind, start:end].squeeze(0)
 

@@ -1,8 +1,8 @@
 from functools import partial
 
 import jax
-import optax
 import jax.numpy as jnp
+import optax
 from flax.training.train_state import TrainState
 
 from core.core_api import Algo
@@ -105,16 +105,12 @@ class DecisionDiffuser(Algo):
             samples_t = samples[:, :-1]
             samples_tp1 = samples[:, 1:]
             samples_comb = jnp.concatenate([samples_t, samples_tp1], axis=-1)
-            samples_comb = jnp.reshape(
-                samples_comb, (-1, self.observation_dim * 2)
-            )
+            samples_comb = jnp.reshape(samples_comb, (-1, self.observation_dim * 2))
 
             actions = actions[:, :-1]
             actions = jnp.reshape(actions, (-1, self.action_dim))
 
-            pred_actions = self.inv_model.apply(
-                params["inv_model"], samples_comb
-            )
+            pred_actions = self.inv_model.apply(params["inv_model"], samples_comb)
             loss = jnp.mean((pred_actions - actions) ** 2)
             return (loss,), locals()
 
@@ -125,9 +121,7 @@ class DecisionDiffuser(Algo):
             samples = batch["samples"]
             returns = batch["returns"]
             conditions = batch["conditions"]
-            terms, ts = self.get_diff_terms(
-                params, samples, conditions, returns, rng
-            )
+            terms, ts = self.get_diff_terms(params, samples, conditions, returns, rng)
             loss = terms["loss"].mean()
 
             return (loss,), locals()
@@ -137,7 +131,10 @@ class DecisionDiffuser(Algo):
     def get_diff_terms(self, params, samples, conditions, returns, rng):
         rng, split_rng = jax.random.split(rng)
         ts = jax.random.randint(
-            split_rng, (samples.shape[0],), minval=0, maxval=self.diffusion.num_timesteps
+            split_rng,
+            (samples.shape[0],),
+            minval=0,
+            maxval=self.diffusion.num_timesteps,
         )
         rng, split_rng = jax.random.split(rng)
         terms = self.planner.apply(

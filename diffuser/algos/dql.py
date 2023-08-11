@@ -23,11 +23,7 @@ from flax.training.train_state import TrainState
 
 from core.core_api import Algo
 from diffuser.diffusion import GaussianDiffusion
-from utilities.jax_utils import (
-    mse_loss,
-    next_rng,
-    value_and_multi_grad,
-)
+from utilities.jax_utils import mse_loss, next_rng, value_and_multi_grad
 
 
 def update_target_network(main_params, target_params, tau):
@@ -140,7 +136,11 @@ class DiffusionQL(Algo):
             if self.config.max_q_backup:
                 samples = self.config.max_q_backup_samples
                 next_action = self.policy.apply(
-                    tgt_params["policy"], rng, next_observations, next_conditions, repeat=samples
+                    tgt_params["policy"],
+                    rng,
+                    next_observations,
+                    next_conditions,
+                    repeat=samples,
                 )  # should be 'next_conditions'
                 next_action = jnp.clip(next_action, -self.max_action, self.max_action)
                 next_obs_repeat = jnp.repeat(
@@ -205,7 +205,9 @@ class DiffusionQL(Algo):
             )["pred_xstart"]
         else:
             rng, split_rng = jax.random.split(rng)
-            pred_astart = self.policy.apply(params["policy"], split_rng, observations, conditions)
+            pred_astart = self.policy.apply(
+                params["policy"], split_rng, observations, conditions
+            )
         terms["pred_astart"] = pred_astart
 
         action_dist = self.policy_dist.apply(params["policy_dist"], pred_astart)
