@@ -7,7 +7,7 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-    
+
     config.trainer = "DiffuserTrainer"
     config.type = "model-free"
 
@@ -16,6 +16,7 @@ def get_config():
     config.dataset_class = "SequenceDataset"
     config.max_traj_length = 1000
     config.horizon = 100
+    config.include_cost_returns = False
     config.returns_scale = 400.0
     config.termination_penalty = -100.0
 
@@ -50,6 +51,7 @@ def get_config():
     config.policy_temp = 1.0
     config.norm_reward = False
     config.cost_reward = False
+    config.norm_cost = False
 
     config.save_model = False
     config.logging = WandBLogger.get_default_config()

@@ -24,7 +24,6 @@ import jax.numpy as jnp
 import numpy as np
 import tqdm
 
-from data.dataset import get_d4rl_dataset, get_dsrl_dataset
 from diffuser.constants import (
     DATASET,
     DATASET_ABBR_MAP,
@@ -169,24 +168,53 @@ class BaseTrainer:
         )
         return wandb_logger
 
-    def _setup_d4rl(self):
-        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
-
-        norm_reward = self._cfgs.norm_reward
-        if "antmaze" in self._cfgs.env:
-            norm_reward = False
+    def _setup_d4rl(self, env):
+        from data.d4rl import get_dataset
 
         if self._cfgs.dataset_class in ["QLearningDataset"]:
             include_next_obs = True
         else:
             include_next_obs = False
 
-        dataset = get_d4rl_dataset(
+        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+        dataset = get_dataset(
             eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
-            norm_reward=norm_reward,
+            norm_reward=self._cfgs.norm_reward,
+            include_next_obs=include_next_obs,
+            termination_penalty=self._cfgs.termination_penalty,
+        )
+        return dataset, eval_sampler
+
+    def _setup_dsrl(self):
+        from data.dsrl import get_dataset
+
+        if self._cfgs.dataset_class in ["QLearningDataset"]:
+            include_next_obs = True
+        else:
+            include_next_obs = False
+
+        eval_sampler = TrajSampler(gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length)
+        dataset = get_dataset(
+            eval_sampler.env,
+            max_traj_length=self._cfgs.max_traj_length,
+            use_cost=self._cfgs.include_cost_returns,
+            norm_reward=self._cfgs.norm_reward,
+            norm_cost=self._cfgs.norm_cost,
+            termination_penalty=self._cfgs.termination_penalty,
             include_next_obs=include_next_obs,
         )
+        return dataset, eval_sampler
+
+    def _setup_dataset(self):
+        dataset_type = DATASET_MAP[self._cfgs.dataset]
+        if dataset_type == DATASET.D4RL:
+            dataset, eval_sampler = self._setup_d4rl()
+        elif dataset_type == DATASET.DSRL:
+            dataset, eval_sampler = self._setup_dsrl()
+        else:
+            raise NotImplementedError
+
         dataset["rewards"] = (
             dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
         )
@@ -195,22 +223,12 @@ class BaseTrainer:
         )
 
         dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
-            dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length, include_cost_returns = False
+            dataset,
+            horizon=self._cfgs.horizon,
+            max_traj_length=self._cfgs.max_traj_length,
+            include_cost_returns=self._cfgs.include_cost_returns,
         )
         eval_sampler.set_normalizer(dataset.normalizer)
-        return dataset, eval_sampler
-
-    def _setup_dataset(self):
-        dataset_type = DATASET_MAP[self._cfgs.dataset]
-
-        if dataset_type == DATASET.D4RL:
-            dataset, eval_sampler = self._setup_d4rl()
-        elif dataset_type == DATASET.RLUP:
-            dataset, eval_sampler = self._setup_rlup()
-        elif dataset_type == DATASET.DSRL:
-            dataset, eval_sampler = self._setup_dsrl()
-        else:
-            raise NotImplementedError
 
         self._observation_dim = eval_sampler.env.observation_space.shape[0]
         self._action_dim = eval_sampler.env.action_space.shape[0]

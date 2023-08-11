@@ -21,6 +21,7 @@ import random
 import tempfile
 import time
 import uuid
+import functools
 import importlib
 from copy import copy
 from socket import gethostname
@@ -45,6 +46,10 @@ def apply_conditioning(x, conditions):
     for t, val in conditions.items():
         x.at[:, t].set(val)
     return x
+
+
+def compose(*functions):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 
 class Timer(object):
