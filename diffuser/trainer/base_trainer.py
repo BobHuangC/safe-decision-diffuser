@@ -226,6 +226,7 @@ class BaseTrainer:
             horizon=self._cfgs.horizon,
             max_traj_length=self._cfgs.max_traj_length,
             include_cost_returns=self._cfgs.include_cost_returns,
+            normalizer=self._cfgs.normalizer,
         )
         eval_sampler.set_normalizer(dataset.normalizer)
 
