@@ -163,7 +163,7 @@ class BaseTrainer:
         )
         return wandb_logger
 
-    def _setup_d4rl(self, env):
+    def _setup_d4rl(self):
         from data.d4rl import get_dataset
 
         if self._cfgs.dataset_class in ["QLearningDataset"]:

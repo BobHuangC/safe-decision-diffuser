@@ -18,6 +18,7 @@ def get_config():
     config.max_traj_length = 1000
     config.horizon = 1
     config.include_cost_returns = False
+    config.termination_penalty = 0.0
 
     config.seed = 42
     config.algo_cfg = getattr(
