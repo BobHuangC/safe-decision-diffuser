@@ -14,15 +14,15 @@
 
 """General utils for training."""
 
+import functools
+import importlib
 import os
-import sys
 import pprint
 import random
+import sys
 import tempfile
 import time
 import uuid
-import functools
-import importlib
 from copy import copy
 from socket import gethostname
 

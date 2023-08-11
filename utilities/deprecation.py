@@ -11,5 +11,7 @@ def deprecated(replacement=None):
                 message += f" Use {replacement} instead."
             warnings.warn(message, category=DeprecationWarning)
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

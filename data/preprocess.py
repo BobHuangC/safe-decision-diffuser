@@ -100,9 +100,7 @@ def pad_trajs_to_dataset(
     dataset["observations"] = np.zeros(
         (n_trajs, max_traj_length, obs_dim), dtype=np.float32
     )
-    dataset["actions"] = np.zeros(
-        (n_trajs, max_traj_length, act_dim), dtype=np.float32
-    )
+    dataset["actions"] = np.zeros((n_trajs, max_traj_length, act_dim), dtype=np.float32)
     dataset["rewards"] = np.zeros((n_trajs, max_traj_length, 1), dtype=np.float32)
     dataset["terminals"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
     dataset["dones_float"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
@@ -110,29 +108,40 @@ def pad_trajs_to_dataset(
     if use_cost:
         dataset["costs"] = np.zeros((n_trajs, max_traj_length, 1), dtype=np.float32)
     if include_next_obs:
-        dataset["next_observations"] = np.zeros((n_trajs, max_traj_length, obs_dim), dtype=np.float32)
+        dataset["next_observations"] = np.zeros(
+            (n_trajs, max_traj_length, obs_dim), dtype=np.float32
+        )
 
     for idx, traj in enumerate(trajs):
         traj_length = len(traj)
         dataset["traj_lengths"][idx] = traj_length
         dataset["observations"][idx, :traj_length] = atleast_nd(
-            np.stack([ts[0] for ts in traj], axis=0), n=2,
+            np.stack([ts[0] for ts in traj], axis=0),
+            n=2,
         )
         dataset["actions"][idx, :traj_length] = atleast_nd(
-            np.stack([ts[1] for ts in traj], axis=0), n=2,
+            np.stack([ts[1] for ts in traj], axis=0),
+            n=2,
         )
         dataset["rewards"][idx, :traj_length] = atleast_nd(
-            np.stack([ts[2] for ts in traj], axis=0), n=2,
+            np.stack([ts[2] for ts in traj], axis=0),
+            n=2,
         )
-        dataset["terminals"][idx, :traj_length] = np.stack([bool(ts[3]) for ts in traj], axis=0)
-        dataset["dones_float"][idx, :traj_length] = np.stack([ts[3] for ts in traj], axis=0)
+        dataset["terminals"][idx, :traj_length] = np.stack(
+            [bool(ts[3]) for ts in traj], axis=0
+        )
+        dataset["dones_float"][idx, :traj_length] = np.stack(
+            [ts[3] for ts in traj], axis=0
+        )
         if use_cost:
             dataset["costs"][idx, :traj_length] = atleast_nd(
-                np.stack([ts[5] for ts in traj], axis=0), n=2,
+                np.stack([ts[5] for ts in traj], axis=0),
+                n=2,
             )
         if include_next_obs:
             dataset["next_observations"][idx, :traj_length] = atleast_nd(
-                np.stack([ts[4] for ts in traj], axis=0), n=2,
+                np.stack([ts[4] for ts in traj], axis=0),
+                n=2,
             )
         if dataset["terminals"][idx].any() and termination_penalty is not None:
             dataset["rewards"][idx, traj_length - 1] += termination_penalty

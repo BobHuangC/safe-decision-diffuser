@@ -1,19 +1,16 @@
 from functools import partial
 from typing import Tuple
+
+import distrax
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
 from einops.layers.flax import Rearrange
 
-import jax
-import distrax
-import jax.numpy as jnp
-import flax.linen as nn
-
-from diffuser.diffusion import (
-    GaussianDiffusion,
-    ModelMeanType,
-    _extract_into_tensor,
-)
+from diffuser.diffusion import GaussianDiffusion, ModelMeanType, _extract_into_tensor
 from diffuser.dpm_solver import DPM_Solver, NoiseScheduleVP
-from .helpers import Conv1dBlock, mish, TimeEmbedding, DownSample1d, UpSample1d
+
+from .helpers import Conv1dBlock, DownSample1d, TimeEmbedding, UpSample1d, mish
 
 
 class ResidualTemporalBlock(nn.Module):
@@ -28,13 +25,17 @@ class ResidualTemporalBlock(nn.Module):
         else:
             act_fn = nn.silu
 
-        time_mlp = nn.Sequential([
-            act_fn,
-            nn.Dense(self.out_channels),
-            Rearrange("batch f -> batch 1 f"),
-        ])
+        time_mlp = nn.Sequential(
+            [
+                act_fn,
+                nn.Dense(self.out_channels),
+                Rearrange("batch f -> batch 1 f"),
+            ]
+        )
 
-        out = Conv1dBlock(self.out_channels, self.kernel_size, self.mish)(x) + time_mlp(t)
+        out = Conv1dBlock(self.out_channels, self.kernel_size, self.mish)(x) + time_mlp(
+            t
+        )
         out = Conv1dBlock(self.out_channels, self.kernel_size, self.mish)(out)
 
         if x.shape[-1] == self.out_channels:
@@ -52,23 +53,36 @@ class TemporalUnet(nn.Module):
     kernel_size: int = 5
 
     def setup(self):
-        self.dims = dims = [self.transition_dim, *map(lambda m: self.dim * m, self.dim_mults)]
+        self.dims = dims = [
+            self.transition_dim,
+            *map(lambda m: self.dim * m, self.dim_mults),
+        ]
         self.in_out = list(zip(dims[:-1], dims[1:]))
         print(f"[ diffuser/nets/temporal.py ] Channel dimensions: {self.in_out}")
 
     @nn.compact
-    def __call__(self, rng, x, time, returns: jnp.ndarray = None, use_dropout: bool = True, force_dropout: bool = False):
+    def __call__(
+        self,
+        rng,
+        x,
+        time,
+        returns: jnp.ndarray = None,
+        use_dropout: bool = True,
+        force_dropout: bool = False,
+    ):
         act_fn = mish
 
         time_mlp = TimeEmbedding(self.dim)
         if self.returns_condition:
-            returns_mlp = nn.Sequential([
-                nn.Dense(self.dim),
-                act_fn,
-                nn.Dense(self.dim * 4),
-                act_fn,
-                nn.Dense(self.dim),
-            ])
+            returns_mlp = nn.Sequential(
+                [
+                    nn.Dense(self.dim),
+                    act_fn,
+                    nn.Dense(self.dim * 4),
+                    act_fn,
+                    nn.Dense(self.dim),
+                ]
+            )
             mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
         t = time_mlp(time)
@@ -78,7 +92,9 @@ class TemporalUnet(nn.Module):
             returns_embed = returns_mlp(returns)
             if use_dropout:
                 rng, sample_key = jax.random.split(rng)
-                mask = mask_dist.sample(seed=sample_key, sample_shape=returns_embed.shape)
+                mask = mask_dist.sample(
+                    seed=sample_key, sample_shape=returns_embed.shape
+                )
                 returns_embed = returns_embed * mask
             if force_dropout:
                 returns_embed = returns_embed * 0
@@ -134,10 +150,12 @@ class TemporalUnet(nn.Module):
             if not is_last:
                 x = UpSample1d(dim_in)(x)
 
-        x = nn.Sequential([
-            Conv1dBlock(self.dim, kernel_size=self.kernel_size, mish=True),
-            nn.Conv(self.transition_dim, (1,)),
-        ])(x)
+        x = nn.Sequential(
+            [
+                Conv1dBlock(self.dim, kernel_size=self.kernel_size, mish=True),
+                nn.Conv(self.transition_dim, (1,)),
+            ]
+        )(x)
 
         return x
 
@@ -227,7 +245,9 @@ class DiffusionPlanner(nn.Module):
         )
 
     def __call__(self, rng, conditions, deterministic=False, returns=None):
-        return getattr(self, f"{self.sample_method}_sample")(rng, conditions, deterministic, returns)
+        return getattr(self, f"{self.sample_method}_sample")(
+            rng, conditions, deterministic, returns
+        )
 
     def loss(self, rng_key, samples, conditions, ts, returns=None):
         terms = self.diffusion.training_losses(

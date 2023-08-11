@@ -22,7 +22,12 @@ class Dataset:
 
     def __init__(
         self,
-        required_keys: List[str] = ["observations", "actions", "rewards", "dones_float"],
+        required_keys: List[str] = [
+            "observations",
+            "actions",
+            "rewards",
+            "dones_float",
+        ],
         verbose: bool = True,
         **kwargs,
     ):
@@ -37,7 +42,9 @@ class Dataset:
                 self.required_keys.append(k)
             else:
                 self.extra_keys.append(k)
-        assert set(self.required_keys) == set(required_keys), f"Missing keys: {set(required_keys) - set(self.required_keys)}"
+        assert set(self.required_keys) == set(
+            required_keys
+        ), f"Missing keys: {set(required_keys) - set(self.required_keys)}"
         if verbose:
             print("[ data/dataset.py ] Dataset: get required keys:", self.required_keys)
             print("[ data/dataset.py ] Dataset: get extra keys:", self.extra_keys)

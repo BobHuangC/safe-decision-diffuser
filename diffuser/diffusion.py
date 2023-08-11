@@ -464,7 +464,11 @@ class GaussianDiffusion:
         # nonzero_mask = (
         #   (t != 0).astype(np.float32).reshape((-1, *([1] * (len(x.shape) - 1))))
         # )
-        nonzero_mask = (t != 0).astype(np.float32).reshape(-1, *(1 for _ in range(len(x.shape) - 1)))
+        nonzero_mask = (
+            (t != 0)
+            .astype(np.float32)
+            .reshape(-1, *(1 for _ in range(len(x.shape) - 1)))
+        )
         if cond_fn is not None:
             out["mean"] = self.condition_mean(
                 cond_fn, out, x, t, model_kwargs=model_kwargs
@@ -509,9 +513,13 @@ class GaussianDiffusion:
         for i in indices:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
             if self.returns_condition:
-                model_output_cond = model_forward(None, x, self._scale_timesteps(t), returns, use_dropout=False)
+                model_output_cond = model_forward(
+                    None, x, self._scale_timesteps(t), returns, use_dropout=False
+                )
                 rng_key, sample_key = jax.random.split(rng_key)
-                model_output_uncond = model_forward(sample_key, x, self._scale_timesteps(t), returns, force_dropout=True)
+                model_output_uncond = model_forward(
+                    sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
+                )
                 model_output = model_output_uncond + self.condition_guidence_w * (
                     model_output_cond - model_output_uncond
                 )
@@ -544,7 +552,9 @@ class GaussianDiffusion:
         Same usage as p_sample().
         """
 
-        out = self.p_mean_variance(model_putput, x, t, returns, clip_denoised=clip_denoised)
+        out = self.p_mean_variance(
+            model_putput, x, t, returns, clip_denoised=clip_denoised
+        )
         if cond_fn is not None:
             out = self.condition_score(cond_fn, out, x, t, model_kwargs=model_kwargs)
 
@@ -628,8 +638,12 @@ class GaussianDiffusion:
         for i in indices:
             t = np.ones(shape[:-1], dtype=np.int32) * i
             if self.returns_condition:
-                model_output_cond = model_forward(x, self._scale_timesteps(t), returns, use_dropout=False)
-                model_output_uncond = model_forward(x, self._scale_timesteps(t), returns, force_dropout=True)
+                model_output_cond = model_forward(
+                    x, self._scale_timesteps(t), returns, use_dropout=False
+                )
+                model_output_uncond = model_forward(
+                    x, self._scale_timesteps(t), returns, force_dropout=True
+                )
                 model_output = model_output_uncond + self.condition_guidence_w * (
                     model_output_cond - model_output_uncond
                 )
@@ -638,13 +652,22 @@ class GaussianDiffusion:
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.ddim_sample(
-                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs, eta
+                sample_key,
+                model_output,
+                x,
+                t,
+                clip_denoised,
+                cond_fn,
+                model_kwargs,
+                eta,
             )
             x = out["sample"]
             x = apply_conditioning(x, conditions)
         return x
 
-    def _vb_terms_bpd(self, model_ouput, x_start, x_t, conditions, t, clip_denoised=True):
+    def _vb_terms_bpd(
+        self, model_ouput, x_start, x_t, conditions, t, clip_denoised=True
+    ):
         """
         Get a term for the variational lower-bound.
 
@@ -679,7 +702,9 @@ class GaussianDiffusion:
         output = np.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-    def training_losses(self, rng_key, model_forward, x_start, conditions, t, returns=None):
+    def training_losses(
+        self, rng_key, model_forward, x_start, conditions, t, returns=None
+    ):
         """
         Compute training losses for a single timestep.
 
@@ -696,7 +721,9 @@ class GaussianDiffusion:
         x_t = self.q_sample(x_start, t, noise=noise)
         x_t = apply_conditioning(x_t, conditions)
         if self.returns_condition:
-            model_output = model_forward(rng_key, x_t, self._scale_timesteps(t), returns)
+            model_output = model_forward(
+                rng_key, x_t, self._scale_timesteps(t), returns
+            )
         else:
             model_output = model_forward(x_t, self._scale_timesteps(t))
 
@@ -707,7 +734,12 @@ class GaussianDiffusion:
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
-                model_output, x_start=x_start, x_t=x_t, conditions=conditions, t=t, clip_denoised=False
+                model_output,
+                x_start=x_start,
+                x_t=x_t,
+                conditions=conditions,
+                t=t,
+                clip_denoised=False,
             )["output"]
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
@@ -725,7 +757,12 @@ class GaussianDiffusion:
                     [model_output.detach(), model_var_values], axis=1
                 )
                 terms["vb"] = self._vb_terms_bpd(
-                    frozen_out, x_start=x_start, x_t=x_t, conditions=conditions, t=t, clip_denoised=False
+                    frozen_out,
+                    x_start=x_start,
+                    x_t=x_t,
+                    conditions=conditions,
+                    t=t,
+                    clip_denoised=False,
                 )["output"]
                 if self.loss_type == LossType.RESCALED_MSE:
                     # Divide by 1000 for equivalence with initial implementation.

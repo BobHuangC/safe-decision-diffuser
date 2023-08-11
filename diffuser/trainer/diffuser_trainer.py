@@ -1,24 +1,13 @@
-import importlib
 import torch
-import gymnasium
-import gym
-import numpy as np
 from ml_collections import ConfigDict
 
-from data.dataset import get_d4rl_dataset, get_dsrl_dataset
-from utilities.utils import set_random_seed, to_arch
-from utilities.sampler import TrajSampler
-from utilities.data_utils import cycle, numpy_collate
-from diffuser.trainer.base_trainer import BaseTrainer
-from diffuser.policy import DiffuserPolicy
-from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.algos import DecisionDiffuser
-from diffuser.diffusion import (
-    GaussianDiffusion,
-    LossType,
-    ModelMeanType,
-    ModelVarType,
-)
+from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
+from diffuser.nets import DiffusionPlanner, InverseDynamic
+from diffuser.policy import DiffuserPolicy
+from diffuser.trainer.base_trainer import BaseTrainer
+from utilities.data_utils import cycle, numpy_collate
+from utilities.utils import set_random_seed, to_arch
 
 
 class DiffuserTrainer(BaseTrainer):
@@ -72,7 +61,9 @@ class DiffuserTrainer(BaseTrainer):
         self._planner, self._inv_model = self._setup_policy()
 
         # setup agent
-        self._agent = DecisionDiffuser(self._cfgs.algo_cfg, self._planner, self._inv_model)
+        self._agent = DecisionDiffuser(
+            self._cfgs.algo_cfg, self._planner, self._inv_model
+        )
 
         # setup sampler policy
         self._sampler_policy = DiffuserPolicy(self._planner, self._inv_model)
@@ -109,9 +100,7 @@ class DiffuserTrainer(BaseTrainer):
     def _sample_trajs(self, act_method: str):
         self._sampler_policy.act_method = act_method
         trajs = self._eval_sampler.sample(
-            self._sampler_policy.update_params(
-                self._agent.train_params
-            ),
+            self._sampler_policy.update_params(self._agent.train_params),
             self._cfgs.eval_n_trajs,
             deterministic=True,
         )

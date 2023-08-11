@@ -25,6 +25,10 @@ def test_temporal_unet():
         params, jax.random.PRNGKey(0), jnp.ones((5, 32, 4)), jnp.ones((5,))
     )
     output2 = unet.apply(
-        params, jax.random.PRNGKey(0), jnp.ones((5, 32, 4)), jnp.ones((5,)), force_dropout=True
+        params,
+        jax.random.PRNGKey(0),
+        jnp.ones((5, 32, 4)),
+        jnp.ones((5,)),
+        force_dropout=True,
     )
     assert output1.shape == output2.shape == (5, 32, 4)

@@ -20,7 +20,9 @@ class Conv1dBlock(nn.Module):
             act_fn = nn.silu
 
         # NOTE(zbzhu): in flax, conv use the channel last format
-        x = nn.Conv(self.out_channels, (self.kernel_size,), padding=self.kernel_size // 2)(x)
+        x = nn.Conv(
+            self.out_channels, (self.kernel_size,), padding=self.kernel_size // 2
+        )(x)
         x = Rearrange("batch horizon channels -> batch horizon 1 channels")(x)
         x = nn.GroupNorm(self.n_groups)(x)
         x = Rearrange("batch horizon 1 channels -> batch horizon channels")(x)
@@ -41,7 +43,9 @@ class UpSample1d(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = nn.ConvTranspose(self.dim, (2,), strides=(2,), padding=1, transpose_kernel=True)(x)
+        x = nn.ConvTranspose(
+            self.dim, (2,), strides=(2,), padding=1, transpose_kernel=True
+        )(x)
         return x
 
 

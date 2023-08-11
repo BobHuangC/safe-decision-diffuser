@@ -17,8 +17,8 @@ from collections import deque
 
 import absl
 import absl.flags
-import gymnasium
 import gym
+import gymnasium
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -34,12 +34,7 @@ from diffuser.constants import (
 from diffuser.hps import hyperparameters
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
-from utilities.utils import (
-    Timer,
-    WandBLogger,
-    get_user_flags,
-    prefix_metrics,
-)
+from utilities.utils import Timer, WandBLogger, get_user_flags, prefix_metrics
 from viskit.logging import logger, setup_logger
 
 
@@ -153,9 +148,9 @@ class BaseTrainer:
         dataset_name_abbr = DATASET_ABBR_MAP[self._cfgs.dataset]
 
         logging_configs = self._cfgs.logging
-        logging_configs["project"] = (
-            f"{self._cfgs.trainer}-{env_name_high}-{dataset_name_abbr}"
-        )
+        logging_configs[
+            "project"
+        ] = f"{self._cfgs.trainer}-{env_name_high}-{dataset_name_abbr}"
         wandb_logger = WandBLogger(
             config=logging_configs, variant=self._variant, env_name=env_name_full
         )
@@ -194,7 +189,9 @@ class BaseTrainer:
         else:
             include_next_obs = False
 
-        eval_sampler = TrajSampler(gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length)
+        eval_sampler = TrajSampler(
+            gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length
+        )
         dataset = get_dataset(
             eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
@@ -222,7 +219,9 @@ class BaseTrainer:
             dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
         )
 
-        dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
+        dataset = getattr(
+            importlib.import_module("data.sequence"), self._cfgs.dataset_class
+        )(
             dataset,
             horizon=self._cfgs.horizon,
             max_traj_length=self._cfgs.max_traj_length,
