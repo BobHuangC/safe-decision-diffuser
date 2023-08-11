@@ -15,6 +15,7 @@ def get_config():
     config.env = "OfflineAntCircle-v0"
     config.dataset = "dsrl"
     config.dataset_class = "SequenceDataset"
+    config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 100
     config.include_cost_returns = False
