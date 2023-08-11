@@ -223,15 +223,17 @@ class QLearningDataset(SequenceDataset):
             path_ind, start:end
         ].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
-        item_dict = dict(
+
+        conditions = self.get_conditions(observations)
+        next_conditions = self.get_conditions(next_observations)
+
+        ret_dict = dict(
             observations=observations,
             actions=actions,
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
+            conditions=conditions,
+            next_conditions=next_conditions,
         )
-
-        if self.include_cost_returns:
-            item_dict["costs"] = self._data.costs[path_ind, start:end].squeeze(0)
-
-        return item_dict
+        return ret_dict
