@@ -28,7 +28,6 @@ from diffuser.constants import (
     DATASET,
     DATASET_ABBR_MAP,
     DATASET_MAP,
-    ENV,
     ENV_MAP,
     ENVNAME_MAP,
 )
@@ -37,9 +36,6 @@ from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
 from utilities.utils import Timer, WandBLogger, get_user_flags, prefix_metrics
 from viskit.logging import logger, setup_logger
-
-from data import Dataset, RandSampler
-from data.replay_buffer import get_d4rl_dataset
 
 
 def norm_obs(ds, mean, std, clip_val):
@@ -176,7 +172,7 @@ class BaseTrainer:
         return wandb_logger
 
     def _setup_d4rl(self):
-        from data_comp.d4rl import get_dataset
+        from data.d4rl import get_dataset
 
         if self._cfgs.dataset_class in ["QLearningDataset"]:
             include_next_obs = True
@@ -194,7 +190,7 @@ class BaseTrainer:
         return dataset, eval_sampler
 
     def _setup_dsrl(self):
-        from data_comp.dsrl import get_dataset
+        from data.dsrl import get_dataset
 
         if self._cfgs.dataset_class in ["QLearningDataset"]:
             include_next_obs = True

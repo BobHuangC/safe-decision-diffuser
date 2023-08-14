@@ -12,44 +12,67 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dataset utils."""
-import os
+"""Utils to generate trajectory based dataset with multi-step reward."""
 
-import d4rl
-import gym
-import numpy as np
-from gym import spaces
+from typing import List
 
 
-class Dataset(object):
-    """Dataset."""
+class Dataset:
+    __initialized = False
 
-    def __init__(self, data: dict) -> None:
-        self._data = data
-        self._keys = list(data.keys())
-        self._sampler = None
+    def __init__(
+        self,
+        required_keys: List[str] = [
+            "observations",
+            "actions",
+            "rewards",
+            "dones_float",
+        ],
+        verbose: bool = True,
+        **kwargs,
+    ):
+        self._dict = {}
+        for k, v in kwargs.items():
+            self[k] = v
 
-    def size(self):
-        return len(self._data[self._keys[0]])
+        self.required_keys = []
+        self.extra_keys = []
+        for k in self.keys():
+            if k in required_keys:
+                self.required_keys.append(k)
+            else:
+                self.extra_keys.append(k)
+        assert set(self.required_keys) == set(
+            required_keys
+        ), f"Missing keys: {set(required_keys) - set(self.required_keys)}"
+        if verbose:
+            print("[ data/dataset.py ] Dataset: get required keys:", self.required_keys)
+            print("[ data/dataset.py ] Dataset: get extra keys:", self.extra_keys)
+        self.__initialized = True
 
-    def retrieve(self, indices: np.ndarray):
-        "Get a batch of data."
-        indexed = {}
+    def __setattr__(self, k, v):
+        if self.__initialized and k not in self._dict.keys():
+            raise AttributeError(f"Cannot add new attributes to Dataset: {k}")
+        else:
+            object.__setattr__(self, k, v)
 
-        for key in self._keys:
-            indexed[key] = self._data[key][indices, ...]
-        return indexed
+    def keys(self):
+        return self._dict.keys()
 
-    @property
-    def sampler(self):
-        assert self._sampler is not None
-        return self._sampler
+    def items(self):
+        return {k: v for k, v in self._dict.items() if k != "traj_lengths"}.items()
 
-    def set_sampler(self, sampler):
-        self._sampler = sampler
+    def __len__(self):
+        return self._dict["observations"].shape[0]
 
-    def sample(self):
-        assert self._sampler is not None
+    def __repr__(self):
+        return "[ data/dataset.py ] Dataset:\n" + "\n".join(
+            f"    {key}: {val.shape}" for key, val in self.items()
+        )
 
-        indices = self._sampler.sample()
-        return self.retrieve(indices)
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, val):
+        self._dict[key] = val
+        setattr(self, key, val)
