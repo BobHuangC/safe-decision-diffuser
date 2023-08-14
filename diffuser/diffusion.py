@@ -23,7 +23,7 @@ of beta schedules.
 import enum
 import math
 
-# import numpy as np
+import flax
 import jax
 import jax.numpy as np
 
@@ -532,6 +532,64 @@ class GaussianDiffusion:
             )
             x = out["sample"]
             x = apply_conditioning(x, conditions)
+        return x
+
+    def p_sample_loop_jit(
+        self,
+        rng_key,
+        model_forward,
+        shape,
+        conditions,
+        returns=None,
+        clip_denoised=True,
+        cond_fn=None,
+        model_kwargs=None,
+    ):
+        """
+        A loop-jitted version of p_sample_loop().
+        It is used for U-Net sampling since unrolling all the loops when using p_sample_loop() is slow.
+        It can NOT be used for dql, since currently dql's model_forward is wrapped with `partial`,
+        which can not be combined with `flax.linen.while_loop`.
+        """
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        x = jax.random.normal(sample_key, shape)
+        x = apply_conditioning(x, conditions)
+
+        indices = np.arange(self.num_timesteps)[::-1]
+
+        def body_fn(mdl, val):
+            i, rng_key, x = val
+            t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
+            if self.returns_condition:
+                model_output_cond = mdl(
+                    None, x, self._scale_timesteps(t), returns, use_dropout=False
+                )
+                rng_key, sample_key = jax.random.split(rng_key)
+                model_output_uncond = mdl(
+                    sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
+                )
+                model_output = model_output_uncond + self.condition_guidence_w * (
+                    model_output_cond - model_output_uncond
+                )
+            else:
+                model_output = mdl(x, self._scale_timesteps(t))
+
+            rng_key, sample_key = jax.random.split(rng_key)
+            out = self.p_sample(
+                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
+            )
+            x = out["sample"]
+            x = apply_conditioning(x, conditions)
+
+            return i + 1, rng_key, x
+
+        def loop_stop_fn(mdl, c):
+            i, _, _ = c
+            return i < self.num_timesteps
+
+        _, _, x = flax.linen.while_loop(loop_stop_fn, body_fn, model_forward, (0, rng_key, x))
+
         return x
 
     def ddim_sample(

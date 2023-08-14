@@ -90,14 +90,14 @@ class TemporalUnet(nn.Module):
             assert returns is not None
             returns = returns.reshape(-1, 1)
             returns_embed = returns_mlp(returns)
-            if use_dropout:
+            if force_dropout:
+                returns_embed = returns_embed * 0
+            elif use_dropout:
                 rng, sample_key = jax.random.split(rng)
                 mask = mask_dist.sample(
                     seed=sample_key, sample_shape=returns_embed.shape
                 )
                 returns_embed = returns_embed * mask
-            if force_dropout:
-                returns_embed = returns_embed * 0
             t = jnp.concatenate([t, returns_embed], axis=-1)
 
         h = []
@@ -185,7 +185,7 @@ class DiffusionPlanner(nn.Module):
 
     def ddpm_sample(self, rng, conditions, deterministic=False, returns=None):
         batch_size = list(conditions.values())[0].shape[0]
-        return self.diffusion.p_sample_loop(
+        return self.diffusion.p_sample_loop_jit(
             rng_key=rng,
             model_forward=self.base_net,
             shape=(batch_size, self.horizon, self.observation_dim),
@@ -234,6 +234,8 @@ class DiffusionPlanner(nn.Module):
         return out
 
     def ddim_sample(self, rng, conditions, deterministic=False, returns=None):
+        # expect a loop-jitted version of ddim_sample_loop, otherwise it's too slow
+        raise NotImplementedError
         batch_size = list(conditions.items())[0].shape[0]
         return self.diffusion.ddim_sample_loop(
             rng_key=rng,

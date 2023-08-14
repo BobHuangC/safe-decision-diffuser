@@ -28,7 +28,6 @@ def load_datasets():
         num_workers=32,
         pin_memory=True,
     )
-
     data = next(iter(dataloader))
 
 
