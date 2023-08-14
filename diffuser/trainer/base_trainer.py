@@ -38,14 +38,6 @@ from utilities.utils import Timer, WandBLogger, get_user_flags, prefix_metrics
 from viskit.logging import logger, setup_logger
 
 
-def norm_obs(ds, mean, std, clip_val):
-    ds["observations"] = (ds["observations"] - mean) / (std + 1e-6)
-    ds["next_observations"] = (ds["next_observations"] - mean) / (std + 1e-6)
-
-    ds["observations"] = np.clip(ds["observations"], -clip_val, clip_val)
-    ds["next_observations"] = np.clip(ds["next_observations"], -clip_val, clip_val)
-
-
 class BaseTrainer:
     def __init__(self, config):
         self._cfgs = absl.flags.FLAGS
@@ -228,7 +220,7 @@ class BaseTrainer:
         )
 
         dataset = getattr(
-            importlib.import_module("data_comp.sequence"), self._cfgs.dataset_class
+            importlib.import_module("data.sequence"), self._cfgs.dataset_class
         )(
             dataset,
             horizon=self._cfgs.horizon,

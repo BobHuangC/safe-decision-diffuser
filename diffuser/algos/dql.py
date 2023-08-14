@@ -129,11 +129,8 @@ class DiffusionQL(Algo):
             rewards = batch["rewards"]
             next_observations = batch["next_observations"]
             dones = batch["dones"]
-            # conditions = batch["conditions"]
-            # next_conditions = batch["next_conditions"]
-
-            conditions = {}
-            next_conditions = {}
+            conditions = batch["conditions"]
+            next_conditions = batch["next_conditions"]
 
             # Compute the target Q values (without gradient)
             if self.config.max_q_backup:
@@ -144,7 +141,7 @@ class DiffusionQL(Algo):
                     next_observations,
                     next_conditions,
                     repeat=samples,
-                )  # should be 'next_conditions'
+                )
                 next_action = jnp.clip(next_action, -self.max_action, self.max_action)
                 next_obs_repeat = jnp.repeat(
                     jnp.expand_dims(next_observations, axis=1), samples, axis=1
@@ -234,8 +231,7 @@ class DiffusionQL(Algo):
             observations = batch["observations"]
             actions = batch["actions"]
             dones = batch["dones"]
-            # conditions = batch["conditions"]
-            conditions = {}
+            conditions = batch["conditions"]
 
             terms, ts, _ = self.get_diff_terms(
                 params, observations, actions, dones, conditions, rng
