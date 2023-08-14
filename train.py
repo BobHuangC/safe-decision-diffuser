@@ -23,7 +23,6 @@ def main():
         importlib.import_module("diffuser.trainer"), absl.flags.FLAGS.trainer
     )(config)
     trainer.train()
-    os._exit(os.EX_OK)
 
 
 if __name__ == "__main__":
