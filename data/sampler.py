@@ -21,13 +21,13 @@ Array = Any
 
 
 class RandSampler(object):
-	"""A random sampler."""
+    """A random sampler."""
 
-	def __init__(self, max_size: int, batch_size: int = 1) -> None:
-		self._max_size = max_size
-		self._batch_size = batch_size
+    def __init__(self, max_size: int, batch_size: int = 1) -> None:
+        self._max_size = max_size
+        self._batch_size = batch_size
 
-	def sample(self):
-		"""Return an array of sampled indices."""
+    def sample(self):
+        """Return an array of sampled indices."""
 
-		return np.random.randint(self._max_size, size=self._batch_size)
+        return np.random.randint(self._max_size, size=self._batch_size)

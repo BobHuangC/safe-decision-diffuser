@@ -47,9 +47,7 @@ def norm_obs(ds, mean, std, clip_val):
     ds["next_observations"] = (ds["next_observations"] - mean) / (std + 1e-6)
 
     ds["observations"] = np.clip(ds["observations"], -clip_val, clip_val)
-    ds["next_observations"] = np.clip(
-        ds["next_observations"], -clip_val, clip_val
-    )
+    ds["next_observations"] = np.clip(ds["next_observations"], -clip_val, clip_val)
 
 
 class BaseTrainer:
@@ -93,8 +91,7 @@ class BaseTrainer:
 
             with Timer() as train_timer:
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
-                    # batch = batch_to_jax(next(self._dataloader))
-                    batch = batch_to_jax(self._dataset.sample())
+                    batch = batch_to_jax(next(self._dataloader))
                     metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
 
             with Timer() as eval_timer:
@@ -178,143 +175,75 @@ class BaseTrainer:
         )
         return wandb_logger
 
-    # def _setup_d4rl(self):
-    #     from data_comp.d4rl import get_dataset
+    def _setup_d4rl(self):
+        from data_comp.d4rl import get_dataset
 
-    #     if self._cfgs.dataset_class in ["QLearningDataset"]:
-    #         include_next_obs = True
-    #     else:
-    #         include_next_obs = False
+        if self._cfgs.dataset_class in ["QLearningDataset"]:
+            include_next_obs = True
+        else:
+            include_next_obs = False
 
-    #     eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
-    #     dataset = get_dataset(
-    #         eval_sampler.env,
-    #         max_traj_length=self._cfgs.max_traj_length,
-    #         norm_reward=self._cfgs.norm_reward,
-    #         include_next_obs=include_next_obs,
-    #         termination_penalty=self._cfgs.termination_penalty,
-    #     )
-    #     return dataset, eval_sampler
+        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+        dataset = get_dataset(
+            eval_sampler.env,
+            max_traj_length=self._cfgs.max_traj_length,
+            norm_reward=self._cfgs.norm_reward,
+            include_next_obs=include_next_obs,
+            termination_penalty=self._cfgs.termination_penalty,
+        )
+        return dataset, eval_sampler
 
-    # def _setup_dsrl(self):
-    #     from data.dsrl import get_dataset
+    def _setup_dsrl(self):
+        from data_comp.dsrl import get_dataset
 
-    #     if self._cfgs.dataset_class in ["QLearningDataset"]:
-    #         include_next_obs = True
-    #     else:
-    #         include_next_obs = False
+        if self._cfgs.dataset_class in ["QLearningDataset"]:
+            include_next_obs = True
+        else:
+            include_next_obs = False
 
-    #     eval_sampler = TrajSampler(
-    #         gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length
-    #     )
-    #     dataset = get_dataset(
-    #         eval_sampler.env,
-    #         max_traj_length=self._cfgs.max_traj_length,
-    #         use_cost=self._cfgs.include_cost_returns,
-    #         norm_reward=self._cfgs.norm_reward,
-    #         norm_cost=self._cfgs.norm_cost,
-    #         termination_penalty=self._cfgs.termination_penalty,
-    #         include_next_obs=include_next_obs,
-    #     )
-    #     return dataset, eval_sampler
-
-    # def _setup_dataset(self):
-    #     dataset_type = DATASET_MAP[self._cfgs.dataset]
-    #     if dataset_type == DATASET.D4RL:
-    #         dataset, eval_sampler = self._setup_d4rl()
-    #     elif dataset_type == DATASET.DSRL:
-    #         dataset, eval_sampler = self._setup_dsrl()
-    #     else:
-    #         raise NotImplementedError
-
-    #     dataset["rewards"] = (
-    #         dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
-    #     )
-    #     dataset["actions"] = np.clip(
-    #         dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
-    #     )
-
-    #     dataset = getattr(
-    #         importlib.import_module("data_comp.sequence"), self._cfgs.dataset_class
-    #     )(
-    #         dataset,
-    #         horizon=self._cfgs.horizon,
-    #         max_traj_length=self._cfgs.max_traj_length,
-    #         include_cost_returns=self._cfgs.include_cost_returns,
-    #         normalizer=self._cfgs.normalizer,
-    #     )
-    #     eval_sampler.set_normalizer(dataset.normalizer)
-
-    #     self._observation_dim = eval_sampler.env.observation_space.shape[0]
-    #     self._action_dim = eval_sampler.env.action_space.shape[0]
-    #     self._max_action = float(eval_sampler.env.action_space.high[0])
-
-    #     return dataset, eval_sampler
+        eval_sampler = TrajSampler(
+            gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length
+        )
+        dataset = get_dataset(
+            eval_sampler.env,
+            max_traj_length=self._cfgs.max_traj_length,
+            use_cost=self._cfgs.include_cost_returns,
+            norm_reward=self._cfgs.norm_reward,
+            norm_cost=self._cfgs.norm_cost,
+            termination_penalty=self._cfgs.termination_penalty,
+            include_next_obs=include_next_obs,
+        )
+        return dataset, eval_sampler
 
     def _setup_dataset(self):
-        self._obs_mean = 0
-        self._obs_std = 1
-        self._obs_clip = np.inf
-
         dataset_type = DATASET_MAP[self._cfgs.dataset]
-
         if dataset_type == DATASET.D4RL:
             dataset, eval_sampler = self._setup_d4rl()
-        elif dataset_type == DATASET.RLUP:
-            dataset, eval_sampler = self._setup_rlup()
+        elif dataset_type == DATASET.DSRL:
+            dataset, eval_sampler = self._setup_dsrl()
         else:
             raise NotImplementedError
 
-        self._observation_dim = eval_sampler.env.observation_space.shape[0]
-        self._action_dim = eval_sampler.env.action_space.shape[0]
-        self._max_action = float(eval_sampler.env.action_space.high[0])
-
-        if self._cfgs.algo_cfg.target_entropy >= 0.0:
-            action_space = eval_sampler.env.action_space
-            self._cfgs.algo_cfg.target_entropy = -np.prod(action_space.shape).item()
-
-        return dataset, eval_sampler
-
-    def _setup_d4rl(self):
-        eval_sampler = TrajSampler(
-            gym.make(self._cfgs.env), self._cfgs.max_traj_length
+        dataset["rewards"] = (
+            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
         )
-
-        norm_reward = self._cfgs.norm_reward
-        if 'antmaze' in self._cfgs.env:
-            norm_reward = False
-
-        dataset = get_d4rl_dataset(
-            eval_sampler.env,
-            self._cfgs.algo_cfg.nstep,
-            self._cfgs.algo_cfg.discount,
-            norm_reward=norm_reward,
-        )
-        dataset["rewards"] = dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
         dataset["actions"] = np.clip(
             dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
         )
 
-        if self._env == ENV.Kitchen or self._env == ENV.Adroit or self._env == ENV.Antmaze:
-            if self._cfgs.obs_norm:
-                self._obs_mean = dataset["observations"].mean()
-                self._obs_std = dataset["observations"].std()
-                self._obs_clip = 10
-            norm_obs(dataset, self._obs_mean, self._obs_std, self._obs_clip)
+        dataset = getattr(
+            importlib.import_module("data_comp.sequence"), self._cfgs.dataset_class
+        )(
+            dataset,
+            horizon=self._cfgs.horizon,
+            max_traj_length=self._cfgs.max_traj_length,
+            include_cost_returns=self._cfgs.include_cost_returns,
+            normalizer=self._cfgs.normalizer,
+        )
+        eval_sampler.set_normalizer(dataset.normalizer)
 
-            if self._env == ENV.Antmaze:
-                if self._cfgs.algo_cfg.loss_type == 'IQL':
-                    dataset["rewards"] -= 1
-                else:
-                    dataset["rewards"] = (dataset["rewards"] - 0.5) * 4
-            else:
-                min_r, max_r = np.min(dataset["rewards"]), np.max(dataset["rewards"])
-                dataset["rewards"] = (dataset["rewards"] - min_r) / (max_r - min_r)
-                dataset["rewards"] = (dataset["rewards"] - 0.5) * 2
-
-        # set sampler
-        dataset = Dataset(dataset)
-        sampler = RandSampler(dataset.size(), self._cfgs.batch_size)
-        dataset.set_sampler(sampler)
+        self._observation_dim = eval_sampler.env.observation_space.shape[0]
+        self._action_dim = eval_sampler.env.action_space.shape[0]
+        self._max_action = float(eval_sampler.env.action_space.high[0])
 
         return dataset, eval_sampler

@@ -81,13 +81,9 @@ class SequenceDataset(torch.utils.data.Dataset):
         for i, traj_length in enumerate(self._data["traj_lengths"]):
             # get `max_start`
             if self.use_future_masks:
-                max_start = min(traj_length - 1, self.max_traj_length - 1)
-                if not self.use_padding:
-                    max_start = min(max_start, traj_length - 1)
+                max_start = min(traj_length, self.max_traj_length)
             else:
-                max_start = min(
-                    traj_length, self.max_traj_length - self.horizon + 1
-                )
+                max_start = min(traj_length, self.max_traj_length - self.horizon + 1)
                 if not self.use_padding:
                     max_start = min(max_start, traj_length - self.horizon + 1)
 
@@ -135,7 +131,7 @@ class SequenceDataset(torch.utils.data.Dataset):
             else:
                 actions = self._data.normed_actions[path_ind, start:end]
 
-        if mask_end < end:
+        if mask_end < end:  # happen when using future masks
             observations = np.concatenate(
                 [
                     observations,
@@ -162,7 +158,6 @@ class SequenceDataset(torch.utils.data.Dataset):
         masks[: mask_end - start] = 1.0
 
         conditions = self.get_conditions(observations)
-
         ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
 
         if self.include_returns:
