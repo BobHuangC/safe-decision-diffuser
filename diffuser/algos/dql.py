@@ -141,7 +141,7 @@ class DiffusionQL(Algo):
                     next_observations,
                     next_conditions,
                     repeat=samples,
-                )  # should be 'next_conditions'
+                )
                 next_action = jnp.clip(next_action, -self.max_action, self.max_action)
                 next_obs_repeat = jnp.repeat(
                     jnp.expand_dims(next_observations, axis=1), samples, axis=1
