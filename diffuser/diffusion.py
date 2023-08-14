@@ -509,6 +509,53 @@ class GaussianDiffusion:
         x = jax.random.normal(sample_key, shape)
         x = apply_conditioning(x, conditions)
 
+        indices = list(range(self.num_timesteps))[::-1]
+        for i in indices:
+            t = np.ones((x.shape[0],), dtype=np.int32) * i
+            if self.returns_condition:
+                model_output_cond = model_forward(
+                    None, x, self._scale_timesteps(t), returns, use_dropout=False
+                )
+                rng_key, sample_key = jax.random.split(rng_key)
+                model_output_uncond = model_forward(
+                    sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
+                )
+                model_output = model_output_uncond + self.condition_guidence_w * (
+                    model_output_cond - model_output_uncond
+                )
+            else:
+                model_output = model_forward(x, self._scale_timesteps(t))
+
+            rng_key, sample_key = jax.random.split(rng_key)
+            out = self.p_sample(
+                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
+            )
+            x = out["sample"]
+            x = apply_conditioning(x, conditions)
+        return x
+
+    def p_sample_loop_jit(
+        self,
+        rng_key,
+        model_forward,
+        shape,
+        conditions,
+        returns=None,
+        clip_denoised=True,
+        cond_fn=None,
+        model_kwargs=None,
+    ):
+        """
+        A loop-jitted version of p_sample_loop().
+        It is used for U-Net sampling since unrolling all the loops when using p_sample_loop() is slow.
+        It can NOT be used for dql, since currently dql's model_forward is wrapped with `partial`,
+        which can not be combined with `flax.linen.while_loop`.
+        """
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        x = jax.random.normal(sample_key, shape)
+        x = apply_conditioning(x, conditions)
+
         indices = np.arange(self.num_timesteps)[::-1]
 
         def body_fn(mdl, val):
