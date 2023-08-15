@@ -18,6 +18,7 @@ def get_config():
     config.normalizer = "NoopNormalizer"
     config.max_traj_length = 1000
     config.horizon = 1
+    config.returns_scale = 1.0
     config.include_cost_returns = False
     config.termination_penalty = 0.0
 
@@ -40,6 +41,8 @@ def get_config():
     config.n_train_step_per_epoch = 1000
     config.eval_period = 10
     config.eval_n_trajs = 10
+    config.num_eval_envs = 10
+    config.eval_env_seed = 0
 
     config.qf_layer_norm = False
     config.policy_layer_norm = False

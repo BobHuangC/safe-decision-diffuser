@@ -1,13 +1,15 @@
-import sys
-import absl
 import importlib
+import sys
 
-from utilities.utils import import_file, define_flags_with_default
+import absl
+
+from utilities.utils import define_flags_with_default, import_file
 
 
 def diffuser_sampling():
     config = getattr(
-        import_file("configs/diffuser_walker_mdreplay.py", "default_config"), "get_config"
+        import_file("configs/diffuser_walker_mdreplay.py", "default_config"),
+        "get_config",
     )()
     config = define_flags_with_default(**config)
     absl.flags.FLAGS(sys.argv[:1])

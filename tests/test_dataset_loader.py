@@ -1,10 +1,11 @@
+import importlib
 import sys
+
 import absl
 import torch
-import importlib
 
-from utilities.utils import import_file, define_flags_with_default
 from utilities.data_utils import numpy_collate
+from utilities.utils import define_flags_with_default, import_file
 
 
 def load_datasets():
