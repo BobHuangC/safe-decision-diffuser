@@ -26,10 +26,8 @@ import tqdm
 
 from diffuser.constants import (
     DATASET,
-    DATASET_ABBR_MAP,
     DATASET_MAP,
     ENV_MAP,
-    ENVNAME_MAP,
 )
 from diffuser.hps import hyperparameters
 from utilities.jax_utils import batch_to_jax
@@ -143,21 +141,14 @@ class BaseTrainer:
         raise NotImplementedError
 
     def _setup_logger(self):
-        env_name_high = ENVNAME_MAP[self._env]
-        env_name_full = self._cfgs.env
-        dataset_name_abbr = DATASET_ABBR_MAP[self._cfgs.dataset]
-
         logging_configs = self._cfgs.logging
-        logging_configs[
-            "project"
-        ] = f"{self._cfgs.trainer}-{env_name_high}-{dataset_name_abbr}"
+        logging_configs["log_dir"] = self._cfgs.log_dir_format.format(**self._variant)
         wandb_logger = WandBLogger(
-            config=logging_configs, variant=self._variant, env_name=env_name_full
+            config=logging_configs, variant=self._variant
         )
         setup_logger(
             variant=self._variant,
-            base_log_dir=self._cfgs.logging.output_dir,
-            exp_id=wandb_logger.experiment_id,
+            log_dir=wandb_logger.output_dir,
             seed=self._cfgs.seed,
             include_exp_prefix_sub_dir=False,
         )

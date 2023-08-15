@@ -71,13 +71,12 @@ class WandBLogger(object):
     @staticmethod
     def get_default_config(updates=None):
         config = ConfigDict()
-        config.team = "jax_offrl"
+        config.team = "jax_diffrl"
         config.online = False
-        config.prefix = ""
-        config.project = "OfflineRL"
+        config.project = "DiffusionRL"
         config.output_dir = "logs"
         config.random_delay = 0.0
-        config.experiment_id = config_dict.placeholder(str)
+        config.log_dir = config_dict.placeholder(str)
         config.anonymous = config_dict.placeholder(str)
         config.notes = config_dict.placeholder(str)
 
@@ -85,22 +84,17 @@ class WandBLogger(object):
             config.update(ConfigDict(updates).copy_and_resolve_references())
         return config
 
-    def __init__(self, config, variant, env_name):
+    def __init__(self, config, variant):
         self.config = self.get_default_config(config)
 
-        if self.config.experiment_id is None:
-            self.config.experiment_id = uuid.uuid4().hex
-
-        if self.config.prefix != "":
-            self.config.project = "{}--{}".format(
-                self.config.prefix, self.config.project
-            )
+        if self.config.log_dir is None:
+            self.config.log_dir = uuid.uuid4().hex
 
         if self.config.output_dir == "":
             self.config.output_dir = tempfile.mkdtemp()
         else:
             self.config.output_dir = os.path.join(
-                self.config.output_dir, self.config.experiment_id
+                self.config.output_dir, self.config.log_dir
             )
             os.makedirs(self.config.output_dir, exist_ok=True)
 
@@ -118,7 +112,6 @@ class WandBLogger(object):
             config=self._variant,
             project=self.config.project,
             dir=self.config.output_dir,
-            id=self.config.experiment_id,
             anonymous=self.config.anonymous,
             notes=self.config.notes,
             settings=wandb.Settings(

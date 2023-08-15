@@ -156,7 +156,7 @@ class GaussianDiffusion:
         model_var_type,
         loss_type,
         returns_condition=False,
-        condition_guidence_w=1.2,
+        condition_guidance_w=1.2,
         min_value=-1.0,
         max_value=1.0,
         rescale_timesteps=False,
@@ -170,7 +170,7 @@ class GaussianDiffusion:
         self.max_value = max_value
 
         self.returns_condition = returns_condition
-        self.condition_guidence_w = condition_guidence_w
+        self.condition_guidance_w = condition_guidance_w
 
         betas = get_named_beta_schedule(schedule_name, num_timesteps)
         betas = np.array(betas, dtype=np.float32)
@@ -520,7 +520,7 @@ class GaussianDiffusion:
                 model_output_uncond = model_forward(
                     sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
                 )
-                model_output = model_output_uncond + self.condition_guidence_w * (
+                model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
@@ -569,7 +569,7 @@ class GaussianDiffusion:
                 model_output_uncond = mdl(
                     sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
                 )
-                model_output = model_output_uncond + self.condition_guidence_w * (
+                model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
@@ -704,7 +704,7 @@ class GaussianDiffusion:
                 model_output_uncond = model_forward(
                     x, self._scale_timesteps(t), returns, force_dropout=True
                 )
-                model_output = model_output_uncond + self.condition_guidence_w * (
+                model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:

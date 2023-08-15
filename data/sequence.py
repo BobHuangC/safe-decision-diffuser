@@ -57,8 +57,7 @@ class SequenceDataset(torch.utils.data.Dataset):
 
         self._data = data
         self.normalizer = DatasetNormalizer(
-            self._data,
-            normalizer,
+            self._data, normalizer,
         )
 
         self._keys = list(data.keys()).remove("traj_lengths")
@@ -81,11 +80,11 @@ class SequenceDataset(torch.utils.data.Dataset):
         for i, traj_length in enumerate(self._data["traj_lengths"]):
             # get `max_start`
             if self.use_future_masks:
-                max_start = min(traj_length, self.max_traj_length)
+                max_start = traj_length - 1
             else:
-                max_start = min(traj_length, self.max_traj_length - self.horizon + 1)
+                max_start = min(traj_length - 1, self.max_traj_length - self.horizon)
                 if not self.use_padding:
-                    max_start = min(max_start, traj_length - self.horizon + 1)
+                    max_start = min(max_start, traj_length - self.horizon)
 
             # get `end` and `mask_end` for each `start`
             for start in range(max_start):
@@ -184,8 +183,23 @@ class SequenceDataset(torch.utils.data.Dataset):
 
 class QLearningDataset(SequenceDataset):
     def make_indices(self):
+        """
+        makes indices for sampling from dataset;
+        each index maps to a datapoint
+        """
+
         assert self.horizon == 1, "QLearningDataset only supports horizon=1"
-        return super().make_indices()
+        indices = []
+        for i, traj_length in enumerate(self._data["traj_lengths"]):
+            # get `max_start`
+            max_start = traj_length - 1
+            # get `end` and `mask_end` for each `start`
+            for start in range(max_start):
+                end = start + self.horizon
+                mask_end = min(end, traj_length)
+                indices.append((i, start, end, mask_end))
+        indices = np.array(indices)
+        return indices
 
     def normalize(self, keys: List[str] = None) -> None:
         """

@@ -1,5 +1,4 @@
 import torch
-from ml_collections import ConfigDict
 
 from diffuser.algos import DecisionDiffuser
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
@@ -11,31 +10,6 @@ from utilities.utils import set_random_seed, to_arch
 
 
 class DiffuserTrainer(BaseTrainer):
-    @staticmethod
-    def get_default_config(updates=None):
-        cfg = ConfigDict()
-        cfg.discount = 0.99
-        cfg.tau = 0.005
-        cfg.policy_tgt_freq = 5
-        cfg.num_timesteps = 100
-        cfg.schedule_name = "linear"
-        cfg.use_pred_xstart = True
-
-        # learning related
-        cfg.lr = 2e-4
-        cfg.lr_decay = False
-        cfg.lr_decay_steps = 1000000
-        cfg.max_grad_norm = 0.0
-        cfg.weight_decay = 0.0
-
-        # for dpm-solver
-        cfg.dpm_steps = 15
-        cfg.dpm_t_end = 0.001
-
-        if updates is not None:
-            cfg.update(ConfigDict(updates).copy_and_resolve_references())
-        return cfg
-
     def _setup(self):
         set_random_seed(self._cfgs.seed)
         # setup logger
@@ -73,7 +47,7 @@ class DiffuserTrainer(BaseTrainer):
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
             returns_condition=self._cfgs.returns_condition,
-            condition_guidence_w=self._cfgs.condition_guidence_w,
+            condition_guidance_w=self._cfgs.condition_guidance_w,
         )
         planner = DiffusionPlanner(
             diffusion=gd,
