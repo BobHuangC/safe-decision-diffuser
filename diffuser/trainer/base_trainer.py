@@ -171,7 +171,11 @@ class BaseTrainer:
         else:
             include_next_obs = False
 
-        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
+        eval_sampler = TrajSampler(
+            lambda: gym.make(self._cfgs.env),
+            self._cfgs.num_eval_envs,
+            self._cfgs.max_traj_length,
+        )
         dataset = get_dataset(
             eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
@@ -190,7 +194,10 @@ class BaseTrainer:
             include_next_obs = False
 
         eval_sampler = TrajSampler(
-            gymnasium.make(self._cfgs.env), self._cfgs.max_traj_length
+            lambda: gymnasium.make(self._cfgs.env),
+            self._cfgs.num_eval_envs,
+            self._cfgs.eval_env_seed,
+            self._cfgs.max_traj_length,
         )
         dataset = get_dataset(
             eval_sampler.env,
@@ -227,6 +234,7 @@ class BaseTrainer:
             max_traj_length=self._cfgs.max_traj_length,
             include_cost_returns=self._cfgs.include_cost_returns,
             normalizer=self._cfgs.normalizer,
+            returns_scale=self._cfgs.returns_scale,
         )
         eval_sampler.set_normalizer(dataset.normalizer)
 

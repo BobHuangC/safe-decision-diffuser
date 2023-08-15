@@ -45,7 +45,7 @@ class SamplerPolicy(object):  # used for dql
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpmensemble_act(self, params, rng, observations, deterministic, num_samples):
@@ -65,7 +65,7 @@ class SamplerPolicy(object):  # used for dql
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpmensemble_act(self, params, rng, observations, deterministic, num_samples):
@@ -85,7 +85,7 @@ class SamplerPolicy(object):  # used for dql
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpm_act(self, params, rng, observations, deterministic, num_samples):

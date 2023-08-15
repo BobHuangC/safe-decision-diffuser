@@ -53,7 +53,7 @@ class SequenceDataset(torch.utils.data.Dataset):
             raise NotImplementedError
 
         self.discount = discount
-        self.discounts = self.discount ** np.arange(self.max_traj_length)[:, None]
+        self.discounts = self.discount ** np.arange(self.max_traj_length)
 
         self._data = data
         self.normalizer = DatasetNormalizer(
@@ -163,14 +163,14 @@ class SequenceDataset(torch.utils.data.Dataset):
         if self.include_returns:
             rewards = self._data.rewards[path_ind, start:]
             discounts = self.discounts[: len(rewards)]
-            returns = (discounts * rewards).sum(axis=0).squeeze(-1)
+            returns = (discounts * rewards).sum(axis=0)
             returns = np.array([returns / self.returns_scale], dtype=np.float32)
             ret_dict["returns"] = returns
 
         if self.include_cost_returns:
             costs = self._data.costs[path_ind, start:]
             discounts = self.discounts[: len(costs)]
-            cost_returns = (discounts * costs).sum(axis=0).squeeze(-1)
+            cost_returns = (discounts * costs).sum(axis=0)
             cost_returns = np.array(
                 [cost_returns / self.cost_returns_scale], dtype=np.float32
             )

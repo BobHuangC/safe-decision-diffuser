@@ -6,6 +6,7 @@ Create python environment with conda
 ```bash
 conda create -f environment.yml
 conda activate safediff
+pip install 'shimmy[gym-v21]'
 pip install -e .
 ```
 

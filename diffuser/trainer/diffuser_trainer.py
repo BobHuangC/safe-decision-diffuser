@@ -22,9 +22,7 @@ class DiffuserTrainer(BaseTrainer):
         cfg.use_pred_xstart = True
 
         # learning related
-        cfg.lr = 3e-4
-        cfg.diff_coef = 1.0
-        cfg.guide_coef = 1.0
+        cfg.lr = 2e-4
         cfg.lr_decay = False
         cfg.lr_decay_steps = 1000000
         cfg.max_grad_norm = 0.0

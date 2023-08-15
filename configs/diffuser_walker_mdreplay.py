@@ -27,12 +27,11 @@ def get_config():
         importlib.import_module("diffuser.trainer"), config.trainer
     ).get_default_config()
     config.algo_cfg.horizon = config.horizon
-    config.batch_size = 256
+    config.batch_size = 32
     config.reward_scale = 1
     config.reward_bias = 0
     config.clip_action = 0.999
     config.dim = 128
-    # config.dim_mults = "1-4-8"
     config.dim_mults = "1-2-4"
     config.inv_hidden_dims = "256-256"
     config.kernel_size = 5
@@ -40,10 +39,12 @@ def get_config():
     config.condition_guidence_w = 1.2
     config.condition_dropout = 0.1
 
-    config.n_epochs = 2000
+    config.n_epochs = 1000
     config.n_train_step_per_epoch = 1000
-    config.eval_period = 10
+    config.eval_period = 100
     config.eval_n_trajs = 10
+    config.num_eval_envs = 10
+    config.eval_env_seed = 0
 
     config.activation = "mish"
     config.act_method = "ddpm"

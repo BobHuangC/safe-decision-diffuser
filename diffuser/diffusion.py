@@ -588,7 +588,9 @@ class GaussianDiffusion:
             i, _, _ = c
             return i < self.num_timesteps
 
-        _, _, x = flax.linen.while_loop(loop_stop_fn, body_fn, model_forward, (0, rng_key, x))
+        _, _, x = flax.linen.while_loop(
+            loop_stop_fn, body_fn, model_forward, (0, rng_key, x)
+        )
 
         return x
 
