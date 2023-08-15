@@ -48,7 +48,7 @@ class DecisionDiffuser(Algo):
             jnp.zeros((10, self.horizon, self.observation_dim)),  # samples
             {0: jnp.zeros((10, self.observation_dim))},  # conditions
             jnp.zeros((10,), dtype=jnp.int32),  # ts
-            jnp.zeros((10, 1)),  # returns
+            returns=jnp.zeros((10, 1)),  # returns
             method=self.planner.loss,
         )
         self._train_states["planner"] = TrainState.create(
@@ -146,17 +146,6 @@ class DecisionDiffuser(Algo):
             returns=returns,
             method=self.planner.loss,
         )
-        if self.config.use_pred_xstart:
-            pred_xstart = self.diffusion.p_mean_variance(
-                terms["model_output"], terms["x_t"], ts
-            )["pred_xstart"]
-        else:
-            rng, split_rng = jax.random.split(rng)
-            pred_xstart = self.planner.apply(params["planner"], split_rng, samples)
-        terms["pred_xstart"] = pred_xstart
-
-        sample = pred_xstart
-        terms["sample"] = sample
 
         return terms, ts
 
