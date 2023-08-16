@@ -156,6 +156,7 @@ class GaussianDiffusion:
         model_var_type,
         loss_type,
         returns_condition=False,
+        cost_returns_condition=False,
         condition_guidance_w=1.2,
         min_value=-1.0,
         max_value=1.0,
@@ -170,6 +171,7 @@ class GaussianDiffusion:
         self.max_value = max_value
 
         self.returns_condition = returns_condition
+        self.cost_returns_condition = cost_returns_condition
         self.condition_guidance_w = condition_guidance_w
 
         betas = get_named_beta_schedule(schedule_name, num_timesteps)
@@ -483,6 +485,7 @@ class GaussianDiffusion:
         shape,
         conditions,
         returns=None,
+        cost_returns=None,
         clip_denoised=True,
         cond_fn=None,
         model_kwargs=None,
@@ -493,6 +496,7 @@ class GaussianDiffusion:
         :param model_forward: the model apply function without passing params.
         :param shape: the shape of the samples, (N, C, H, W).
         :param returns: if not None, a 1-D array of conditioned returns
+        :param cost_returns: if not None, a 1-D array of conditioned cost_returns
         :param noise: if specified, the noise from the encoder to sample.
                       Should be of the same shape as `shape`.
         :param clip_denoised: if True, clip x_start predictions to [-1, 1].
@@ -763,7 +767,7 @@ class GaussianDiffusion:
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
     def training_losses(
-        self, rng_key, model_forward, x_start, conditions, t, returns=None
+        self, rng_key, model_forward, x_start, conditions, t, returns=None, cost_returns=None
     ):
         """
         Compute training losses for a single timestep.
@@ -780,9 +784,29 @@ class GaussianDiffusion:
         noise = jax.random.normal(rng_key, x_start.shape, dtype=x_start.dtype)
         x_t = self.q_sample(x_start, t, noise=noise)
         x_t = apply_conditioning(x_t, conditions)
-        if self.returns_condition:
+        if self.returns_condition and self.cost_returns_condition:
             model_output = model_forward(
-                rng_key, x_t, self._scale_timesteps(t), returns
+                rng=rng_key,
+                x=x_t,
+                time=self._scale_timesteps(t),
+                returns=returns,
+                cost_returns=cost_returns,
+            )
+        elif self.returns_condition and not self.cost_returns_condition:
+            model_output = model_forward(
+                rng=rng_key,
+                x=x_t,
+                time=self._scale_timesteps(t),
+                returns=returns,
+                cost_returns=None,
+            )
+        elif not self.returns_condition and self.cost_returns_condition:
+            model_output = model_forward(
+                rng=rng_key,
+                x=x_t,
+                time=self._scale_timesteps(t),
+                returns=None,
+                cost_returns=cost_returns,
             )
         else:
             model_output = model_forward(x_t, self._scale_timesteps(t))

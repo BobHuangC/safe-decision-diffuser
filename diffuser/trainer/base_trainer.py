@@ -23,6 +23,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import tqdm
+import dsrl  # noqa
 
 from diffuser.constants import (
     DATASET,
@@ -191,13 +192,30 @@ class BaseTrainer:
             self._cfgs.max_traj_length,
         )
         dataset = get_dataset(
-            eval_sampler.env,
+            env=eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
             use_cost=self._cfgs.include_cost_returns,
             norm_reward=self._cfgs.norm_reward,
             norm_cost=self._cfgs.norm_cost,
             termination_penalty=self._cfgs.termination_penalty,
             include_next_obs=include_next_obs,
+            augmentation_method= self._cfgs.dataAugmentation_method,
+            augment_percent=self._cfgs.dataAugment_percent,
+            deg=self._cfgs.dataAug_deg, 
+            max_rew_decrease=self._cfgs.dataAug_max_rew_decrease, 
+            beta=self._cfgs.dataAug_beta, 
+            max_reward=self._cfgs.dataAug_max_reward, 
+            min_reward=self._cfgs.dataAug_min_reward, 
+            aug_rmin=self._cfgs.dataAug_aug_rmin, 
+            aug_rmax=self._cfgs.dataAug_aug_rmax, 
+            aug_cmin=self._cfgs.dataAug_aug_cmin, 
+            aug_cmax=self._cfgs.dataAug_aug_cmax, 
+            cgap=self._cfgs.dataAug_cgap, 
+            rstd=self._cfgs.dataAug_rstd, 
+            cstd=self._cfgs.dataAug_cstd,
+            rmin=self._cfgs.dataAug_rmin, 
+            cost_bins=self._cfgs.dataAug_cost_bins, 
+            max_num_per_bin=self._cfgs.dataAug_max_num_per_bin
         )
         return dataset, eval_sampler
 
