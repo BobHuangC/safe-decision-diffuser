@@ -10,10 +10,6 @@ from .preprocess import (
     pad_trajs_to_dataset,
     split_to_trajs,
     data_augmentation,
-    filter_trajectory,
-    augmentation,
-    random_augmentation,
-    select_optimal_trajectory,
 )
 
 
@@ -80,55 +76,6 @@ def get_dataset(
         clip_actions,
     )
     return DSRLDataset(env, preprocess_fn=preprocess_fn)
-
-
-# def get_dataset(
-#     env,
-#     max_traj_length: int,
-#     use_cost: bool = True,
-#     norm_reward: bool = False,
-#     norm_cost: bool = False,
-#     termination_penalty: float = None,
-#     include_next_obs: bool = False,
-# ):
-#     preprocess_fn = compose(
-#         partial(
-#             pad_trajs_to_dataset,
-#             max_traj_length=max_traj_length,
-#             use_cost=use_cost,
-#             termination_penalty=termination_penalty,
-#             include_next_obs=include_next_obs,
-#         ),
-#         partial(select_optimal_trajectory, rmin=0, cost_bins=60, max_num_per_bin=1),
-#         partial(
-#             random_augmentation,
-#             augment_percent=0.3,
-#             aug_rmin=0,
-#             aug_rmax=600,
-#             aug_cmin=5,
-#             aug_cmax=50,
-#             cgap=5,
-#             rstd=1,
-#             cstd=0.25,
-#         ),
-#         partial(
-#             augmentation,
-#             deg=3,
-#             max_rew_decrease=1,
-#             beta=1,
-#             augment_percent=0.3,
-#             max_reward=1000.0,
-#             min_reward=0.0,
-#         ),
-#         partial(
-#             split_to_trajs,
-#             use_cost=use_cost,
-#             norm_reward=norm_reward,
-#             norm_cost=norm_cost,
-#         ),
-#         clip_actions,
-#     )
-#     return DSRLDataset(env, preprocess_fn=preprocess_fn)
 
 
 class DSRLDataset(Dataset):
