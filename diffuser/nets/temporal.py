@@ -49,6 +49,7 @@ class TemporalUnet(nn.Module):
     dim: int = 128
     dim_mults: Tuple[int] = (1, 4, 8)
     returns_condition: bool = False
+    cost_returns_condition: bool = False
     condition_dropout: float = 0.1
     kernel_size: int = 5
 
@@ -67,8 +68,11 @@ class TemporalUnet(nn.Module):
         x,
         time,
         returns: jnp.ndarray = None,
+        cost_returns: jnp.ndarray = None,
         use_dropout: bool = True,
+        cost_use_dropout: bool = True,
         force_dropout: bool = False,
+        cost_force_dropout: bool = False,
     ):
         act_fn = mish
 
@@ -85,6 +89,18 @@ class TemporalUnet(nn.Module):
             )
             mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
+        if self.cost_returns_condition:
+            cost_returns_mlp = nn.Sequential(
+                [
+                    nn.Dense(self.dim),
+                    act_fn,
+                    nn.Dense(self.dim * 4),
+                    act_fn,
+                    nn.Dense(self.dim),
+                ]
+            )
+            cost_mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
+
         t = time_mlp(time)
         if self.returns_condition:
             assert returns is not None
@@ -99,6 +115,20 @@ class TemporalUnet(nn.Module):
                 )
                 returns_embed = returns_embed * mask
             t = jnp.concatenate([t, returns_embed], axis=-1)
+
+        if self.cost_returns_condition:
+            assert cost_returns is not None
+            cost_returns = cost_returns.reshape(-1, 1)
+            cost_returns_embed = cost_returns_mlp(cost_returns)
+            if cost_use_dropout:
+                rng, sample_key = jax.random.split(rng)
+                cost_mask = cost_mask_dist.sample(
+                    seed=sample_key, sample_shape=cost_returns_embed.shape
+                )
+                cost_returns_embed = cost_returns_embed * cost_mask
+            if cost_force_dropout:
+                cost_returns_embed = cost_returns_embed * 0
+            t = jnp.concatenate([t, cost_returns_embed], axis=-1)
 
         h = []
         num_resolutions = len(self.in_out)
@@ -167,6 +197,7 @@ class DiffusionPlanner(nn.Module):
     dim: int
     dim_mults: Tuple[int]
     returns_condition: bool = True
+    cost_returns_condition: bool = True
     condition_dropout: float = 0.1
     kernel_size: int = 5
     sample_method: str = "ddpm"
@@ -179,6 +210,7 @@ class DiffusionPlanner(nn.Module):
             dim=self.dim,
             dim_mults=self.dim_mults,
             returns_condition=self.returns_condition,
+            cost_returns_condition=self.cost_returns_condition,
             condition_dropout=self.condition_dropout,
             kernel_size=self.kernel_size,
         )
@@ -246,18 +278,19 @@ class DiffusionPlanner(nn.Module):
             clip_denoised=True,
         )
 
-    def __call__(self, rng, conditions, deterministic=False, returns=None):
+    def __call__(self, rng, conditions, deterministic=False, returns=None, cost_returns=None):
         return getattr(self, f"{self.sample_method}_sample")(
-            rng, conditions, deterministic, returns
+            rng, conditions, deterministic, returns, cost_returns
         )
 
-    def loss(self, rng_key, samples, conditions, ts, returns=None):
+    def loss(self, rng_key, samples, conditions, ts, returns=None, cost_returns=None):
         terms = self.diffusion.training_losses(
             rng_key,
             model_forward=self.base_net,
             x_start=samples,
             conditions=conditions,
             returns=returns,
+            cost_returns=cost_returns,
             t=ts,
         )
         return terms
