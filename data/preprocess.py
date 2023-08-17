@@ -330,6 +330,27 @@ def augmentation(
     reward_returns = np.array(reward_returns, dtype=np.float64)
     cost_returns = np.array(cost_returns, dtype=np.float64)
 
+    cmin, cmax = np.min(cost_returns), np.max(cost_returns)
+    rmin, rmax = np.min(reward_returns), np.max(reward_returns)
+    cbins, rbins = 10, 50
+    max_npb, min_npb = 10, 2
+    trajs = filter_trajectory(
+        trajs,
+        cost_min=cmin,
+        cost_max=cmax,
+        rew_min=rmin,
+        rew_max=rmax,
+        cost_bins=cbins,
+        rew_bins=rbins,
+        max_num_per_bin=max_npb,
+        min_num_per_bin=min_npb,
+    )
+
+    reward_returns = [compute_returns(traj) for traj in trajs]
+    cost_returns = [compute_cost_returns(traj) for traj in trajs]
+    reward_returns = np.array(reward_returns, dtype=np.float64)
+    cost_returns = np.array(cost_returns, dtype=np.float64)
+
     pareto = oapackage.ParetoDoubleLong()
     for i in range(reward_returns.shape[0]):
         w = oapackage.doubleVector((-cost_returns[i], reward_returns[i]))
@@ -464,7 +485,9 @@ def random_augmentation(
     return trajs + aug_trajs
 
 
-def select_optimal_trajectory(trajs: list, rmin:float = 0, cost_bins:float = 60, max_num_per_bin:int =1):
+def select_optimal_trajectory(
+    trajs: list, rmin: float = 0, cost_bins: float = 60, max_num_per_bin: int = 1
+):
     """
     Selects the optimal trajectories from a list of trajectories based on their returns and costs.
 
@@ -504,16 +527,52 @@ def select_optimal_trajectory(trajs: list, rmin:float = 0, cost_bins:float = 60,
     return traj2
 
 
-def data_augmentation(trajs: list, augmentation_method, augment_percent: float = 0.3,
-    deg: int = 3, max_rew_decrease: float = 1, beta: float = 1, max_reward: float = 1000.0, min_reward: float = 0.0, 
-    aug_rmin: float = 0, aug_rmax: float = 600, aug_cmin: float = 5, aug_cmax: float = 50, cgap: float = 5, rstd: float = 1, cstd: float = 0.25,
-    rmin:float = 0, cost_bins:float = 60, max_num_per_bin:int =1):
+def data_augmentation(
+    trajs: list,
+    augmentation_method,
+    augment_percent: float = 0.3,
+    deg: int = 3,
+    max_rew_decrease: float = 1,
+    beta: float = 1,
+    max_reward: float = 1000.0,
+    min_reward: float = 0.0,
+    aug_rmin: float = 0,
+    aug_rmax: float = 600,
+    aug_cmin: float = 5,
+    aug_cmax: float = 50,
+    cgap: float = 5,
+    rstd: float = 1,
+    cstd: float = 0.25,
+    rmin: float = 0,
+    cost_bins: float = 60,
+    max_num_per_bin: int = 1,
+):
     if augmentation_method == "Augmentation":
-        return augmentation(trajs=trajs, deg=deg, max_rew_decrease=max_rew_decrease, beta=beta, augment_percent=augment_percent, max_reward=max_reward, min_reward=min_reward)
+        return augmentation(
+            trajs=trajs,
+            deg=deg,
+            max_rew_decrease=max_rew_decrease,
+            beta=beta,
+            augment_percent=augment_percent,
+            max_reward=max_reward,
+            min_reward=min_reward,
+        )
     elif augmentation_method == "RandomAugmentation":
-        return random_augmentation(trajs=trajs, augment_percent=augment_percent, aug_rmin=aug_rmin, aug_rmax=aug_rmax, aug_cmin=aug_cmin, aug_cmax=aug_cmax, cgap=cgap, rstd=rstd, cstd=cstd)
+        return random_augmentation(
+            trajs=trajs,
+            augment_percent=augment_percent,
+            aug_rmin=aug_rmin,
+            aug_rmax=aug_rmax,
+            aug_cmin=aug_cmin,
+            aug_cmax=aug_cmax,
+            cgap=cgap,
+            rstd=rstd,
+            cstd=cstd,
+        )
     elif augmentation_method == "ParetoFrontierOnly":
-        return select_optimal_trajectory(trajs=trajs, rmin=rmin, cost_bins=cost_bins, max_num_per_bin=max_num_per_bin)
+        return select_optimal_trajectory(
+            trajs=trajs, rmin=rmin, cost_bins=cost_bins, max_num_per_bin=max_num_per_bin
+        )
     elif augmentation_method == "":
         return trajs
     else:
