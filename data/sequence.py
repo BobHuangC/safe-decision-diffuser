@@ -57,7 +57,8 @@ class SequenceDataset(torch.utils.data.Dataset):
 
         self._data = data
         self.normalizer = DatasetNormalizer(
-            self._data, normalizer,
+            self._data,
+            normalizer,
         )
 
         self._keys = list(data.keys()).remove("traj_lengths")
@@ -192,7 +193,7 @@ class QLearningDataset(SequenceDataset):
         indices = []
         for i, traj_length in enumerate(self._data["traj_lengths"]):
             # get `max_start`
-            max_start = traj_length - 1
+            max_start = traj_length
             # get `end` and `mask_end` for each `start`
             for start in range(max_start):
                 end = start + self.horizon
@@ -226,7 +227,7 @@ class QLearningDataset(SequenceDataset):
         path_ind, start, end, mask_end = self._indices[idx]
 
         observations = self._data.normed_observations[path_ind, start:end].squeeze(0)
-        actions = self._data.actions[path_ind, start:end].squeeze(0)
+        actions = self._data.normed_actions[path_ind, start:end].squeeze(0)
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
         next_observations = self._data.normed_next_observations[
             path_ind, start:end

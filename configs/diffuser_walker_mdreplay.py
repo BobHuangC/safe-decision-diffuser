@@ -34,8 +34,7 @@ def get_config():
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.25
 
-    # config.n_epochs = 1000
-    config.n_epochs = 20
+    config.n_epochs = 1000
     config.n_train_step_per_epoch = 1000
     config.eval_period = 10
     config.eval_n_trajs = 10
@@ -54,7 +53,7 @@ def get_config():
     config.algo_cfg.horizon = config.horizon
     config.algo_cfg.lr = 2e-4
     config.algo_cfg.num_timesteps = 200
-    config.algo_cfg.schedule_name = "linear"
+    config.algo_cfg.schedule_name = "cosine"
     # learning related
     config.algo_cfg.lr = 2e-4
     config.algo_cfg.lr_decay = False

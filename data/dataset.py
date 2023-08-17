@@ -26,7 +26,7 @@ class Dataset:
             "observations",
             "actions",
             "rewards",
-            "dones_float",
+            "terminals",
         ],
         verbose: bool = True,
         **kwargs,

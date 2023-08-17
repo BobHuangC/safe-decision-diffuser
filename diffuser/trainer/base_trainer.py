@@ -33,13 +33,20 @@ from diffuser.constants import (
 from diffuser.hps import hyperparameters
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
-from utilities.utils import Timer, WandBLogger, get_user_flags, prefix_metrics
+from utilities.utils import (
+    Timer,
+    WandBLogger,
+    get_user_flags,
+    prefix_metrics,
+    DotFormatter,
+)
 from viskit.logging import logger, setup_logger
 
 
 class BaseTrainer:
     def __init__(self, config):
         self._cfgs = absl.flags.FLAGS
+        self._step = 0
 
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._cfgs.algo_cfg.lr_decay_steps = (
@@ -80,6 +87,11 @@ class BaseTrainer:
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
                     batch = batch_to_jax(next(self._dataloader))
                     metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
+                    self._step += 1
+
+                    # TODO(zbzhu): Add EMA
+                    # if self._step % self._cfgs.update_ema_every == 0:
+                    #     self.step_ema()
 
             with Timer() as eval_timer:
                 if epoch == 0 or (epoch + 1) % self._cfgs.eval_period == 0:
@@ -143,10 +155,10 @@ class BaseTrainer:
 
     def _setup_logger(self):
         logging_configs = self._cfgs.logging
-        logging_configs["log_dir"] = self._cfgs.log_dir_format.format(**self._variant)
-        wandb_logger = WandBLogger(
-            config=logging_configs, variant=self._variant
+        logging_configs["log_dir"] = DotFormatter().vformat(
+            self._cfgs.log_dir_format, [], self._variant
         )
+        wandb_logger = WandBLogger(config=logging_configs, variant=self._variant)
         setup_logger(
             variant=self._variant,
             log_dir=wandb_logger.output_dir,

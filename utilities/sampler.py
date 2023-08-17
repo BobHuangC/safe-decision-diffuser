@@ -119,6 +119,7 @@ class TrajSampler(object):
         n_finished_trajs = 0
         while True:
             action = policy(observation, deterministic=deterministic)
+            action = self._normalizer.unnormalize(action, "actions")
             next_observation, reward, terminated, truncated, _ = self.envs.step(
                 action, ready_env_ids
             )
