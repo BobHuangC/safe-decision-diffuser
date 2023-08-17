@@ -62,7 +62,7 @@ class DecisionDiffuser(Algo):
             jnp.zeros((10, self.observation_dim * 2)),
         )
         self._train_states["inv_model"] = TrainState.create(
-            params=inv_model_params, tx=get_optimizer(), apply_fn=None
+            params=inv_model_params, tx=get_optimizer(), apply_fn=None,
         )
 
         model_keys = ["planner", "inv_model"]

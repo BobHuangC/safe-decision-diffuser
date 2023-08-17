@@ -1,6 +1,7 @@
+from typing import Callable
 from functools import partial
 
-import d4rl
+import d4rl  # noqa
 import gym
 
 from utilities.utils import compose
@@ -35,7 +36,7 @@ def get_dataset(
 
 
 class D4RLDataset(Dataset):
-    def __init__(self, env: gym.Env, preprocess_fn, **kwargs):
-        self.raw_dataset = dataset = d4rl.qlearning_dataset(env)
+    def __init__(self, env: gym.Env, preprocess_fn: Callable, **kwargs):
+        self.raw_dataset = dataset = env.get_dataset()
         data_dict = preprocess_fn(dataset)
         super().__init__(**data_dict, **kwargs)

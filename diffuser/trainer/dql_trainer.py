@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from ml_collections import ConfigDict
 
 from diffuser.algos import DiffusionQL
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
@@ -12,59 +11,6 @@ from utilities.utils import set_random_seed, to_arch
 
 
 class DiffusionQLTrainer(BaseTrainer):
-    @staticmethod
-    def get_default_config(updates=None):
-        cfg = ConfigDict()
-        cfg.discount = 0.99
-        cfg.tau = 0.005
-        cfg.policy_tgt_freq = 5
-        cfg.num_timesteps = 100
-        cfg.schedule_name = "linear"
-        cfg.time_embed_size = 16
-        cfg.alpha = 2.0  # NOTE 0.25 in diffusion rl but 2.5 in td3
-        cfg.use_pred_astart = True
-        cfg.max_q_backup = False
-        cfg.max_q_backup_topk = 1
-        cfg.max_q_backup_samples = 10
-        cfg.nstep = 1
-
-        # learning related
-        cfg.lr = 3e-4
-        cfg.diff_coef = 1.0
-        cfg.guide_coef = 1.0
-        cfg.lr_decay = False
-        cfg.lr_decay_steps = 1000000
-        cfg.max_grad_norm = 0.0
-        cfg.weight_decay = 0.0
-
-        cfg.loss_type = "TD3"
-        cfg.sample_logp = False
-
-        cfg.adv_norm = False
-        # CRR-related hps
-        cfg.sample_actions = 10
-        cfg.crr_ratio_upper_bound = 20
-        cfg.crr_beta = 1.0
-        cfg.crr_weight_mode = "mle"
-        cfg.fixed_std = True
-        cfg.crr_multi_sample_mse = False
-        cfg.crr_avg_fn = "mean"
-        cfg.crr_fn = "exp"
-
-        # IQL-related hps
-        cfg.expectile = 0.7
-        cfg.awr_temperature = 3.0
-
-        # for dpm-solver
-        cfg.dpm_steps = 15
-        cfg.dpm_t_end = 0.001
-
-        # useless
-        cfg.target_entropy = -1
-        if updates is not None:
-            cfg.update(ConfigDict(updates).copy_and_resolve_references())
-        return cfg
-
     def _setup(self):
         set_random_seed(self._cfgs.seed)
         # setup logger

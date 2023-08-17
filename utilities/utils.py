@@ -16,6 +16,7 @@
 
 import functools
 import importlib
+import string
 import os
 import pprint
 import random
@@ -44,7 +45,7 @@ def to_arch(string):
 
 def apply_conditioning(x, conditions):
     for t, val in conditions.items():
-        x.at[:, t].set(val)
+        x = x.at[:, t].set(val)
     return x
 
 
@@ -213,3 +214,8 @@ def import_file(path, module_name):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+class DotFormatter(string.Formatter):
+    def get_field(self, field_name, args, kwargs):
+        return (self.get_value(field_name, args, kwargs), field_name)
