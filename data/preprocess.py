@@ -399,7 +399,7 @@ def augmentation(
     print(
         f"original data: {len(trajs)}, augment data: {len(aug_trajs)}, total: {len(trajs)+len(aug_trajs)}"
     )
-    return trajs + aug_trajs
+    return aug_trajs
 
 
 def random_augmentation(
@@ -482,7 +482,7 @@ def random_augmentation(
     print(
         f"original data: {len(trajs)}, augment data: {len(aug_trajs)}, total: {len(trajs)+len(aug_trajs)}"
     )
-    return trajs + aug_trajs
+    return aug_trajs
 
 
 def select_optimal_trajectory(
@@ -548,7 +548,7 @@ def data_augmentation(
     max_num_per_bin: int = 1,
 ):
     if augmentation_method == "Augmentation":
-        return augmentation(
+        aug_trajs = augmentation(
             trajs=trajs,
             deg=deg,
             max_rew_decrease=max_rew_decrease,
@@ -557,8 +557,9 @@ def data_augmentation(
             max_reward=max_reward,
             min_reward=min_reward,
         )
+        return trajs + aug_trajs
     elif augmentation_method == "RandomAugmentation":
-        return random_augmentation(
+        aug_trajs = random_augmentation(
             trajs=trajs,
             augment_percent=augment_percent,
             aug_rmin=aug_rmin,
@@ -569,6 +570,7 @@ def data_augmentation(
             rstd=rstd,
             cstd=cstd,
         )
+        return trajs + aug_trajs
     elif augmentation_method == "ParetoFrontierOnly":
         return select_optimal_trajectory(
             trajs=trajs, rmin=rmin, cost_bins=cost_bins, max_num_per_bin=max_num_per_bin
