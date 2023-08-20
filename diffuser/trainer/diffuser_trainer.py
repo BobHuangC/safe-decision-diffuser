@@ -1,4 +1,7 @@
+from functools import partial
 import torch
+import jax
+import jax.numpy as jnp
 
 from diffuser.algos import DecisionDiffuser
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
@@ -7,6 +10,7 @@ from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
 from utilities.utils import set_random_seed, to_arch
+from utilities.jax_utils import batch_to_jax, next_rng
 
 
 class DiffuserTrainer(BaseTrainer):
@@ -17,16 +21,30 @@ class DiffuserTrainer(BaseTrainer):
 
         # setup dataset and eval_sample
         dataset, self._eval_sampler = self._setup_dataset()
+        sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
                 dataset,
+                sampler=sampler,
                 batch_size=self._cfgs.batch_size,
                 collate_fn=numpy_collate,
-                num_workers=0,
-                shuffle=True,
-                pin_memory=True,
+                drop_last=True,
+                num_workers=8,
             )
         )
+
+        if self._cfgs.eval_mode == "offline":
+            eval_sampler = torch.utils.data.RandomSampler(dataset)
+            self._eval_dataloader = cycle(
+                torch.utils.data.DataLoader(
+                    dataset,
+                    sampler=eval_sampler,
+                    batch_size=self._cfgs.eval_batch_size,
+                    collate_fn=numpy_collate,
+                    drop_last=True,
+                    num_workers=4,
+                )
+            )
 
         # setup policy
         self._planner, self._inv_model = self._setup_policy()
@@ -76,3 +94,50 @@ class DiffuserTrainer(BaseTrainer):
             deterministic=True,
         )
         return trajs
+
+    def _offline_evaluate(self):
+        eval_batch = batch_to_jax(next(self._eval_dataloader))
+        rng = next_rng()
+        return self._offline_eval_step(
+            self._agent.train_states, rng, eval_batch
+        )
+
+    @partial(jax.jit, static_argnames=("self"))
+    def _offline_eval_step(self, train_states, rng, eval_batch):
+        metrics = {}
+
+        samples = eval_batch["samples"]
+        conditions = eval_batch["conditions"]
+        returns = eval_batch["returns"]
+        actions = eval_batch["actions"][:, 0]
+
+        pred_actions = self._inv_model.apply(
+            train_states["inv_model"].params,
+            jnp.concatenate([samples[:, 0], samples[:, 1]], axis=-1),
+        )
+        pred_act_mse = jnp.mean(jnp.square(pred_actions - actions))
+
+        plan_observations = self._planner.apply(
+            train_states["planner"].params,
+            rng,
+            conditions=conditions,
+            returns=returns,
+            method=self._planner.ddpm_sample,
+        )
+        obs_comb = jnp.concatenate(
+            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
+        )
+        plan_actions = self._inv_model.apply(
+            train_states["inv_model"].params,
+            obs_comb,
+        )
+
+        plan_obs_mse = jnp.mean(
+            jnp.square(plan_observations - samples)
+        )
+        plan_act_mse = jnp.mean(jnp.square(plan_actions - actions))
+
+        metrics["plan_obs_mse"] = plan_obs_mse
+        metrics["plan_act_mse"] = plan_act_mse
+        metrics["pred_act_mse"] = pred_act_mse
+        return metrics

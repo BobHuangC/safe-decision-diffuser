@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
 import importlib
 from collections import deque
 
@@ -90,40 +91,20 @@ class BaseTrainer:
 
                     # TODO(zbzhu): Add EMA
                     # if self._step % self._cfgs.update_ema_every == 0:
-                    #     self.step_ema()
+                    #     self._step_ema()
 
             with Timer() as eval_timer:
                 if epoch == 0 or (epoch + 1) % self._cfgs.eval_period == 0:
-                    for method in act_methods:
-                        trajs = self._sample_trajs(method)
+                    # TODO(zbzhu): make `Evaluator` class to handle this
+                    if self._cfgs.eval_mode == "online":
+                        eval_metrics, recent_returns, best_returns = self._online_evaluate(act_methods, recent_returns, best_returns)
+                    elif self._cfgs.eval_mode == "offline":
+                        # XXX(zbzhu): act_method is not used in offline evaluation for now
+                        eval_metrics = self._offline_evaluate()
+                    else:
+                        raise ValueError(f"Unknown eval mode: {self._cfgs.eval_mode}")
 
-                        post = "" if len(act_methods) == 1 else "_" + method
-                        metrics["average_return" + post] = np.mean(
-                            [np.sum(t["rewards"]) for t in trajs]
-                        )
-                        metrics["average_traj_length" + post] = np.mean(
-                            [len(t["rewards"]) for t in trajs]
-                        )
-                        metrics[
-                            "average_normalizd_return" + post
-                        ] = cur_return = np.mean(
-                            [
-                                self._eval_sampler.env.get_normalized_score(
-                                    np.sum(t["rewards"])
-                                )
-                                for t in trajs
-                            ]
-                        )
-                        recent_returns[method].append(cur_return)
-                        metrics["average_10_normalized_return" + post] = np.mean(
-                            recent_returns[method]
-                        )
-                        metrics["best_normalized_return" + post] = best_returns[
-                            method
-                        ] = max(best_returns[method], cur_return)
-                        metrics["done" + post] = np.mean(
-                            [np.sum(t["dones"]) for t in trajs]
-                        )
+                    metrics.update(eval_metrics)
 
                     if self._cfgs.save_model:
                         save_data = {
@@ -146,10 +127,47 @@ class BaseTrainer:
             save_data = {"agent": self._agent, "variant": self._variant, "epoch": epoch}
             self._wandb_logger.save_pickle(save_data, "model_final.pkl")
 
+    def _online_evaluate(self, act_methods: List[str], recent_returns: dict, best_returns: dict):
+        metrics = {}
+        for method in act_methods:
+            trajs = self._sample_trajs(method)
+
+            post = "" if len(act_methods) == 1 else "_" + method
+            metrics["average_return" + post] = np.mean(
+                [np.sum(t["rewards"]) for t in trajs]
+            )
+            metrics["average_traj_length" + post] = np.mean(
+                [len(t["rewards"]) for t in trajs]
+            )
+            metrics[
+                "average_normalizd_return" + post
+            ] = cur_return = np.mean(
+                [
+                    self._eval_sampler.env.get_normalized_score(
+                        np.sum(t["rewards"])
+                    )
+                    for t in trajs
+                ]
+            )
+            recent_returns[method].append(cur_return)
+            metrics["average_10_normalized_return" + post] = np.mean(
+                recent_returns[method]
+            )
+            metrics["best_normalized_return" + post] = best_returns[
+                method
+            ] = max(best_returns[method], cur_return)
+            metrics["done" + post] = np.mean(
+                [np.sum(t["dones"]) for t in trajs]
+            )
+        return metrics, recent_returns, best_returns
+
     def _setup(self):
         raise NotImplementedError
 
     def _sample_trajs(self):
+        raise NotImplementedError
+
+    def _offline_evalute(self):
         raise NotImplementedError
 
     def _setup_logger(self):
