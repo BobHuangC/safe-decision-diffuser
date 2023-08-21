@@ -144,7 +144,7 @@ class DiffuserPolicy(object):
         return self
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
-    def ddpm_act(self, params, rng, observations, deterministic):
+    def ddpm_act(self, params, rng, observations, deterministic):  # deterministic is not used
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
         plan_observations = self.planner.apply(
