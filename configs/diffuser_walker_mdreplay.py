@@ -54,6 +54,7 @@ def get_config():
 
     config.algo_cfg = ConfigDict()
     config.algo_cfg.horizon = config.horizon
+    config.algo_cfg.loss_discount = 1.0
     config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.lr = 2e-4
     config.algo_cfg.num_timesteps = 200

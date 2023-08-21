@@ -2,11 +2,13 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
+import einops
 from flax.training.train_state import TrainState
 
 from core.core_api import Algo
-from diffuser.diffusion import GaussianDiffusion
+from diffuser.diffusion import GaussianDiffusion, ModelMeanType
 from utilities.jax_utils import next_rng, value_and_multi_grad
 
 
@@ -19,6 +21,7 @@ class DecisionDiffuser(Algo):
         self.action_dim = inv_model.action_dim
         self.horizon = self.config.horizon
         self.diffusion: GaussianDiffusion = self.planner.diffusion
+        self.diffusion.loss_weights = self.get_loss_weights(self.config.loss_discount)
 
         self._total_steps = 0
         self._train_states = {}
@@ -67,6 +70,19 @@ class DecisionDiffuser(Algo):
 
         model_keys = ["planner", "inv_model"]
         self._model_keys = tuple(model_keys)
+
+    def get_loss_weights(self, discount: float) -> jnp.ndarray:
+        dim_weights = np.ones(self.observation_dim, dtype=np.float32)
+
+        # decay loss with trajectory timestep: discount**t
+        discounts = discount ** np.arange(self.horizon, dtype=np.float32)
+        discounts = discounts / discounts.mean()
+        loss_weights = einops.einsum(discounts, dim_weights, "h,t->h t")
+        # Cause things are conditioned on t=0
+        if self.diffusion.model_mean_type == ModelMeanType.EPSILON:
+            loss_weights[0] = 0
+
+        return jnp.array(loss_weights)
 
     @partial(jax.jit, static_argnames=("self"))
     def _train_step(self, train_states, rng, batch):

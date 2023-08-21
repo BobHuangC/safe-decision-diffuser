@@ -170,6 +170,7 @@ class GaussianDiffusion:
         self.min_value = min_value
         self.max_value = max_value
         self.sample_temperature = sample_temperature
+        self.loss_weights = None  # now set externally
 
         self.returns_condition = returns_condition
         self.condition_guidance_w = condition_guidance_w
@@ -458,7 +459,7 @@ class GaussianDiffusion:
         """
 
         out = self.p_mean_variance(model_output, x, t, clip_denoised=clip_denoised)
-        noise = jax.random.normal(rng, x.shape, dtype=x.dtype)
+        noise = self.sample_temperature * jax.random.normal(rng, x.shape, dtype=x.dtype)
 
         # nonzero_mask = (
         #   (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
@@ -789,6 +790,9 @@ class GaussianDiffusion:
         else:
             model_output = model_forward(None, x_t, self._scale_timesteps(t))
 
+        if self.model_mean_type != ModelMeanType.EPSILON:
+            model_output = apply_conditioning(model_output, conditions)
+
         terms = {"model_output": model_output, "x_t": x_t}
         terms["ts_weights"] = _extract_into_tensor(
             self.normalized_ts_weights, t, x_start.shape[:-1]
@@ -838,11 +842,12 @@ class GaussianDiffusion:
                 ModelMeanType.START_X: x_start,
                 ModelMeanType.EPSILON: noise,
             }[self.model_mean_type]
-            if self.model_mean_type != ModelMeanType.EPSILON:
-                target = apply_conditioning(target, conditions)
 
             assert model_output.shape == target.shape == x_start.shape
-            terms["mse"] = mean_flat((target - model_output) ** 2)
+            if self.loss_weights is None:
+                terms["mse"] = mean_flat((target - model_output) ** 2)
+            else:
+                terms["mse"] = mean_flat(self.loss_weights * (target - model_output) ** 2)
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:
