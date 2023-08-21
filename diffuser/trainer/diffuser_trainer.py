@@ -66,6 +66,7 @@ class DiffuserTrainer(BaseTrainer):
             loss_type=LossType.MSE,
             returns_condition=self._cfgs.returns_condition,
             condition_guidance_w=self._cfgs.condition_guidance_w,
+            sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
         planner = DiffusionPlanner(
             diffusion=gd,

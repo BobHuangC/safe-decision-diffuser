@@ -82,6 +82,7 @@ class DiffusionQLTrainer(BaseTrainer):
             loss_type=LossType.MSE,
             min_value=-self._max_action,
             max_value=self._max_action,
+            sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
         policy = DiffusionPolicy(
             diffusion=gd,

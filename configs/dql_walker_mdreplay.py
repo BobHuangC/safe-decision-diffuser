@@ -6,7 +6,7 @@ from utilities.utils import WandBLogger
 def get_config():
     config = ConfigDict()
     config.exp_name = "dql_d4rl"
-    config.log_dir_format = "{exp_name}/{env}/lr_{algo_cfg.lr}/{seed}"
+    config.log_dir_format = "{exp_name}/{env}/lr_{algo_cfg.lr}-temp_{algo_cfg.sample_temperature}/{seed}"
 
     config.trainer = "DiffusionQLTrainer"
     config.type = "model-free"
@@ -14,10 +14,12 @@ def get_config():
     config.env = "walker2d-medium-replay-v2"
     config.dataset = "d4rl"
     config.dataset_class = "QLearningDataset"
+    config.use_padding = True
     config.normalizer = "NoopNormalizer"
     config.max_traj_length = 1000
     config.horizon = 1
     config.returns_scale = 1.0
+    config.include_returns = False
     config.include_cost_returns = False
     config.termination_penalty = 0.0
 
@@ -35,6 +37,7 @@ def get_config():
 
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
+    config.eval_mode = "online"
     config.eval_period = 10
     config.eval_n_trajs = 10
     config.num_eval_envs = 10
@@ -56,6 +59,7 @@ def get_config():
     config.algo_cfg.discount = 0.99
     config.algo_cfg.tau = 0.005
     config.algo_cfg.policy_tgt_freq = 5
+    config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "linear"
     config.algo_cfg.time_embed_size = 16

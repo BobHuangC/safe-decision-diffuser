@@ -14,6 +14,7 @@ def get_config():
     config.env = "walker2d-medium-replay-v2"
     config.dataset = "d4rl"
     config.dataset_class = "SequenceDataset"
+    config.use_padding = True
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 100

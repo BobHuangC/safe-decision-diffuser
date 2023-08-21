@@ -167,7 +167,7 @@ class BaseTrainer:
     def _sample_trajs(self):
         raise NotImplementedError
 
-    def _offline_evalute(self):
+    def _offline_evaluate(self):
         raise NotImplementedError
 
     def _setup_logger(self):
@@ -253,9 +253,11 @@ class BaseTrainer:
             dataset,
             horizon=self._cfgs.horizon,
             max_traj_length=self._cfgs.max_traj_length,
+            include_returns=self._cfgs.include_returns,
             include_cost_returns=self._cfgs.include_cost_returns,
             normalizer=self._cfgs.normalizer,
             returns_scale=self._cfgs.returns_scale,
+            use_padding=self._cfgs.use_padding,
         )
         eval_sampler.set_normalizer(dataset.normalizer)
 
