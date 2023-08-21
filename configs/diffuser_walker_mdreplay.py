@@ -14,9 +14,11 @@ def get_config():
     config.env = "walker2d-medium-replay-v2"
     config.dataset = "d4rl"
     config.dataset_class = "SequenceDataset"
+    config.use_padding = True
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 100
+    config.include_returns = True
     config.include_cost_returns = False
     config.returns_scale = 400.0
     config.termination_penalty = -100.0
@@ -36,6 +38,7 @@ def get_config():
 
     config.n_epochs = 1000
     config.n_train_step_per_epoch = 1000
+    config.eval_mode = "online"
     config.eval_period = 10
     config.eval_n_trajs = 10
     config.num_eval_envs = 10
@@ -51,6 +54,7 @@ def get_config():
 
     config.algo_cfg = ConfigDict()
     config.algo_cfg.horizon = config.horizon
+    config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.lr = 2e-4
     config.algo_cfg.num_timesteps = 200
     config.algo_cfg.schedule_name = "cosine"

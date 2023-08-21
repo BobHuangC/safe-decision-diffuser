@@ -20,7 +20,7 @@ class PolicyNet(nn.Module):
     use_layer_norm: bool = False
 
     @nn.compact
-    def __call__(self, state, action, t):
+    def __call__(self, state, rng, action, t):
         if len(t.shape) < len(action.shape) - 1:
             t = repeat(t, "b -> b n", n=action.shape[1])
         time_embed = TimeEmbedding(self.time_embed_size, self.act)(t)

@@ -67,6 +67,7 @@ class DiffuserTrainer(BaseTrainer):
             returns_condition=self._cfgs.returns_condition,
             cost_returns_condition=self._cfgs.cost_returns_condition,
             condition_guidance_w=self._cfgs.condition_guidance_w,
+            sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
         planner = DiffusionPlanner(
             diffusion=gd,

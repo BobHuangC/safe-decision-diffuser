@@ -161,6 +161,7 @@ class GaussianDiffusion:
         min_value=-1.0,
         max_value=1.0,
         rescale_timesteps=False,
+        sample_temperature=1.0,
     ):
         self.schedule_name = schedule_name
         self.model_mean_type = model_mean_type
@@ -169,6 +170,7 @@ class GaussianDiffusion:
         self.rescale_timesteps = rescale_timesteps
         self.min_value = min_value
         self.max_value = max_value
+        self.sample_temperature = sample_temperature
 
         self.returns_condition = returns_condition
         self.cost_returns_condition = cost_returns_condition
@@ -510,7 +512,7 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
-        x = jax.random.normal(sample_key, shape)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
         x = apply_conditioning(x, conditions)
 
         indices = list(range(self.num_timesteps))[::-1]
@@ -528,7 +530,7 @@ class GaussianDiffusion:
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(x, self._scale_timesteps(t))
+                model_output = model_forward(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.p_sample(
@@ -557,7 +559,7 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
-        x = jax.random.normal(sample_key, shape)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
         x = apply_conditioning(x, conditions)
 
         indices = np.arange(self.num_timesteps)[::-1]
@@ -577,7 +579,7 @@ class GaussianDiffusion:
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = mdl(x, self._scale_timesteps(t))
+                model_output = mdl(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.p_sample(
@@ -809,7 +811,7 @@ class GaussianDiffusion:
                 cost_returns=cost_returns,
             )
         else:
-            model_output = model_forward(x_t, self._scale_timesteps(t))
+            model_output = model_forward(None, x_t, self._scale_timesteps(t))
 
         terms = {"model_output": model_output, "x_t": x_t}
         terms["ts_weights"] = _extract_into_tensor(
