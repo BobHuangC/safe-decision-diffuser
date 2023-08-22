@@ -65,6 +65,7 @@ class DiffuserTrainer(BaseTrainer):
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
             returns_condition=self._cfgs.returns_condition,
+            cost_returns_condition=self._cfgs.cost_returns_condition,
             condition_guidance_w=self._cfgs.condition_guidance_w,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
@@ -75,6 +76,7 @@ class DiffuserTrainer(BaseTrainer):
             dim=self._cfgs.dim,
             dim_mults=to_arch(self._cfgs.dim_mults),
             returns_condition=self._cfgs.returns_condition,
+            cost_returns_condition=self._cfgs.cost_returns_condition,
             condition_dropout=self._cfgs.condition_dropout,
             kernel_size=self._cfgs.kernel_size,
             sample_method=self._cfgs.sample_method,

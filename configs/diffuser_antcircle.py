@@ -18,9 +18,27 @@ def get_config():
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 100
-    config.include_cost_returns = False
+    config.include_cost_returns = True
     config.returns_scale = 400.0
     config.termination_penalty = -100.0
+
+    config.dataAugmentation_method = "Augmentation"
+    config.dataAugment_percent = 0.3
+    config.dataAug_deg = 3
+    config.dataAug_max_rew_decrease = 1
+    config.dataAug_beta = 1
+    config.dataAug_max_reward = 1000.0
+    config.dataAug_min_reward = 0.0
+    config.dataAug_aug_rmin = 0
+    config.dataAug_aug_rmax = 600 
+    config.dataAug_aug_cmin = 5
+    config.dataAug_aug_cmax = 50 
+    config.dataAug_cgap = 5
+    config.dataAug_rstd = 1 
+    config.dataAug_cstd = 0.25
+    config.dataAug_rmin = 0
+    config.dataAug_cost_bins = 60
+    config.dataAug_max_num_per_bin = 1
 
     config.seed = 42
     config.batch_size = 256
@@ -35,6 +53,7 @@ def get_config():
     config.inv_hidden_dims = "256-256"
     config.kernel_size = 5
     config.returns_condition = True
+    config.cost_returns_condition = True
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.1
 

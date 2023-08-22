@@ -51,6 +51,7 @@ class DecisionDiffuser(Algo):
             {0: jnp.zeros((10, self.observation_dim))},  # conditions
             jnp.zeros((10,), dtype=jnp.int32),  # ts
             returns=jnp.zeros((10, 1)),  # returns
+            cost_returns=jnp.zeros((10, 1)),  # cost_returns
             method=self.planner.loss,
         )
         self._train_states["planner"] = TrainState.create(
@@ -135,15 +136,16 @@ class DecisionDiffuser(Algo):
         def diff_loss(params, rng):
             samples = batch["samples"]
             returns = batch["returns"]
+            cost_returns = batch["cost_returns"]
             conditions = batch["conditions"]
-            terms, ts = self.get_diff_terms(params, samples, conditions, returns, rng)
+            terms, ts = self.get_diff_terms(params, samples, conditions, returns, cost_returns, rng)
             loss = terms["loss"].mean()
 
             return (loss,), locals()
 
         return diff_loss
 
-    def get_diff_terms(self, params, samples, conditions, returns, rng):
+    def get_diff_terms(self, params, samples, conditions, returns, cost_returns, rng):
         rng, split_rng = jax.random.split(rng)
         ts = jax.random.randint(
             split_rng,
@@ -159,6 +161,7 @@ class DecisionDiffuser(Algo):
             conditions,
             ts,
             returns=returns,
+            cost_returns=cost_returns,
             method=self.planner.loss,
         )
 
