@@ -14,8 +14,8 @@
 
 """Agent trajectory samplers."""
 
-from typing import Callable
 import time
+from typing import Callable
 
 import numpy as np
 

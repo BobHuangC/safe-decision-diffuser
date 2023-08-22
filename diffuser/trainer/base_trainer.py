@@ -12,34 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
 import importlib
 from collections import deque
+from typing import List
 
 import absl
 import absl.flags
+import dsrl  # noqa
 import gym
 import gymnasium
 import jax
 import jax.numpy as jnp
 import numpy as np
 import tqdm
-import dsrl  # noqa
 
-from diffuser.constants import (
-    DATASET,
-    DATASET_MAP,
-    ENV_MAP,
-)
+from diffuser.constants import DATASET, DATASET_MAP, ENV_MAP
 from diffuser.hps import hyperparameters
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
 from utilities.utils import (
+    DotFormatter,
     Timer,
     WandBLogger,
     get_user_flags,
     prefix_metrics,
-    DotFormatter,
 )
 from viskit.logging import logger, setup_logger
 
@@ -98,7 +94,13 @@ class BaseTrainer:
                 if epoch == 0 or (epoch + 1) % self._cfgs.eval_period == 0:
                     # TODO(zbzhu): make `Evaluator` class to handle this
                     if self._cfgs.eval_mode == "online":
-                        eval_metrics, recent_returns, best_returns = self._online_evaluate(act_methods, recent_returns, best_returns)
+                        (
+                            eval_metrics,
+                            recent_returns,
+                            best_returns,
+                        ) = self._online_evaluate(
+                            act_methods, recent_returns, best_returns
+                        )
                     elif self._cfgs.eval_mode == "offline":
                         # XXX(zbzhu): act_method is not used in offline evaluation for now
                         eval_metrics = self._offline_evaluate()
@@ -128,7 +130,9 @@ class BaseTrainer:
             save_data = {"agent": self._agent, "variant": self._variant, "epoch": epoch}
             self._wandb_logger.save_pickle(save_data, "model_final.pkl")
 
-    def _online_evaluate(self, act_methods: List[str], recent_returns: dict, best_returns: dict):
+    def _online_evaluate(
+        self, act_methods: List[str], recent_returns: dict, best_returns: dict
+    ):
         metrics = {}
         for method in act_methods:
             trajs = self._sample_trajs(method)
@@ -140,13 +144,9 @@ class BaseTrainer:
             metrics["average_traj_length" + post] = np.mean(
                 [len(t["rewards"]) for t in trajs]
             )
-            metrics[
-                "average_normalizd_return" + post
-            ] = cur_return = np.mean(
+            metrics["average_normalizd_return" + post] = cur_return = np.mean(
                 [
-                    self._eval_sampler.env.get_normalized_score(
-                        np.sum(t["rewards"])
-                    )
+                    self._eval_sampler.env.get_normalized_score(np.sum(t["rewards"]))
                     for t in trajs
                 ]
             )
@@ -154,12 +154,10 @@ class BaseTrainer:
             metrics["average_10_normalized_return" + post] = np.mean(
                 recent_returns[method]
             )
-            metrics["best_normalized_return" + post] = best_returns[
-                method
-            ] = max(best_returns[method], cur_return)
-            metrics["done" + post] = np.mean(
-                [np.sum(t["dones"]) for t in trajs]
+            metrics["best_normalized_return" + post] = best_returns[method] = max(
+                best_returns[method], cur_return
             )
+            metrics["done" + post] = np.mean([np.sum(t["dones"]) for t in trajs])
         return metrics, recent_returns, best_returns
 
     def _setup(self):
@@ -229,23 +227,23 @@ class BaseTrainer:
             norm_cost=self._cfgs.norm_cost,
             termination_penalty=self._cfgs.termination_penalty,
             include_next_obs=include_next_obs,
-            augmentation_method= self._cfgs.dataAugmentation_method,
+            augmentation_method=self._cfgs.dataAugmentation_method,
             augment_percent=self._cfgs.dataAugment_percent,
-            deg=self._cfgs.dataAug_deg, 
-            max_rew_decrease=self._cfgs.dataAug_max_rew_decrease, 
-            beta=self._cfgs.dataAug_beta, 
-            max_reward=self._cfgs.dataAug_max_reward, 
-            min_reward=self._cfgs.dataAug_min_reward, 
-            aug_rmin=self._cfgs.dataAug_aug_rmin, 
-            aug_rmax=self._cfgs.dataAug_aug_rmax, 
-            aug_cmin=self._cfgs.dataAug_aug_cmin, 
-            aug_cmax=self._cfgs.dataAug_aug_cmax, 
-            cgap=self._cfgs.dataAug_cgap, 
-            rstd=self._cfgs.dataAug_rstd, 
+            deg=self._cfgs.dataAug_deg,
+            max_rew_decrease=self._cfgs.dataAug_max_rew_decrease,
+            beta=self._cfgs.dataAug_beta,
+            max_reward=self._cfgs.dataAug_max_reward,
+            min_reward=self._cfgs.dataAug_min_reward,
+            aug_rmin=self._cfgs.dataAug_aug_rmin,
+            aug_rmax=self._cfgs.dataAug_aug_rmax,
+            aug_cmin=self._cfgs.dataAug_aug_cmin,
+            aug_cmax=self._cfgs.dataAug_aug_cmax,
+            cgap=self._cfgs.dataAug_cgap,
+            rstd=self._cfgs.dataAug_rstd,
             cstd=self._cfgs.dataAug_cstd,
-            rmin=self._cfgs.dataAug_rmin, 
-            cost_bins=self._cfgs.dataAug_cost_bins, 
-            max_num_per_bin=self._cfgs.dataAug_max_num_per_bin
+            rmin=self._cfgs.dataAug_rmin,
+            cost_bins=self._cfgs.dataAug_cost_bins,
+            max_num_per_bin=self._cfgs.dataAug_max_num_per_bin,
         )
         return dataset, eval_sampler
 

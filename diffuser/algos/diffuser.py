@@ -1,10 +1,10 @@
 from functools import partial
 
+import einops
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-import einops
 from flax.training.train_state import TrainState
 
 from core.core_api import Algo
@@ -65,7 +65,9 @@ class DecisionDiffuser(Algo):
             jnp.zeros((10, self.observation_dim * 2)),
         )
         self._train_states["inv_model"] = TrainState.create(
-            params=inv_model_params, tx=get_optimizer(), apply_fn=None,
+            params=inv_model_params,
+            tx=get_optimizer(),
+            apply_fn=None,
         )
 
         model_keys = ["planner", "inv_model"]
@@ -138,7 +140,9 @@ class DecisionDiffuser(Algo):
             returns = batch["returns"]
             cost_returns = batch["cost_returns"]
             conditions = batch["conditions"]
-            terms, ts = self.get_diff_terms(params, samples, conditions, returns, cost_returns, rng)
+            terms, ts = self.get_diff_terms(
+                params, samples, conditions, returns, cost_returns, rng
+            )
             loss = terms["loss"].mean()
 
             return (loss,), locals()

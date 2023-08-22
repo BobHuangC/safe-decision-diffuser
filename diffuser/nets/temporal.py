@@ -278,7 +278,9 @@ class DiffusionPlanner(nn.Module):
             clip_denoised=True,
         )
 
-    def __call__(self, rng, conditions, deterministic=False, returns=None, cost_returns=None):
+    def __call__(
+        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+    ):
         return getattr(self, f"{self.sample_method}_sample")(
             rng, conditions, deterministic, returns, cost_returns
         )

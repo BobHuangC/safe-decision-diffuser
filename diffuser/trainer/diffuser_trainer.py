@@ -1,7 +1,8 @@
 from functools import partial
-import torch
+
 import jax
 import jax.numpy as jnp
+import torch
 
 from diffuser.algos import DecisionDiffuser
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
@@ -9,8 +10,8 @@ from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch
 from utilities.jax_utils import batch_to_jax, next_rng
+from utilities.utils import set_random_seed, to_arch
 
 
 class DiffuserTrainer(BaseTrainer):
@@ -101,9 +102,7 @@ class DiffuserTrainer(BaseTrainer):
     def _offline_evaluate(self):
         eval_batch = batch_to_jax(next(self._eval_dataloader))
         rng = next_rng()
-        return self._offline_eval_step(
-            self._agent.train_states, rng, eval_batch
-        )
+        return self._offline_eval_step(self._agent.train_states, rng, eval_batch)
 
     @partial(jax.jit, static_argnames=("self"))
     def _offline_eval_step(self, train_states, rng, eval_batch):
@@ -142,9 +141,7 @@ class DiffuserTrainer(BaseTrainer):
         plan_obs_mse_first_step = jnp.mean(
             jnp.square(plan_observations[:, 1] - samples[:, 1])
         )
-        plan_obs_mse = jnp.mean(
-            jnp.square(plan_observations - samples)
-        )
+        plan_obs_mse = jnp.mean(jnp.square(plan_observations - samples))
 
         plan_act_mse = jnp.mean(jnp.square(plan_actions - actions[:, :-1]))
         plan_act_mse_first_step = jnp.mean(
