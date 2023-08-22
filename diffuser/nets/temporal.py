@@ -90,14 +90,14 @@ class TemporalUnet(nn.Module):
             assert returns is not None
             returns = returns.reshape(-1, 1)
             returns_embed = returns_mlp(returns)
-            if force_dropout:
-                returns_embed = returns_embed * 0
-            elif use_dropout:
+            if use_dropout:
                 rng, sample_key = jax.random.split(rng)
                 mask = mask_dist.sample(
-                    seed=sample_key, sample_shape=returns_embed.shape
+                    seed=sample_key, sample_shape=(returns_embed.shape[0], 1)
                 )
                 returns_embed = returns_embed * mask
+            if force_dropout:
+                returns_embed = returns_embed * 0
             t = jnp.concatenate([t, returns_embed], axis=-1)
 
         h = []

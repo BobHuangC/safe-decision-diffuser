@@ -110,13 +110,17 @@ class DiffuserTrainer(BaseTrainer):
         samples = eval_batch["samples"]
         conditions = eval_batch["conditions"]
         returns = eval_batch["returns"]
-        actions = eval_batch["actions"][:, 0]
+        actions = eval_batch["actions"]
 
         pred_actions = self._inv_model.apply(
             train_states["inv_model"].params,
-            jnp.concatenate([samples[:, 0], samples[:, 1]], axis=-1),
+            jnp.concatenate([samples[:, :-1], samples[:, 1:]], axis=-1),
         )
-        pred_act_mse = jnp.mean(jnp.square(pred_actions - actions))
+
+        pred_act_mse = jnp.mean(jnp.square(pred_actions - actions[:, :-1]))
+        pred_act_mse_first_step = jnp.mean(
+            jnp.square(pred_actions[:, 0] - actions[:, 0])
+        )
 
         plan_observations = self._planner.apply(
             train_states["planner"].params,
@@ -125,20 +129,32 @@ class DiffuserTrainer(BaseTrainer):
             returns=returns,
             method=self._planner.ddpm_sample,
         )
-        obs_comb = jnp.concatenate(
-            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
+        plan_obs_comb = jnp.concatenate(
+            [plan_observations[:, :-1], plan_observations[:, 1:]], axis=-1
         )
         plan_actions = self._inv_model.apply(
             train_states["inv_model"].params,
-            obs_comb,
+            plan_obs_comb,
         )
 
+        plan_obs_mse_first_step = jnp.mean(
+            jnp.square(plan_observations[:, 1] - samples[:, 1])
+        )
         plan_obs_mse = jnp.mean(
             jnp.square(plan_observations - samples)
         )
-        plan_act_mse = jnp.mean(jnp.square(plan_actions - actions))
+
+        plan_act_mse = jnp.mean(jnp.square(plan_actions - actions[:, :-1]))
+        plan_act_mse_first_step = jnp.mean(
+            jnp.square(plan_actions[:, 0] - actions[:, 0])
+        )
 
         metrics["plan_obs_mse"] = plan_obs_mse
         metrics["plan_act_mse"] = plan_act_mse
         metrics["pred_act_mse"] = pred_act_mse
+
+        metrics["plan_obs_mse_first_step"] = plan_obs_mse_first_step
+        metrics["plan_act_mse_first_step"] = plan_act_mse_first_step
+        metrics["pred_act_mse_first_step"] = pred_act_mse_first_step
+
         return metrics

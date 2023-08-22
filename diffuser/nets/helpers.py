@@ -110,7 +110,7 @@ class TimeEmbedding(nn.Module):
     @nn.compact
     def __call__(self, timesteps):
         x = sinusoidal_embedding(timesteps, self.embed_size)
-        x = nn.Dense(self.embed_size * 2)(x)
+        x = nn.Dense(self.embed_size * 4)(x)
         x = self.act(x)
         x = nn.Dense(self.embed_size)(x)
         return x

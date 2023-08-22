@@ -5,7 +5,7 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-    config.exp_name = "diffuser_d4rl_offline_fix_lw"
+    config.exp_name = "diffuser_d4rl_offline"
     config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}/{seed}"
 
     config.trainer = "DiffuserTrainer"

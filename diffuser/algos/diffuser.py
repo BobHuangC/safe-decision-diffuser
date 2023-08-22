@@ -35,14 +35,13 @@ class DecisionDiffuser(Algo):
                 return self.config.lr
 
         def get_optimizer(lr_decay=False, weight_decay=cfg.weight_decay):
-            if self.config.max_grad_norm > 0:
-                opt = optax.chain(
-                    optax.clip_by_global_norm(self.config.max_grad_norm),
-                    optax.adamw(get_lr(lr_decay), weight_decay=weight_decay),
-                )
-            else:
-                opt = optax.adamw(get_lr(lr_decay), weight_decay=weight_decay)
-
+            # if self.config.max_grad_norm > 0:
+            #     opt = optax.chain(
+            #         optax.clip_by_global_norm(self.config.max_grad_norm),
+            #         optax.adamw(get_lr(lr_decay), weight_decay=weight_decay),
+            #     )
+            # else:
+            opt = optax.adamw(get_lr(lr_decay), weight_decay=weight_decay)
             return opt
 
         planner_params = self.planner.init(
