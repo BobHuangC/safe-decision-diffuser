@@ -6,7 +6,9 @@ from utilities.utils import WandBLogger
 def get_config():
     config = ConfigDict()
     config.exp_name = "dql_d4rl"
-    config.log_dir_format = "{exp_name}/{env}/lr_{algo_cfg.lr}-temp_{algo_cfg.sample_temperature}/{seed}"
+    config.log_dir_format = (
+        "{exp_name}/{env}/lr_{algo_cfg.lr}-temp_{algo_cfg.sample_temperature}/{seed}"
+    )
 
     config.trainer = "DiffusionQLTrainer"
     config.type = "model-free"

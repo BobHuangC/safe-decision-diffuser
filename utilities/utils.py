@@ -16,10 +16,10 @@
 
 import functools
 import importlib
-import string
 import os
 import pprint
 import random
+import string
 import sys
 import tempfile
 import time

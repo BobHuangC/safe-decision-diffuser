@@ -30,11 +30,11 @@ def get_config():
     config.dataAug_max_reward = 1000.0
     config.dataAug_min_reward = 0.0
     config.dataAug_aug_rmin = 0
-    config.dataAug_aug_rmax = 600 
+    config.dataAug_aug_rmax = 600
     config.dataAug_aug_cmin = 5
-    config.dataAug_aug_cmax = 50 
+    config.dataAug_aug_cmax = 50
     config.dataAug_cgap = 5
-    config.dataAug_rstd = 1 
+    config.dataAug_rstd = 1
     config.dataAug_cstd = 0.25
     config.dataAug_rmin = 0
     config.dataAug_cost_bins = 60

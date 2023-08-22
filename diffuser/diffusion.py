@@ -770,7 +770,14 @@ class GaussianDiffusion:
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
     def training_losses(
-        self, rng_key, model_forward, x_start, conditions, t, returns=None, cost_returns=None
+        self,
+        rng_key,
+        model_forward,
+        x_start,
+        conditions,
+        t,
+        returns=None,
+        cost_returns=None,
     ):
         """
         Compute training losses for a single timestep.
@@ -871,7 +878,9 @@ class GaussianDiffusion:
             if self.loss_weights is None:
                 terms["mse"] = mean_flat((target - model_output) ** 2)
             else:
-                terms["mse"] = mean_flat(self.loss_weights * (target - model_output) ** 2)
+                terms["mse"] = mean_flat(
+                    self.loss_weights * (target - model_output) ** 2
+                )
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:

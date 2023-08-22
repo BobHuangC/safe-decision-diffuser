@@ -1,8 +1,9 @@
-import numpy as np
 import copy
 import heapq
 import random
 from collections import Counter, defaultdict
+
+import numpy as np
 import oapackage
 
 from utilities.data_utils import atleast_nd
