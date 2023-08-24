@@ -148,6 +148,7 @@ class BaseTrainer:
         eval_sampler = TrajSampler(
             lambda: gym.make(self._cfgs.env),
             self._cfgs.num_eval_envs,
+            self._cfgs.eval_env_seed,
             self._cfgs.max_traj_length,
         )
         dataset = get_dataset(

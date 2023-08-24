@@ -32,7 +32,7 @@ class DiffuserOfflineEvaluator(BaseEvaluator):
         returns = eval_batch["returns"]
         actions = eval_batch["actions"]
 
-        pred_actions = self._inv_model.apply(
+        pred_actions = self._policy.inv_model.apply(
             params["inv_model"],
             jnp.concatenate([samples[:, :-1], samples[:, 1:]], axis=-1),
         )
@@ -42,17 +42,17 @@ class DiffuserOfflineEvaluator(BaseEvaluator):
             jnp.square(pred_actions[:, 0] - actions[:, 0])
         )
 
-        plan_observations = self._planner.apply(
+        plan_observations = self._policy.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
-            method=self._planner.ddpm_sample,
+            method=self._policy.planner.ddpm_sample,
         )
         plan_obs_comb = jnp.concatenate(
             [plan_observations[:, :-1], plan_observations[:, 1:]], axis=-1
         )
-        plan_actions = self._inv_model.apply(
+        plan_actions = self._policy.inv_model.apply(
             params["inv_model"],
             plan_obs_comb,
         )
