@@ -17,12 +17,12 @@ class DiffusionQLTrainer(BaseTrainer):
         self._wandb_logger = self._setup_logger()
 
         # setup dataset and eval_sample
-        dataset, self._eval_sampler = self._setup_dataset()
-        sampler = torch.utils.data.RandomSampler(dataset)
+        dataset, eval_sampler = self._setup_dataset()
+        data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
                 dataset,
-                sampler=sampler,
+                sampler=data_sampler,
                 batch_size=self._cfgs.batch_size,
                 collate_fn=numpy_collate,
                 drop_last=True,
@@ -50,7 +50,8 @@ class DiffusionQLTrainer(BaseTrainer):
         )
 
         # setup sampler policy
-        self._sampler_policy = SamplerPolicy(self._agent.policy, self._agent.qf)
+        sampler_policy = SamplerPolicy(self._agent.policy, self._agent.qf)
+        self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_qf(self):
         qf = Critic(
@@ -80,8 +81,8 @@ class DiffusionQLTrainer(BaseTrainer):
             model_mean_type=ModelMeanType.EPSILON,
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
-            min_value=-self._max_action,
-            max_value=self._max_action,
+            # min_value=-self._max_action,
+            # max_value=self._max_action,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
         policy = DiffusionPolicy(
@@ -97,17 +98,3 @@ class DiffusionQLTrainer(BaseTrainer):
         )
 
         return policy
-
-    def _sample_trajs(self, act_method: str):
-        # TODO: merge these two
-        self._sampler_policy.act_method = (
-            act_method or self._cfgs.sample_method + "ensemble"
-        )
-        if self._cfgs.sample_method == "ddim":
-            self._sampler_policy.act_method = "ensemble"
-        trajs = self._eval_sampler.sample(
-            self._sampler_policy.update_params(self._agent.train_params),
-            self._cfgs.eval_n_trajs,
-            deterministic=True,
-        )
-        return trajs

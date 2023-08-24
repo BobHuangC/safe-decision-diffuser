@@ -1,7 +1,7 @@
 import distrax
 import flax.linen as nn
+import jax
 import jax.numpy as jnp
-from einops.layers.flax import Rearrange
 
 from utilities.jax_utils import extend_and_repeat
 
@@ -23,9 +23,7 @@ class Conv1dBlock(nn.Module):
         x = nn.Conv(
             self.out_channels, (self.kernel_size,), padding=self.kernel_size // 2
         )(x)
-        x = Rearrange("batch horizon channels -> batch horizon 1 channels")(x)
-        x = nn.GroupNorm(self.n_groups)(x)
-        x = Rearrange("batch horizon 1 channels -> batch horizon channels")(x)
+        x = nn.GroupNorm(self.n_groups, epsilon=1e-5)(x)
         return act_fn(x)
 
 
@@ -43,9 +41,13 @@ class UpSample1d(nn.Module):
 
     @nn.compact
     def __call__(self, x):
-        x = nn.ConvTranspose(
-            self.dim, (2,), strides=(2,), padding=1, transpose_kernel=True
-        )(x)
+        batch, length, channels = x.shape
+        x = jax.image.resize(
+            x,
+            shape=(batch, length * 2, channels),
+            method="nearest",
+        )
+        x = nn.Conv(self.dim, (3,), strides=(1,), padding=1)(x)
         return x
 
 

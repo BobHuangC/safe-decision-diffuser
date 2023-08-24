@@ -17,7 +17,7 @@ def get_config():
     config.dataset = "d4rl"
     config.dataset_class = "QLearningDataset"
     config.use_padding = True
-    config.normalizer = "NoopNormalizer"
+    config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 1
     config.returns_scale = 1.0
@@ -39,7 +39,8 @@ def get_config():
 
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
-    config.eval_mode = "online"
+
+    config.evaluator_class = "OnlineEvaluator"
     config.eval_period = 10
     config.eval_n_trajs = 10
     config.num_eval_envs = 10
@@ -49,12 +50,12 @@ def get_config():
     config.policy_layer_norm = False
     config.activation = "mish"
     config.obs_norm = False
-    config.act_method = ""
+    config.act_method = "ddpmensemble"
     config.sample_method = "ddpm"
     config.policy_temp = 1.0
     config.norm_reward = False
 
-    config.save_model = False
+    config.save_period = 0
     config.logging = WandBLogger.get_default_config()
 
     config.algo_cfg = ConfigDict()

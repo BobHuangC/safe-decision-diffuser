@@ -33,6 +33,7 @@ def get_config():
     config.inv_hidden_dims = "256-256"
     config.kernel_size = 5
     config.returns_condition = True
+    config.cost_returns_condition = False
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.25
 
@@ -50,7 +51,7 @@ def get_config():
     config.sample_method = "ddpm"
     config.norm_reward = False
 
-    config.save_model = False
+    config.save_period = 100
     config.logging = WandBLogger.get_default_config()
 
     config.algo_cfg = ConfigDict()
