@@ -21,7 +21,6 @@ import gym
 import gymnasium
 import jax
 import jax.numpy as jnp
-import numpy as np
 import torch
 import tqdm
 
@@ -214,9 +213,6 @@ class BaseTrainer:
         dataset["rewards"] = (
             dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
         )
-        dataset["actions"] = np.clip(
-            dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
-        )
 
         dataset = getattr(
             importlib.import_module("data.sequence"), self._cfgs.dataset_class
@@ -257,6 +253,8 @@ class BaseTrainer:
                 )
             )
             evaluator = evaluator_class(self._cfgs, sampler_policy, eval_dataloader)
+        elif evaluator_class.eval_mode == "skip":
+            evaluator = evaluator_class(self._cfgs, sampler_policy)
         else:
             raise NotImplementedError(f"Unknown eval_mode: {self._cfgs.eval_mode}")
 
