@@ -52,8 +52,6 @@ class OnlineEvaluator(BaseEvaluator):
     def _sample_trajs(self, act_method: str):
         self._policy.act_method = act_method
         trajs = self._eval_sampler.sample(
-            self._policy,
-            self._cfgs.eval_n_trajs,
-            deterministic=True,
+            self._policy, self._cfgs.eval_n_trajs, deterministic=True,
         )
         return trajs

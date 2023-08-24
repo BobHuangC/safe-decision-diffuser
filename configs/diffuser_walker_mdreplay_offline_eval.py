@@ -39,11 +39,11 @@ def get_config():
 
     config.n_epochs = 1000
     config.n_train_step_per_epoch = 1000
-    config.eval_mode = "offline"
+
+    config.evaluator_class = "DiffuserOfflineEvaluator"
     config.eval_batch_size = 128
     config.eval_period = 1
-    config.eval_n_trajs = 10
-    config.num_eval_envs = 10
+    config.num_eval_envs = 1
     config.eval_env_seed = 0
 
     config.activation = "mish"

@@ -7,7 +7,7 @@ import numpy as np
 import optax
 from flax.training.train_state import TrainState
 
-from core.core_api import Algo
+from .base_algo import Algo
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType
 from utilities.jax_utils import next_rng, value_and_multi_grad
 
