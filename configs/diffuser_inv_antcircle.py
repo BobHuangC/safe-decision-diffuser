@@ -5,7 +5,7 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-    config.exp_name = "diffuser_dsrl"
+    config.exp_name = "diffuser_inv_dsrl"
     config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}/{seed}"
 
     config.trainer = "DiffuserTrainer"
@@ -50,12 +50,14 @@ def get_config():
     config.dim = 128
     # config.dim_mults = "1-4-8"
     config.dim_mults = "1-2-4"
-    config.inv_hidden_dims = "256-256"
     config.kernel_size = 5
     config.returns_condition = True
     config.cost_returns_condition = True
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.1
+
+    config.use_inv_dynamic = True
+    config.inv_hidden_dims = "256-256"
 
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000

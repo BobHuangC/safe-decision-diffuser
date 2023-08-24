@@ -487,6 +487,7 @@ class GaussianDiffusion:
         model_forward,
         shape,
         conditions,
+        condition_dim=None,
         returns=None,
         cost_returns=None,
         clip_denoised=True,
@@ -514,7 +515,7 @@ class GaussianDiffusion:
 
         rng_key, sample_key = jax.random.split(rng_key)
         x = self.sample_temperature * jax.random.normal(sample_key, shape)
-        x = apply_conditioning(x, conditions)
+        x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
@@ -538,7 +539,7 @@ class GaussianDiffusion:
                 sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
             )
             x = out["sample"]
-            x = apply_conditioning(x, conditions)
+            x = apply_conditioning(x, conditions, condition_dim)
         return x
 
     def p_sample_loop_jit(
@@ -547,6 +548,7 @@ class GaussianDiffusion:
         model_forward,
         shape,
         conditions,
+        condition_dim=None,
         returns=None,
         clip_denoised=True,
         cond_fn=None,
@@ -561,7 +563,7 @@ class GaussianDiffusion:
 
         rng_key, sample_key = jax.random.split(rng_key)
         x = self.sample_temperature * jax.random.normal(sample_key, shape)
-        x = apply_conditioning(x, conditions)
+        x = apply_conditioning(x, conditions, condition_dim)
 
         indices = np.arange(self.num_timesteps)[::-1]
 
@@ -587,7 +589,7 @@ class GaussianDiffusion:
                 sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
             )
             x = out["sample"]
-            x = apply_conditioning(x, conditions)
+            x = apply_conditioning(x, conditions, condition_dim)
 
             return i + 1, rng_key, x
 
@@ -685,6 +687,7 @@ class GaussianDiffusion:
         model_forward,
         shape,
         conditions,
+        condition_dim=None,
         returns=None,
         clip_denoised=True,
         cond_fn=None,
@@ -699,7 +702,7 @@ class GaussianDiffusion:
 
         rng_key, sample_key = jax.random.split(rng_key)
         x = jax.random.normal(sample_key, shape)
-        x = apply_conditioning(x, conditions)
+        x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
@@ -729,7 +732,7 @@ class GaussianDiffusion:
                 eta,
             )
             x = out["sample"]
-            x = apply_conditioning(x, conditions)
+            x = apply_conditioning(x, conditions, condition_dim)
         return x
 
     def _vb_terms_bpd(
@@ -776,6 +779,7 @@ class GaussianDiffusion:
         x_start,
         conditions,
         t,
+        condition_dim=None,
         returns=None,
         cost_returns=None,
     ):
@@ -794,7 +798,7 @@ class GaussianDiffusion:
         rng_key, sample_key = jax.random.split(rng_key)
         noise = jax.random.normal(sample_key, x_start.shape, dtype=x_start.dtype)
         x_t = self.q_sample(x_start, t, noise=noise)
-        x_t = apply_conditioning(x_t, conditions)
+        x_t = apply_conditioning(x_t, conditions, condition_dim)
 
         model_kwargs = {}
         if self.returns_condition:
@@ -811,7 +815,7 @@ class GaussianDiffusion:
         )
 
         if self.model_mean_type != ModelMeanType.EPSILON:
-            model_output = apply_conditioning(model_output, conditions)
+            model_output = apply_conditioning(model_output, conditions, condition_dim)
 
         terms = {"model_output": model_output, "x_t": x_t}
         terms["ts_weights"] = _extract_into_tensor(

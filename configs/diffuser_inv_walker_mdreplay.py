@@ -5,7 +5,7 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-    config.exp_name = "diffuser_d4rl"
+    config.exp_name = "diffuser_inv_d4rl"
     config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}/{seed}"
 
     config.trainer = "DiffuserTrainer"
@@ -30,12 +30,14 @@ def get_config():
     config.clip_action = 0.999
     config.dim = 128
     config.dim_mults = "1-4-8"
-    config.inv_hidden_dims = "256-256"
     config.kernel_size = 5
     config.returns_condition = True
     config.cost_returns_condition = False
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.25
+
+    config.use_inv_dynamic = True
+    config.inv_hidden_dims = "256-256"
 
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
@@ -58,7 +60,6 @@ def get_config():
     config.algo_cfg.horizon = config.horizon
     config.algo_cfg.loss_discount = 1.0
     config.algo_cfg.sample_temperature = 0.5
-    config.algo_cfg.lr = 2e-4
     config.algo_cfg.num_timesteps = 200
     config.algo_cfg.schedule_name = "cosine"
     # learning related

@@ -7,9 +7,10 @@ import numpy as np
 import optax
 from flax.training.train_state import TrainState
 
-from .base_algo import Algo
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType
 from utilities.jax_utils import next_rng, value_and_multi_grad
+
+from .base_algo import Algo
 
 
 class DecisionDiffuser(Algo):
@@ -17,11 +18,20 @@ class DecisionDiffuser(Algo):
         self.config = cfg
         self.planner = planner
         self.inv_model = inv_model
-        self.observation_dim = planner.observation_dim
-        self.action_dim = inv_model.action_dim
         self.horizon = self.config.horizon
+
+        if inv_model is None:
+            self.observation_dim = planner.sample_dim - planner.action_dim
+            self.action_dim = planner.action_dim
+        else:
+            self.observation_dim = planner.sample_dim
+            self.action_dim = inv_model.action_dim
+
         self.diffusion: GaussianDiffusion = self.planner.diffusion
-        self.diffusion.loss_weights = self.get_loss_weights(self.config.loss_discount)
+        self.diffusion.loss_weights = self.get_loss_weights(
+            self.config.loss_discount,
+            self.config.action_weight if inv_model is None else None,
+        )
 
         self._total_steps = 0
         self._train_states = {}
@@ -36,7 +46,7 @@ class DecisionDiffuser(Algo):
         planner_params = self.planner.init(
             next_rng(),
             next_rng(),
-            jnp.zeros((10, self.horizon, self.observation_dim)),  # samples
+            jnp.zeros((10, self.horizon, self.planner.sample_dim)),  # samples
             {0: jnp.zeros((10, self.observation_dim))},  # conditions
             jnp.zeros((10,), dtype=jnp.int32),  # ts
             returns=jnp.zeros((10, 1)),  # returns
@@ -49,21 +59,23 @@ class DecisionDiffuser(Algo):
             apply_fn=None,
         )
 
-        inv_model_params = self.inv_model.init(
-            next_rng(),
-            jnp.zeros((10, self.observation_dim * 2)),
-        )
-        self._train_states["inv_model"] = TrainState.create(
-            params=inv_model_params,
-            tx=get_optimizer(),
-            apply_fn=None,
-        )
+        model_keys = ["planner"]
+        if inv_model is not None:
+            inv_model_params = self.inv_model.init(
+                next_rng(),
+                jnp.zeros((10, self.observation_dim * 2)),
+            )
+            self._train_states["inv_model"] = TrainState.create(
+                params=inv_model_params,
+                tx=get_optimizer(),
+                apply_fn=None,
+            )
+            model_keys.append("inv_model")
 
-        model_keys = ["planner", "inv_model"]
         self._model_keys = tuple(model_keys)
 
-    def get_loss_weights(self, discount: float) -> jnp.ndarray:
-        dim_weights = np.ones(self.observation_dim, dtype=np.float32)
+    def get_loss_weights(self, discount: float, act_weight: float) -> jnp.ndarray:
+        dim_weights = np.ones(self.planner.sample_dim, dtype=np.float32)
 
         # decay loss with trajectory timestep: discount**t
         discounts = discount ** np.arange(self.horizon, dtype=np.float32)
@@ -71,36 +83,37 @@ class DecisionDiffuser(Algo):
         loss_weights = einops.einsum(discounts, dim_weights, "h,t->h t")
         # Cause things are conditioned on t=0
         if self.diffusion.model_mean_type == ModelMeanType.EPSILON:
-            loss_weights[0] = 0
+            loss_weights[0, :] = 0
+        if self.inv_model is None:
+            loss_weights[0, -self.action_dim :] = act_weight
 
         return jnp.array(loss_weights)
 
     @partial(jax.jit, static_argnames=("self"))
     def _train_step(self, train_states, rng, batch):
         diff_loss_fn = self.get_diff_loss(batch)
-        inv_loss_fn = self.get_inv_loss(batch)
 
         params = {key: train_states[key].params for key in self.model_keys}
         (_, aux_planner), grad_planner = value_and_multi_grad(
             diff_loss_fn, 1, has_aux=True
         )(params, rng)
 
-        params = {key: train_states[key].params for key in self.model_keys}
-        (_, aux_inv_model), grad_inv_model = value_and_multi_grad(
-            inv_loss_fn, 1, has_aux=True
-        )(params, rng)
-
         train_states["planner"] = train_states["planner"].apply_gradients(
             grads=grad_planner[0]["planner"]
         )
-        train_states["inv_model"] = train_states["inv_model"].apply_gradients(
-            grads=grad_inv_model[0]["inv_model"]
-        )
+        metrics = dict(diff_loss=aux_planner["loss"])
 
-        metrics = dict(
-            diff_loss=aux_planner["loss"],
-            inv_loss=aux_inv_model["loss"],
-        )
+        if self.inv_model is not None:
+            inv_loss_fn = self.get_inv_loss(batch)
+            params = {key: train_states[key].params for key in self.model_keys}
+            (_, aux_inv_model), grad_inv_model = value_and_multi_grad(
+                inv_loss_fn, 1, has_aux=True
+            )(params, rng)
+
+            train_states["inv_model"] = train_states["inv_model"].apply_gradients(
+                grads=grad_inv_model[0]["inv_model"]
+            )
+            metrics["inv_loss"] = aux_inv_model["loss"]
 
         return train_states, metrics
 
@@ -125,7 +138,11 @@ class DecisionDiffuser(Algo):
 
     def get_diff_loss(self, batch):
         def diff_loss(params, rng):
-            samples = batch["samples"]
+            if self.inv_model is None:
+                samples = jnp.concatenate((batch["samples"], batch["actions"]), axis=-1)
+            else:
+                samples = batch["samples"]
+
             conditions = batch["conditions"]
             returns = batch.get("returns", None)
             cost_returns = batch.get("cost_returns", None)

@@ -21,9 +21,10 @@ import jax.numpy as jnp
 import optax
 from flax.training.train_state import TrainState
 
-from .base_algo import Algo
 from diffuser.diffusion import GaussianDiffusion
 from utilities.jax_utils import mse_loss, next_rng, value_and_multi_grad
+
+from .base_algo import Algo
 
 
 def update_target_network(main_params, target_params, tau):

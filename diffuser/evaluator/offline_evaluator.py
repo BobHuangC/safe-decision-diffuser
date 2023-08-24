@@ -32,47 +32,50 @@ class DiffuserOfflineEvaluator(BaseEvaluator):
         returns = eval_batch["returns"]
         actions = eval_batch["actions"]
 
-        pred_actions = self._policy.inv_model.apply(
-            params["inv_model"],
-            jnp.concatenate([samples[:, :-1], samples[:, 1:]], axis=-1),
-        )
-
-        pred_act_mse = jnp.mean(jnp.square(pred_actions - actions[:, :-1]))
-        pred_act_mse_first_step = jnp.mean(
-            jnp.square(pred_actions[:, 0] - actions[:, 0])
-        )
-
-        plan_observations = self._policy.planner.apply(
+        plan_samples = self._policy.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
             method=self._policy.planner.ddpm_sample,
         )
-        plan_obs_comb = jnp.concatenate(
-            [plan_observations[:, :-1], plan_observations[:, 1:]], axis=-1
-        )
-        plan_actions = self._policy.inv_model.apply(
-            params["inv_model"],
-            plan_obs_comb,
-        )
 
+        if self._policy.inv_model is not None:
+            pred_actions = self._policy.inv_model.apply(
+                params["inv_model"],
+                jnp.concatenate([samples[:, :-1], samples[:, 1:]], axis=-1),
+            )
+            pred_act_mse = jnp.mean(jnp.square(pred_actions - actions[:, :-1]))
+            pred_act_mse_first_step = jnp.mean(
+                jnp.square(pred_actions[:, 0] - actions[:, 0])
+            )
+            metrics["pred_act_mse"] = pred_act_mse
+            metrics["pred_act_mse_first_step"] = pred_act_mse_first_step
+
+            plan_obs_comb = jnp.concatenate(
+                [plan_samples[:, :-1], plan_samples[:, 1:]], axis=-1
+            )
+            plan_actions = self._policy.inv_model.apply(
+                params["inv_model"],
+                plan_obs_comb,
+            )
+
+        else:
+            plan_actions = plan_samples[:, :-1, -self._policy.planner.action_dim :]
+            plan_samples = plan_samples[:, :, : -self._policy.planner.action_dim]
+
+        plan_obs_mse = jnp.mean(jnp.square(plan_samples - samples))
         plan_obs_mse_first_step = jnp.mean(
-            jnp.square(plan_observations[:, 1] - samples[:, 1])
+            jnp.square(plan_samples[:, 1] - samples[:, 1])
         )
-        plan_obs_mse = jnp.mean(jnp.square(plan_observations - samples))
+        metrics["plan_obs_mse"] = plan_obs_mse
+        metrics["plan_obs_mse_first_step"] = plan_obs_mse_first_step
 
         plan_act_mse = jnp.mean(jnp.square(plan_actions - actions[:, :-1]))
         plan_act_mse_first_step = jnp.mean(
             jnp.square(plan_actions[:, 0] - actions[:, 0])
         )
-
-        metrics["plan_obs_mse"] = plan_obs_mse
         metrics["plan_act_mse"] = plan_act_mse
-        metrics["pred_act_mse"] = pred_act_mse
-
-        metrics["plan_obs_mse_first_step"] = plan_obs_mse_first_step
         metrics["plan_act_mse_first_step"] = plan_act_mse_first_step
-        metrics["pred_act_mse_first_step"] = pred_act_mse_first_step
 
         return metrics

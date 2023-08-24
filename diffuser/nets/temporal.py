@@ -45,7 +45,7 @@ class ResidualTemporalBlock(nn.Module):
 
 
 class TemporalUnet(nn.Module):
-    transition_dim: int
+    sample_dim: int
     dim: int = 128
     dim_mults: Tuple[int] = (1, 4, 8)
     returns_condition: bool = False
@@ -55,7 +55,7 @@ class TemporalUnet(nn.Module):
 
     def setup(self):
         self.dims = dims = [
-            self.transition_dim,
+            self.sample_dim,
             *map(lambda m: self.dim * m, self.dim_mults),
         ]
         self.in_out = list(zip(dims[:-1], dims[1:]))
@@ -183,7 +183,7 @@ class TemporalUnet(nn.Module):
         x = nn.Sequential(
             [
                 Conv1dBlock(self.dim, kernel_size=self.kernel_size, mish=True),
-                nn.Conv(self.transition_dim, (1,)),
+                nn.Conv(self.sample_dim, (1,)),
             ]
         )(x)
 
@@ -192,13 +192,14 @@ class TemporalUnet(nn.Module):
 
 class DiffusionPlanner(nn.Module):
     diffusion: GaussianDiffusion
-    observation_dim: int
+    sample_dim: int
+    action_dim: int
     horizon: int
     dim: int
     dim_mults: Tuple[int]
     returns_condition: bool = True
     cost_returns_condition: bool = True
-    condition_dropout: float = 0.1
+    condition_dropout: float = 0.25
     kernel_size: int = 5
     sample_method: str = "ddpm"
     dpm_steps: int = 15
@@ -206,7 +207,7 @@ class DiffusionPlanner(nn.Module):
 
     def setup(self):
         self.base_net = TemporalUnet(
-            transition_dim=self.observation_dim,
+            sample_dim=self.sample_dim,
             dim=self.dim,
             dim_mults=self.dim_mults,
             returns_condition=self.returns_condition,
@@ -220,8 +221,9 @@ class DiffusionPlanner(nn.Module):
         return self.diffusion.p_sample_loop_jit(
             rng_key=rng,
             model_forward=self.base_net,
-            shape=(batch_size, self.horizon, self.observation_dim),
+            shape=(batch_size, self.horizon, self.sample_dim),
             conditions=conditions,
+            condition_dim=self.sample_dim - self.action_dim,
             returns=returns,
             clip_denoised=True,
         )
@@ -272,7 +274,7 @@ class DiffusionPlanner(nn.Module):
         return self.diffusion.ddim_sample_loop(
             rng_key=rng,
             model_forward=self.base_net,
-            shape=(batch_size, self.horizon, self.observation_dim),
+            shape=(batch_size, self.horizon, self.sample_dim),
             conditions=conditions,
             returns=returns,
             clip_denoised=True,
@@ -291,6 +293,7 @@ class DiffusionPlanner(nn.Module):
             model_forward=self.base_net,
             x_start=samples,
             conditions=conditions,
+            condition_dim=self.sample_dim - self.action_dim,
             returns=returns,
             cost_returns=cost_returns,
             t=ts,
