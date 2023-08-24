@@ -149,20 +149,25 @@ class DiffuserPolicy(object):
     ):  # deterministic is not used
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
-        plan_observations = self.planner.apply(
+        plan_samples = self.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
             method=self.planner.ddpm_sample,
         )
-        obs_comb = jnp.concatenate(
-            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
-        )
-        actions = self.inv_model.apply(
-            params["inv_model"],
-            obs_comb,
-        )
+
+        if self.inv_model is not None:
+            obs_comb = jnp.concatenate(
+                [plan_samples[:, 0], plan_samples[:, 1]], axis=-1
+            )
+            actions = self.inv_model.apply(
+                params["inv_model"],
+                obs_comb,
+            )
+        else:
+            actions = plan_samples[:, 0, -self.planner.action_dim :]
+
         return actions
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
@@ -171,20 +176,25 @@ class DiffuserPolicy(object):
     ):  # deterministic is not used
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
-        plan_observations = self.planner.apply(
+        plan_samples = self.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
             method=self.planner.ddim_sample,
         )
-        obs_comb = jnp.concatenate(
-            [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
-        )
-        actions = self.inv_model.apply(
-            params["inv_model"],
-            obs_comb,
-        )
+
+        if self.inv_model is not None:
+            obs_comb = jnp.concatenate(
+                [plan_samples[:, 0], plan_samples[:, 1]], axis=-1
+            )
+            actions = self.inv_model.apply(
+                params["inv_model"],
+                obs_comb,
+            )
+        else:
+            actions = plan_samples[:, 0, -self.planner.action_dim :]
+
         return actions
 
     def __call__(self, observations, deterministic=False):

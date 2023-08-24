@@ -53,10 +53,24 @@ class DiffuserTrainer(BaseTrainer):
             condition_guidance_w=self._cfgs.condition_guidance_w,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
+
+        if self._cfgs.use_inv_dynamic:
+            inv_model = InverseDynamic(
+                action_dim=self._action_dim,
+                hidden_dims=to_arch(self._cfgs.inv_hidden_dims),
+            )
+            plan_sample_dim = self._observation_dim
+            plan_action_dim = 0
+        else:
+            inv_model = None
+            plan_sample_dim = self._observation_dim + self._action_dim
+            plan_action_dim = self._action_dim
+
         planner = DiffusionPlanner(
             diffusion=gd,
             horizon=self._cfgs.horizon,
-            observation_dim=self._observation_dim,
+            sample_dim=plan_sample_dim,
+            action_dim=plan_action_dim,
             dim=self._cfgs.dim,
             dim_mults=to_arch(self._cfgs.dim_mults),
             returns_condition=self._cfgs.returns_condition,
@@ -66,9 +80,5 @@ class DiffuserTrainer(BaseTrainer):
             sample_method=self._cfgs.sample_method,
             dpm_steps=self._cfgs.algo_cfg.dpm_steps,
             dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
-        )
-        inv_model = InverseDynamic(
-            action_dim=self._action_dim,
-            hidden_dims=to_arch(self._cfgs.inv_hidden_dims),
         )
         return planner, inv_model

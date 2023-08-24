@@ -43,9 +43,10 @@ def to_arch(string):
     return tuple(int(x) for x in string.split("-"))
 
 
-def apply_conditioning(x, conditions):
+def apply_conditioning(x, conditions, condition_dim: int):
     for t, val in conditions.items():
-        x = x.at[:, t].set(val)
+        assert condition_dim is not None
+        x = x.at[:, t, :condition_dim].set(val)
     return x
 
 
