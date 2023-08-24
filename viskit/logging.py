@@ -17,6 +17,8 @@ from enum import Enum
 
 import dateutil.tz
 import numpy as np
+import orbax
+from flax.training import orbax_utils
 
 from viskit.tabulate import tabulate
 
@@ -202,7 +204,9 @@ class Logger(object):
 
         :param data: Something pickle'able.
         """
+
         file_name = osp.join(self._snapshot_dir, file_name)
+        mkdir_p(os.path.dirname(file_name))
         if mode == "joblib":
             import joblib
 
@@ -291,6 +295,15 @@ class Logger(object):
     ):
         del self._prefixes[-1]
         self._prefix_str = "".join(self._prefixes)
+
+    def save_orbax_checkpoint(self, data, relative_path: str):
+        if os.path.isabs(relative_path):
+            raise ValueError("orbax checkpoint path should be relative to snapshot dir")
+        file_name = osp.join(self._snapshot_dir, relative_path)
+        mkdir_p(os.path.dirname(file_name))
+        orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+        save_args = orbax_utils.save_args_from_target(data)
+        orbax_checkpointer.save(file_name, data, save_args=save_args, force=True)
 
 
 def safe_json(data):

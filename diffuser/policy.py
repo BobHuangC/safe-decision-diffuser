@@ -150,7 +150,7 @@ class DiffuserPolicy(object):
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
         plan_observations = self.planner.apply(
-            self.params["planner"],
+            params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
@@ -160,7 +160,7 @@ class DiffuserPolicy(object):
             [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
         )
         actions = self.inv_model.apply(
-            self.params["inv_model"],
+            params["inv_model"],
             obs_comb,
         )
         return actions
@@ -172,7 +172,7 @@ class DiffuserPolicy(object):
         conditions = {0: observations}
         returns = jnp.ones((observations.shape[0], 1)) * 0.9
         plan_observations = self.planner.apply(
-            self.params["planner"],
+            params["planner"],
             rng,
             conditions=conditions,
             returns=returns,
@@ -182,7 +182,7 @@ class DiffuserPolicy(object):
             [plan_observations[:, 0], plan_observations[:, 1]], axis=-1
         )
         actions = self.inv_model.apply(
-            self.params["inv_model"],
+            params["inv_model"],
             obs_comb,
         )
         return actions

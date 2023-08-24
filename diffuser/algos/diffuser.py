@@ -27,21 +27,10 @@ class DecisionDiffuser(Algo):
         self._train_states = {}
 
         def get_lr(lr_decay=False):
-            if lr_decay is True:
-                return optax.cosine_decay_schedule(
-                    self.config.lr, decay_steps=self.config.lr_decay_steps
-                )
-            else:
-                return self.config.lr
+            return self.config.lr
 
         def get_optimizer(lr_decay=False, weight_decay=cfg.weight_decay):
-            # if self.config.max_grad_norm > 0:
-            #     opt = optax.chain(
-            #         optax.clip_by_global_norm(self.config.max_grad_norm),
-            #         optax.adamw(get_lr(lr_decay), weight_decay=weight_decay),
-            #     )
-            # else:
-            opt = optax.adamw(get_lr(lr_decay), weight_decay=weight_decay)
+            opt = optax.adam(self.config.lr)
             return opt
 
         planner_params = self.planner.init(
@@ -137,9 +126,9 @@ class DecisionDiffuser(Algo):
     def get_diff_loss(self, batch):
         def diff_loss(params, rng):
             samples = batch["samples"]
-            returns = batch["returns"]
-            cost_returns = batch["cost_returns"]
             conditions = batch["conditions"]
+            returns = batch.get("returns", None)
+            cost_returns = batch.get("cost_returns", None)
             terms, ts = self.get_diff_terms(
                 params, samples, conditions, returns, cost_returns, rng
             )

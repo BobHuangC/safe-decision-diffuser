@@ -791,35 +791,24 @@ class GaussianDiffusion:
                  Some mean or variance settings may also have other keys.
         """
 
-        noise = jax.random.normal(rng_key, x_start.shape, dtype=x_start.dtype)
+        rng_key, sample_key = jax.random.split(rng_key)
+        noise = jax.random.normal(sample_key, x_start.shape, dtype=x_start.dtype)
         x_t = self.q_sample(x_start, t, noise=noise)
         x_t = apply_conditioning(x_t, conditions)
-        if self.returns_condition and self.cost_returns_condition:
-            model_output = model_forward(
-                rng=rng_key,
-                x=x_t,
-                time=self._scale_timesteps(t),
-                returns=returns,
-                cost_returns=cost_returns,
-            )
-        elif self.returns_condition and not self.cost_returns_condition:
-            model_output = model_forward(
-                rng=rng_key,
-                x=x_t,
-                time=self._scale_timesteps(t),
-                returns=returns,
-                cost_returns=None,
-            )
-        elif not self.returns_condition and self.cost_returns_condition:
-            model_output = model_forward(
-                rng=rng_key,
-                x=x_t,
-                time=self._scale_timesteps(t),
-                returns=None,
-                cost_returns=cost_returns,
-            )
-        else:
-            model_output = model_forward(None, x_t, self._scale_timesteps(t))
+
+        model_kwargs = {}
+        if self.returns_condition:
+            model_kwargs["returns"] = returns
+        if self.cost_returns_condition:
+            model_kwargs["cost_returns"] = cost_returns
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        model_output = model_forward(
+            sample_key,
+            x_t,
+            self._scale_timesteps(t),
+            **model_kwargs,
+        )
 
         if self.model_mean_type != ModelMeanType.EPSILON:
             model_output = apply_conditioning(model_output, conditions)

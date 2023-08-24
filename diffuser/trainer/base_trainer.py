@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import importlib
-from collections import deque
-from typing import List
 
 import absl
 import absl.flags
@@ -24,10 +22,12 @@ import gymnasium
 import jax
 import jax.numpy as jnp
 import numpy as np
+import torch
 import tqdm
 
 from diffuser.constants import DATASET, DATASET_MAP, ENV_MAP
 from diffuser.hps import hyperparameters
+from utilities.data_utils import cycle, numpy_collate
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
 from utilities.utils import (
@@ -41,8 +41,11 @@ from viskit.logging import logger, setup_logger
 
 
 class BaseTrainer:
-    def __init__(self, config):
-        self._cfgs = absl.flags.FLAGS
+    def __init__(self, config, use_absl: bool = True):
+        if use_absl:
+            self._cfgs = absl.flags.FLAGS
+        else:
+            self._cfgs = config
         self._step = 0
 
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
@@ -56,10 +59,7 @@ class BaseTrainer:
             act_fn = getattr(jax.nn, self._cfgs.activation)
 
         self._act_fn = act_fn
-
         self._variant = get_user_flags(self._cfgs, config)
-        for k, v in self._cfgs.algo_cfg.items():
-            self._variant[f"algo.{k}"] = v
 
         # get high level env
         env_name_full = self._cfgs.env
@@ -73,12 +73,25 @@ class BaseTrainer:
     def train(self):
         self._setup()
 
-        act_methods = self._cfgs.act_method.split("-")
         viskit_metrics = {}
-        recent_returns = {method: deque(maxlen=10) for method in act_methods}
-        best_returns = {method: -float("inf") for method in act_methods}
         for epoch in range(self._cfgs.n_epochs):
             metrics = {"epoch": epoch}
+
+            with Timer() as eval_timer:
+                if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
+                    self._evaluator.update_params(self._agent.train_params)
+                    eval_metrics = self._evaluator.evaluate(epoch)
+                    metrics.update(eval_metrics)
+
+                if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
+                    save_data = {
+                        "agent_states": self._agent.train_states,
+                        "variant": self._variant,
+                        "epoch": epoch,
+                    }
+                    logger.save_orbax_checkpoint(
+                        save_data, f"checkpoints/model_{epoch}"
+                    )
 
             with Timer() as train_timer:
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
@@ -90,33 +103,6 @@ class BaseTrainer:
                     # if self._step % self._cfgs.update_ema_every == 0:
                     #     self._step_ema()
 
-            with Timer() as eval_timer:
-                if epoch == 0 or (epoch + 1) % self._cfgs.eval_period == 0:
-                    # TODO(zbzhu): make `Evaluator` class to handle this
-                    if self._cfgs.eval_mode == "online":
-                        (
-                            eval_metrics,
-                            recent_returns,
-                            best_returns,
-                        ) = self._online_evaluate(
-                            act_methods, recent_returns, best_returns
-                        )
-                    elif self._cfgs.eval_mode == "offline":
-                        # XXX(zbzhu): act_method is not used in offline evaluation for now
-                        eval_metrics = self._offline_evaluate()
-                    else:
-                        raise ValueError(f"Unknown eval mode: {self._cfgs.eval_mode}")
-
-                    metrics.update(eval_metrics)
-
-                    if self._cfgs.save_model:
-                        save_data = {
-                            "agent": self._agent,
-                            "variant": self._variant,
-                            "epoch": epoch,
-                        }
-                        self._wandb_logger.save_pickle(save_data, f"model_{epoch}.pkl")
-
             metrics["train_time"] = train_timer()
             metrics["eval_time"] = eval_timer()
             metrics["epoch_time"] = train_timer() + eval_timer()
@@ -126,47 +112,15 @@ class BaseTrainer:
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
         # save model
-        if self._cfgs.save_model:
-            save_data = {"agent": self._agent, "variant": self._variant, "epoch": epoch}
-            self._wandb_logger.save_pickle(save_data, "model_final.pkl")
-
-    def _online_evaluate(
-        self, act_methods: List[str], recent_returns: dict, best_returns: dict
-    ):
-        metrics = {}
-        for method in act_methods:
-            trajs = self._sample_trajs(method)
-
-            post = "" if len(act_methods) == 1 else "_" + method
-            metrics["average_return" + post] = np.mean(
-                [np.sum(t["rewards"]) for t in trajs]
-            )
-            metrics["average_traj_length" + post] = np.mean(
-                [len(t["rewards"]) for t in trajs]
-            )
-            metrics["average_normalizd_return" + post] = cur_return = np.mean(
-                [
-                    self._eval_sampler.env.get_normalized_score(np.sum(t["rewards"]))
-                    for t in trajs
-                ]
-            )
-            recent_returns[method].append(cur_return)
-            metrics["average_10_normalized_return" + post] = np.mean(
-                recent_returns[method]
-            )
-            metrics["best_normalized_return" + post] = best_returns[method] = max(
-                best_returns[method], cur_return
-            )
-            metrics["done" + post] = np.mean([np.sum(t["dones"]) for t in trajs])
-        return metrics, recent_returns, best_returns
+        if self._cfgs.save_period > 0:
+            save_data = {
+                "agent_states": self._agent.train_states,
+                "variant": self._variant,
+                "epoch": epoch,
+            }
+            logger.save_orbax_checkpoint(save_data, "checkpoints/model_final")
 
     def _setup(self):
-        raise NotImplementedError
-
-    def _sample_trajs(self):
-        raise NotImplementedError
-
-    def _offline_evaluate(self):
         raise NotImplementedError
 
     def _setup_logger(self):
@@ -279,6 +233,30 @@ class BaseTrainer:
 
         self._observation_dim = eval_sampler.env.observation_space.shape[0]
         self._action_dim = eval_sampler.env.action_space.shape[0]
-        self._max_action = float(eval_sampler.env.action_space.high[0])
 
         return dataset, eval_sampler
+
+    def _setup_evaluator(self, sampler_policy, eval_sampler, dataset):
+        evaluator_class = getattr(
+            importlib.import_module("diffuser.evaluator"), self._cfgs.evaluator_class
+        )
+
+        if evaluator_class.eval_mode == "online":
+            evaluator = evaluator_class(self._cfgs, sampler_policy, eval_sampler)
+        elif evaluator_class.eval_mode == "offline":
+            eval_data_sampler = torch.utils.data.RandomSampler(dataset)
+            eval_dataloader = cycle(
+                torch.utils.data.DataLoader(
+                    dataset,
+                    sampler=eval_data_sampler,
+                    batch_size=self._cfgs.eval_batch_size,
+                    collate_fn=numpy_collate,
+                    drop_last=True,
+                    num_workers=4,
+                )
+            )
+            evaluator = evaluator_class(self._cfgs, sampler_policy, eval_dataloader)
+        else:
+            raise NotImplementedError(f"Unknown eval_mode: {self._cfgs.eval_mode}")
+
+        return evaluator

@@ -1,7 +1,3 @@
-from functools import partial
-
-import jax
-import jax.numpy as jnp
 import torch
 
 from diffuser.algos import DecisionDiffuser
@@ -10,7 +6,6 @@ from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.jax_utils import batch_to_jax, next_rng
 from utilities.utils import set_random_seed, to_arch
 
 
@@ -21,31 +16,18 @@ class DiffuserTrainer(BaseTrainer):
         self._wandb_logger = self._setup_logger()
 
         # setup dataset and eval_sample
-        dataset, self._eval_sampler = self._setup_dataset()
-        sampler = torch.utils.data.RandomSampler(dataset)
+        dataset, eval_sampler = self._setup_dataset()
+        data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
                 dataset,
-                sampler=sampler,
+                sampler=data_sampler,
                 batch_size=self._cfgs.batch_size,
                 collate_fn=numpy_collate,
                 drop_last=True,
                 num_workers=8,
             )
         )
-
-        if self._cfgs.eval_mode == "offline":
-            eval_sampler = torch.utils.data.RandomSampler(dataset)
-            self._eval_dataloader = cycle(
-                torch.utils.data.DataLoader(
-                    dataset,
-                    sampler=eval_sampler,
-                    batch_size=self._cfgs.eval_batch_size,
-                    collate_fn=numpy_collate,
-                    drop_last=True,
-                    num_workers=4,
-                )
-            )
 
         # setup policy
         self._planner, self._inv_model = self._setup_policy()
@@ -55,8 +37,9 @@ class DiffuserTrainer(BaseTrainer):
             self._cfgs.algo_cfg, self._planner, self._inv_model
         )
 
-        # setup sampler policy
-        self._sampler_policy = DiffuserPolicy(self._planner, self._inv_model)
+        # setup evaluator
+        sampler_policy = DiffuserPolicy(self._planner, self._inv_model)
+        self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_policy(self):
         gd = GaussianDiffusion(
@@ -89,71 +72,3 @@ class DiffuserTrainer(BaseTrainer):
             hidden_dims=to_arch(self._cfgs.inv_hidden_dims),
         )
         return planner, inv_model
-
-    def _sample_trajs(self, act_method: str):
-        self._sampler_policy.act_method = act_method
-        trajs = self._eval_sampler.sample(
-            self._sampler_policy.update_params(self._agent.train_params),
-            self._cfgs.eval_n_trajs,
-            deterministic=True,
-        )
-        return trajs
-
-    def _offline_evaluate(self):
-        eval_batch = batch_to_jax(next(self._eval_dataloader))
-        rng = next_rng()
-        return self._offline_eval_step(self._agent.train_states, rng, eval_batch)
-
-    @partial(jax.jit, static_argnames=("self"))
-    def _offline_eval_step(self, train_states, rng, eval_batch):
-        metrics = {}
-
-        samples = eval_batch["samples"]
-        conditions = eval_batch["conditions"]
-        returns = eval_batch["returns"]
-        actions = eval_batch["actions"]
-
-        pred_actions = self._inv_model.apply(
-            train_states["inv_model"].params,
-            jnp.concatenate([samples[:, :-1], samples[:, 1:]], axis=-1),
-        )
-
-        pred_act_mse = jnp.mean(jnp.square(pred_actions - actions[:, :-1]))
-        pred_act_mse_first_step = jnp.mean(
-            jnp.square(pred_actions[:, 0] - actions[:, 0])
-        )
-
-        plan_observations = self._planner.apply(
-            train_states["planner"].params,
-            rng,
-            conditions=conditions,
-            returns=returns,
-            method=self._planner.ddpm_sample,
-        )
-        plan_obs_comb = jnp.concatenate(
-            [plan_observations[:, :-1], plan_observations[:, 1:]], axis=-1
-        )
-        plan_actions = self._inv_model.apply(
-            train_states["inv_model"].params,
-            plan_obs_comb,
-        )
-
-        plan_obs_mse_first_step = jnp.mean(
-            jnp.square(plan_observations[:, 1] - samples[:, 1])
-        )
-        plan_obs_mse = jnp.mean(jnp.square(plan_observations - samples))
-
-        plan_act_mse = jnp.mean(jnp.square(plan_actions - actions[:, :-1]))
-        plan_act_mse_first_step = jnp.mean(
-            jnp.square(plan_actions[:, 0] - actions[:, 0])
-        )
-
-        metrics["plan_obs_mse"] = plan_obs_mse
-        metrics["plan_act_mse"] = plan_act_mse
-        metrics["pred_act_mse"] = pred_act_mse
-
-        metrics["plan_obs_mse_first_step"] = plan_obs_mse_first_step
-        metrics["plan_act_mse_first_step"] = plan_act_mse_first_step
-        metrics["pred_act_mse_first_step"] = pred_act_mse_first_step
-
-        return metrics

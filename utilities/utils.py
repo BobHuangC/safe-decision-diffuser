@@ -53,6 +53,17 @@ def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 
+def dot_key_dict_to_nested_dicts(dict_in):
+    dict_out = {}
+    for key, value in dict_in.items():
+        cur = dict_out
+        *keys, leaf = key.split(".")
+        for k in keys:
+            cur = cur.setdefault(k, {})
+        cur[leaf] = value
+    return dict_out
+
+
 class Timer(object):
     def __init__(self):
         self._time = None
