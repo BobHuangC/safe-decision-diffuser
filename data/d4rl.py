@@ -16,6 +16,7 @@ def get_dataset(
     norm_reward: bool = False,
     termination_penalty: float = None,
     include_next_obs: bool = False,
+    clip_to_eps: bool = False,  # disable action clip for debugging purpose
 ):
     preprocess_fn = compose(
         partial(
@@ -30,7 +31,10 @@ def get_dataset(
             norm_reward=norm_reward,
             use_cost=False,
         ),
-        clip_actions,
+        partial(
+            clip_actions,
+            clip_to_eps=clip_to_eps,
+        ),
     )
     return D4RLDataset(env, preprocess_fn=preprocess_fn)
 
