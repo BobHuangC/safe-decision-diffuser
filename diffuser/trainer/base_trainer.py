@@ -45,7 +45,6 @@ class BaseTrainer:
             self._cfgs = absl.flags.FLAGS
         else:
             self._cfgs = config
-        self._step = 0
 
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._cfgs.algo_cfg.lr_decay_steps = (
@@ -83,24 +82,12 @@ class BaseTrainer:
                     metrics.update(eval_metrics)
 
                 if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
-                    save_data = {
-                        "agent_states": self._agent.train_states,
-                        "variant": self._variant,
-                        "epoch": epoch,
-                    }
-                    logger.save_orbax_checkpoint(
-                        save_data, f"checkpoints/model_{epoch}"
-                    )
+                    self._save_model(epoch)
 
             with Timer() as train_timer:
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
                     batch = batch_to_jax(next(self._dataloader))
                     metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
-                    self._step += 1
-
-                    # TODO(zbzhu): Add EMA
-                    # if self._step % self._cfgs.update_ema_every == 0:
-                    #     self._step_ema()
 
             metrics["train_time"] = train_timer()
             metrics["eval_time"] = eval_timer()
@@ -111,16 +98,21 @@ class BaseTrainer:
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
         # save model
-        if self._cfgs.save_period > 0:
-            save_data = {
-                "agent_states": self._agent.train_states,
-                "variant": self._variant,
-                "epoch": epoch,
-            }
-            logger.save_orbax_checkpoint(save_data, "checkpoints/model_final")
+        if self._cfgs.save_period > 0 and self._cfgs.n_epochs % self._cfgs.save_period == 0:
+            self._save_model(self._cfgs.n_epochs)
 
     def _setup(self):
         raise NotImplementedError
+
+    def _save_model(self, epoch: int):
+        save_data = {
+            "agent_states": self._agent.train_states,
+            "variant": self._variant,
+            "epoch": epoch,
+        }
+        logger.save_orbax_checkpoint(
+            save_data, f"checkpoints/model_{epoch}"
+        )
 
     def _setup_logger(self):
         logging_configs = self._cfgs.logging

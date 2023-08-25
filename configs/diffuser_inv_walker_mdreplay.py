@@ -6,7 +6,7 @@ from utilities.utils import WandBLogger
 def get_config():
     config = ConfigDict()
     config.exp_name = "diffuser_inv_d4rl"
-    config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}/{seed}"
+    config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}-ld_{algo_cfg.loss_discount}/{seed}"
 
     config.trainer = "DiffuserTrainer"
     config.type = "model-free"
@@ -39,7 +39,7 @@ def get_config():
     config.use_inv_dynamic = True
     config.inv_hidden_dims = "256-256"
 
-    config.n_epochs = 2000
+    config.n_epochs = 1000
     config.n_train_step_per_epoch = 1000
 
     config.evaluator_class = "OnlineEvaluator"
