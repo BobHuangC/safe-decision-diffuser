@@ -13,7 +13,6 @@ from .preprocess import clip_actions, pad_trajs_to_dataset, split_to_trajs
 def get_dataset(
     env,
     max_traj_length: int,
-    norm_reward: bool = False,
     termination_penalty: float = None,
     include_next_obs: bool = False,
     clip_to_eps: bool = False,  # disable action clip for debugging purpose
@@ -28,7 +27,6 @@ def get_dataset(
         ),
         partial(
             split_to_trajs,
-            norm_reward=norm_reward,
             use_cost=False,
         ),
         partial(

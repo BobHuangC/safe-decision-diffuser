@@ -145,7 +145,6 @@ class BaseTrainer:
         dataset = get_dataset(
             eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
-            norm_reward=self._cfgs.norm_reward,
             include_next_obs=include_next_obs,
             termination_penalty=self._cfgs.termination_penalty,
         )
@@ -169,8 +168,6 @@ class BaseTrainer:
             env=eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
             use_cost=self._cfgs.include_cost_returns,
-            norm_reward=self._cfgs.norm_reward,
-            norm_cost=self._cfgs.norm_cost,
             termination_penalty=self._cfgs.termination_penalty,
             include_next_obs=include_next_obs,
             augmentation_method=self._cfgs.dataAugmentation_method,

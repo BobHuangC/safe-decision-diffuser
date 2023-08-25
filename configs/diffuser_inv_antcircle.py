@@ -70,9 +70,7 @@ def get_config():
     config.act_method = "ddpm"
     config.sample_method = "ddpm"
     config.policy_temp = 1.0
-    config.norm_reward = False
     config.cost_reward = False
-    config.norm_cost = False
 
     config.save_model = False
     config.logging = WandBLogger.get_default_config()
