@@ -53,7 +53,8 @@ def main():
             for key in trainer._agent.model_keys
         }
         trainer._evaluator.update_params(train_params)
-        trainer._evaluator.evaluate(epoch)
+        metrics = trainer._evaluator.evaluate(epoch)
+        print(f"\033[92m Epoch {epoch}: {metrics} \033[00m\n")
 
 
 if __name__ == "__main__":

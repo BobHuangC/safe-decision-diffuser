@@ -5,10 +5,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
-from flax.training.train_state import TrainState
 
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType
 from utilities.jax_utils import next_rng, value_and_multi_grad
+from utilities.flax_utils import apply_ema_decay, copy_params_to_ema, TrainState
 
 from .base_algo import Algo
 
@@ -55,6 +55,7 @@ class DecisionDiffuser(Algo):
         )
         self._train_states["planner"] = TrainState.create(
             params=planner_params,
+            params_ema=planner_params,
             tx=get_optimizer(self.config.lr_decay, weight_decay=0.0),
             apply_fn=None,
         )
@@ -182,7 +183,19 @@ class DecisionDiffuser(Algo):
         self._train_states, metrics = self._train_step(
             self._train_states, next_rng(), batch
         )
+        if self._total_steps % self.config.update_ema_every == 0:
+            self.step_ema()
         return metrics
+
+    def step_ema(self):
+        if self._total_steps < self.config.step_start_ema:
+            self._train_states["planner"] = copy_params_to_ema(
+                self._train_states["planner"]
+            )
+        else:
+            self._train_states["planner"] = apply_ema_decay(
+                self._train_states["planner"], self.config.ema_decay
+            )
 
     @property
     def model_keys(self):
