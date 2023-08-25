@@ -77,7 +77,7 @@ class BaseTrainer:
 
             with Timer() as eval_timer:
                 if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
-                    self._evaluator.update_params(self._agent.train_params)
+                    self._evaluator.update_params(self._agent.eval_params)
                     eval_metrics = self._evaluator.evaluate(epoch)
                     metrics.update(eval_metrics)
 
@@ -100,6 +100,10 @@ class BaseTrainer:
         # save model
         if self._cfgs.save_period > 0 and self._cfgs.n_epochs % self._cfgs.save_period == 0:
             self._save_model(self._cfgs.n_epochs)
+
+        if self._cfgs.eval_period > 0 and self._cfgs.n_epochs % self._cfgs.eval_period == 0:
+            self._evaluator.update_params(self._agent.eval_params)
+            self._evaluator.evaluate(self._cfgs.n_epochs)
 
     def _setup(self):
         raise NotImplementedError
