@@ -48,11 +48,11 @@ def main():
     for epoch in args.epochs:
         ckpt_path = os.path.join(args.log_dir, f"checkpoints/model_{epoch}")
         restored = orbax_checkpointer.restore(ckpt_path, item=target)
-        train_params = {
-            key: restored["agent_states"][key].params
+        eval_params = {
+            key: restored["agent_states"][key].params_ema or restored["agent_states"][key].params
             for key in trainer._agent.model_keys
         }
-        trainer._evaluator.update_params(train_params)
+        trainer._evaluator.update_params(eval_params)
         metrics = trainer._evaluator.evaluate(epoch)
         print(f"\033[92m Epoch {epoch}: {metrics} \033[00m\n")
 

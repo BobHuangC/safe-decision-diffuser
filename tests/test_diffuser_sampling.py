@@ -21,7 +21,7 @@ def diffuser_sampling():
 
     trainer._sampler_policy.act_method = "ddpm"
     trajs = trainer._eval_sampler.sample(
-        trainer._sampler_policy.update_params(trainer._agent.train_params),
+        trainer._sampler_policy.update_params(trainer._agent.eval_params),
         n_trajs=100,
         deterministic=True,
     )

@@ -639,5 +639,12 @@ class DiffusionQL(Algo):
         return {key: self.train_states[key].params for key in self.model_keys}
 
     @property
+    def eval_params(self):
+        return {
+            key: self.train_states[key].params_ema or self.train_states[key].params
+            for key in self.model_keys
+        }
+
+    @property
     def total_steps(self):
         return self._total_steps
