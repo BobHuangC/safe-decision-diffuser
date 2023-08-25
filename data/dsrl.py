@@ -17,8 +17,6 @@ def get_dataset(
     env,
     max_traj_length: int,
     use_cost: bool = True,
-    norm_reward: bool = False,
-    norm_cost: bool = False,
     termination_penalty: float = None,
     include_next_obs: bool = False,
     augmentation_method: str = "",
@@ -70,8 +68,6 @@ def get_dataset(
         partial(
             split_to_trajs,
             use_cost=use_cost,
-            norm_reward=norm_reward,
-            norm_cost=norm_cost,
         ),
         clip_actions,
     )

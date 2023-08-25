@@ -30,12 +30,7 @@ def compute_cost_returns(traj):
     return episode_cost_return
 
 
-def split_to_trajs(
-    dataset,
-    use_cost: bool = False,
-    norm_reward: bool = False,
-    norm_cost: bool = False,
-):
+def split_to_trajs(dataset, use_cost: bool = False):
     dones_float = np.zeros_like(dataset["rewards"])  # truncated and terminal
     for i in range(len(dones_float) - 1):
         if (
@@ -77,21 +72,6 @@ def split_to_trajs(
             )
         if dones_float[i] == 1.0 and i + 1 < len(dataset["observations"]):
             trajs.append([])
-
-    if norm_reward:
-        returns = [compute_returns(traj) for traj in trajs]
-        norm = (max(returns) - min(returns)) / 1000
-        for traj in trajs:
-            for i, ts in enumerate(traj):
-                traj[i] = ts[:2] + (ts[2] / norm,) + ts[3:]
-
-    if norm_cost:
-        assert use_cost is True, "Cannot normalize cost without using cost"
-        cost_returns = [compute_cost_returns(traj) for traj in trajs]
-        norm = (max(cost_returns) - min(cost_returns)) / 1000
-        for traj in trajs:
-            for i, ts in enumerate(traj):
-                traj[i] = ts[:-1] + (ts[-1] / norm,)
 
     return trajs
 

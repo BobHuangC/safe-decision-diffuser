@@ -50,7 +50,6 @@ def get_config():
     config.activation = "mish"
     config.act_method = "ddpm"
     config.sample_method = "ddpm"
-    config.norm_reward = False
 
     config.save_period = 100
     config.logging = WandBLogger.get_default_config()
