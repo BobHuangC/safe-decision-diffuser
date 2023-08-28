@@ -40,7 +40,7 @@ def compute_discounted_cumsum_cost_returns(traj, gamma: float) -> np.ndarray:
     return cumsum
 
 
-def compute_discounted_returns(
+def add_discounted_returns(
     trajs,
     discount: float,
     cost_discount: float,

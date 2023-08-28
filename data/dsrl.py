@@ -11,7 +11,7 @@ from .preprocess import (
     select_optimal_trajectory,
     pad_trajs_to_dataset,
     split_to_trajs,
-    compute_discounted_returns,
+    add_discounted_returns,
 )
 
 
@@ -57,7 +57,7 @@ def get_dataset(
             min_reward=min_reward,
         ),
         partial(
-            compute_discounted_returns,
+            add_discounted_returns,
             discount=discount,
             cost_discount=cost_discount,
             termination_penalty=termination_penalty,

@@ -11,7 +11,7 @@ from .preprocess import (
     clip_actions,
     pad_trajs_to_dataset,
     split_to_trajs,
-    compute_discounted_returns,
+    add_discounted_returns,
 )
 
 
@@ -30,8 +30,9 @@ def get_dataset(
             include_next_obs=include_next_obs,
         ),
         partial(
-            compute_discounted_returns,
+            add_discounted_returns,
             discount=discount,
+            cost_discount=1.0,  # placeholder
             termination_penalty=termination_penalty,
         ),
         split_to_trajs,

@@ -21,8 +21,7 @@ def get_config():
     config.max_traj_length = 1000
     config.horizon = 1
     config.returns_scale = 1.0
-    config.include_returns = False
-    config.include_cost_returns = False
+    config.return_condition = False
     config.termination_penalty = 0.0
 
     config.seed = 42
