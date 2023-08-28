@@ -18,8 +18,6 @@ def get_config():
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = 1000
     config.horizon = 100
-    config.include_returns = True
-    config.include_cost_returns = False
     config.returns_scale = 400.0
     config.termination_penalty = -100.0
 

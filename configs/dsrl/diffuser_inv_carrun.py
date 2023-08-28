@@ -48,7 +48,7 @@ def get_config():
     config.use_inv_dynamic = True
     config.inv_hidden_dims = "256-256"
 
-    config.n_epochs = 2000
+    config.n_epochs = 500
     config.n_train_step_per_epoch = 1000
 
     config.evaluator_class = "OnlineEvaluator"
