@@ -62,7 +62,10 @@ def get_dataset(
             cost_discount=cost_discount,
             termination_penalty=termination_penalty,
         ),
-        split_to_trajs,
+        partial(
+            split_to_trajs,
+            use_timeouts=True,
+        ),
         partial(
             clip_actions,
             clip_to_eps=clip_to_eps,
