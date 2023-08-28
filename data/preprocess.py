@@ -58,7 +58,7 @@ def compute_discounted_returns(
     return trajs
 
 
-def split_to_trajs(dataset):
+def split_to_trajs(dataset, use_timeouts: bool = False):
     dones_float = np.zeros_like(dataset["rewards"])  # truncated and terminal
     for i in range(len(dones_float) - 1):
         if (
@@ -67,6 +67,7 @@ def split_to_trajs(dataset):
             )
             > 1e-6
             or dataset["terminals"][i] == 1.0
+            or (use_timeouts and dataset["timeouts"][i] == 1.0)
         ):
             dones_float[i] = 1
         else:
