@@ -70,13 +70,13 @@ class TemporalUnet(nn.Module):
         returns: jnp.ndarray = None,
         cost_returns: jnp.ndarray = None,
         use_dropout: bool = True,
-        cost_use_dropout: bool = True,
         force_dropout: bool = False,
-        cost_force_dropout: bool = False,
     ):
         act_fn = mish
 
         time_mlp = TimeEmbedding(self.dim)
+
+        mask_dist = None
         if self.returns_condition:
             returns_mlp = nn.Sequential(
                 [
@@ -90,6 +90,7 @@ class TemporalUnet(nn.Module):
             mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
         if self.cost_returns_condition:
+            assert self.returns_condition is True
             cost_returns_mlp = nn.Sequential(
                 [
                     nn.Dense(self.dim),
@@ -99,7 +100,6 @@ class TemporalUnet(nn.Module):
                     nn.Dense(self.dim),
                 ]
             )
-            cost_mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
         t = time_mlp(time)
         if self.returns_condition:
@@ -112,6 +112,7 @@ class TemporalUnet(nn.Module):
                     seed=sample_key, sample_shape=(returns_embed.shape[0], 1)
                 )
                 returns_embed = returns_embed * mask
+
             if force_dropout:
                 returns_embed = returns_embed * 0
             t = jnp.concatenate([t, returns_embed], axis=-1)
@@ -120,13 +121,10 @@ class TemporalUnet(nn.Module):
             assert cost_returns is not None
             cost_returns = cost_returns.reshape(-1, 1)
             cost_returns_embed = cost_returns_mlp(cost_returns)
-            if cost_use_dropout:
-                rng, sample_key = jax.random.split(rng)
-                cost_mask = cost_mask_dist.sample(
-                    seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1)
-                )
-                cost_returns_embed = cost_returns_embed * cost_mask
-            if cost_force_dropout:
+            if use_dropout:
+                cost_returns_embed = cost_returns_embed * mask
+
+            if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
             t = jnp.concatenate([t, cost_returns_embed], axis=-1)
 
@@ -216,7 +214,9 @@ class DiffusionPlanner(nn.Module):
             kernel_size=self.kernel_size,
         )
 
-    def ddpm_sample(self, rng, conditions, deterministic=False, returns=None):
+    def ddpm_sample(
+        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+    ):
         batch_size = list(conditions.values())[0].shape[0]
         return self.diffusion.p_sample_loop_jit(
             rng_key=rng,
@@ -225,10 +225,19 @@ class DiffusionPlanner(nn.Module):
             conditions=conditions,
             condition_dim=self.sample_dim - self.action_dim,
             returns=returns,
+            cost_returns=cost_returns,
             clip_denoised=True,
         )
 
-    def dpm_sample(self, rng, samples, conditions, deterministic=False, returns=None):
+    def dpm_sample(
+        self,
+        rng,
+        samples,
+        conditions,
+        deterministic=False,
+        returns=None,
+        cost_returns=None,
+    ):
         raise NotImplementedError
         noise_clip = True
         ns = NoiseScheduleVP(
@@ -236,10 +245,10 @@ class DiffusionPlanner(nn.Module):
         )
 
         def wrap_model(model_fn):
-            def wrapped_model_fn(x, t, returns=None):
+            def wrapped_model_fn(x, t, returns=None, cost_returns=None):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
-                out = model_fn(rng, x, t, returns=returns)
+                out = model_fn(rng, x, t, returns=returns, cost_returns=cost_returns)
                 # add noise clipping
                 if noise_clip:
                     t = t.astype(jnp.int32)
@@ -258,7 +267,11 @@ class DiffusionPlanner(nn.Module):
             return wrapped_model_fn
 
         dpm_sampler = DPM_Solver(
-            model_fn=wrap_model(partial(self.base_net, samples, returns=returns)),
+            model_fn=wrap_model(
+                partial(
+                    self.base_net, samples, returns=returns, cost_returns=cost_returns
+                )
+            ),
             noise_schedule=ns,
             predict_x0=self.diffusion.model_mean_type is ModelMeanType.START_X,
         )
@@ -267,7 +280,9 @@ class DiffusionPlanner(nn.Module):
 
         return out
 
-    def ddim_sample(self, rng, conditions, deterministic=False, returns=None):
+    def ddim_sample(
+        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+    ):
         # expect a loop-jitted version of ddim_sample_loop, otherwise it's too slow
         raise NotImplementedError
         batch_size = list(conditions.items())[0].shape[0]
@@ -277,6 +292,7 @@ class DiffusionPlanner(nn.Module):
             shape=(batch_size, self.horizon, self.sample_dim),
             conditions=conditions,
             returns=returns,
+            cost_returns=cost_returns,
             clip_denoised=True,
         )
 

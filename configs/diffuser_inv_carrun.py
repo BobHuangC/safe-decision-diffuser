@@ -5,59 +5,70 @@ from utilities.utils import WandBLogger
 
 def get_config():
     config = ConfigDict()
-    config.exp_name = "diffuser_inv_d4rl_ema"
-    config.log_dir_format = "{exp_name}/{env}/h_{horizon}-r_{returns_scale}-guidew_{condition_guidance_w}-dstep_{algo_cfg.num_timesteps}/{seed}"
+    config.exp_name = "diffuser_inv_dsrl"
+    config.log_dir_format = "{exp_name}/{env}/h_{horizon}-tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
 
     config.trainer = "DiffuserTrainer"
     config.type = "model-free"
 
-    config.env = "hopper-medium-expert-v2"
-    config.dataset = "d4rl"
+    config.env = "OfflineCarRun-v0"
+    config.dataset = "dsrl"
     config.dataset_class = "SequenceDataset"
     config.use_padding = True
     config.normalizer = "LimitsNormalizer"
-    config.max_traj_length = 1000
-    config.horizon = 20
-    config.include_returns = True
-    config.include_cost_returns = False
-    config.returns_scale = 400.0
-    config.termination_penalty = -100.0
+    config.max_traj_length = 200
+    config.horizon = 12
+    config.returns_condition = True
+    config.cost_returns_condition = True
+    config.termination_penalty = 0.0
+    config.target_returns = "575.0,10.0"
+
+    # data aug configs
+    config.aug_percent = 0.3
+    config.aug_deg = 0
+    config.aug_max_rew_decrease = 100.0
+    config.aug_beta = 1.0
+    config.aug_max_reward = 600.0
+    config.aug_min_reward = 1.0
+
+    config.aug_pareto_optimal_only = False
+    config.aug_rmin = 0
+    config.aug_cost_bins = 60
+    config.aug_max_num_per_bin = 1
 
     config.seed = 100
     config.batch_size = 256
     config.clip_action = 0.999
-    config.dim = 128
+    config.dim = 64
     config.dim_mults = "1-2-4"
     config.kernel_size = 5
-    config.returns_condition = True
-    config.cost_returns_condition = False
     config.condition_guidance_w = 1.2
     config.condition_dropout = 0.25
 
     config.use_inv_dynamic = True
     config.inv_hidden_dims = "256-256"
 
-    config.n_epochs = 1000
+    config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
 
-    config.evaluator_class = "SkipEvaluator"
+    config.evaluator_class = "OnlineEvaluator"
     config.eval_period = 10
-    config.eval_n_trajs = 10
-    config.num_eval_envs = 10
+    config.eval_n_trajs = 20
+    config.num_eval_envs = 20
     config.eval_env_seed = 0
 
     config.activation = "mish"
     config.act_method = "ddpm"
     config.sample_method = "ddpm"
 
-    config.save_period = 100
+    config.save_period = 0
     config.logging = WandBLogger.get_default_config()
 
     config.algo_cfg = ConfigDict()
     config.algo_cfg.horizon = config.horizon
     config.algo_cfg.loss_discount = 1.0
     config.algo_cfg.sample_temperature = 0.5
-    config.algo_cfg.num_timesteps = 200
+    config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "cosine"
     # learning related
     config.algo_cfg.lr = 2e-4

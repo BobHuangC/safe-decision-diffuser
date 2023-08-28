@@ -43,6 +43,10 @@ def to_arch(string):
     return tuple(int(x) for x in string.split("-"))
 
 
+def str_to_list(string):
+    return [float(x) for x in string.split(",")]
+
+
 def apply_conditioning(x, conditions, condition_dim: int):
     for t, val in conditions.items():
         assert condition_dim is not None

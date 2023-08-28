@@ -98,10 +98,16 @@ class BaseTrainer:
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
         # save model
-        if self._cfgs.save_period > 0 and self._cfgs.n_epochs % self._cfgs.save_period == 0:
+        if (
+            self._cfgs.save_period > 0
+            and self._cfgs.n_epochs % self._cfgs.save_period == 0
+        ):
             self._save_model(self._cfgs.n_epochs)
 
-        if self._cfgs.eval_period > 0 and self._cfgs.n_epochs % self._cfgs.eval_period == 0:
+        if (
+            self._cfgs.eval_period > 0
+            and self._cfgs.n_epochs % self._cfgs.eval_period == 0
+        ):
             self._evaluator.update_params(self._agent.eval_params)
             self._evaluator.evaluate(self._cfgs.n_epochs)
 
@@ -114,9 +120,7 @@ class BaseTrainer:
             "variant": self._variant,
             "epoch": epoch,
         }
-        logger.save_orbax_checkpoint(
-            save_data, f"checkpoints/model_{epoch}"
-        )
+        logger.save_orbax_checkpoint(save_data, f"checkpoints/model_{epoch}")
 
     def _setup_logger(self):
         logging_configs = self._cfgs.logging
@@ -171,26 +175,18 @@ class BaseTrainer:
         dataset = get_dataset(
             env=eval_sampler.env,
             max_traj_length=self._cfgs.max_traj_length,
-            use_cost=self._cfgs.include_cost_returns,
             termination_penalty=self._cfgs.termination_penalty,
             include_next_obs=include_next_obs,
-            augmentation_method=self._cfgs.dataAugmentation_method,
-            augment_percent=self._cfgs.dataAugment_percent,
-            deg=self._cfgs.dataAug_deg,
-            max_rew_decrease=self._cfgs.dataAug_max_rew_decrease,
-            beta=self._cfgs.dataAug_beta,
-            max_reward=self._cfgs.dataAug_max_reward,
-            min_reward=self._cfgs.dataAug_min_reward,
-            aug_rmin=self._cfgs.dataAug_aug_rmin,
-            aug_rmax=self._cfgs.dataAug_aug_rmax,
-            aug_cmin=self._cfgs.dataAug_aug_cmin,
-            aug_cmax=self._cfgs.dataAug_aug_cmax,
-            cgap=self._cfgs.dataAug_cgap,
-            rstd=self._cfgs.dataAug_rstd,
-            cstd=self._cfgs.dataAug_cstd,
-            rmin=self._cfgs.dataAug_rmin,
-            cost_bins=self._cfgs.dataAug_cost_bins,
-            max_num_per_bin=self._cfgs.dataAug_max_num_per_bin,
+            pareto_optimal_only=self._cfgs.aug_pareto_optimal_only,
+            aug_percent=self._cfgs.aug_percent,
+            deg=self._cfgs.aug_deg,
+            max_rew_decrease=self._cfgs.aug_max_rew_decrease,
+            beta=self._cfgs.aug_beta,
+            max_reward=self._cfgs.aug_max_reward,
+            min_reward=self._cfgs.aug_min_reward,
+            rmin=self._cfgs.aug_rmin,
+            cost_bins=self._cfgs.aug_cost_bins,
+            max_num_per_bin=self._cfgs.aug_max_num_per_bin,
         )
         return dataset, eval_sampler
 
@@ -203,20 +199,15 @@ class BaseTrainer:
         else:
             raise NotImplementedError
 
-        dataset["rewards"] = (
-            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
-        )
-
         dataset = getattr(
             importlib.import_module("data.sequence"), self._cfgs.dataset_class
         )(
             dataset,
             horizon=self._cfgs.horizon,
             max_traj_length=self._cfgs.max_traj_length,
-            include_returns=self._cfgs.include_returns,
-            include_cost_returns=self._cfgs.include_cost_returns,
+            include_returns=self._cfgs.returns_condition,
+            include_cost_returns=self._cfgs.cost_returns_condition,
             normalizer=self._cfgs.normalizer,
-            returns_scale=self._cfgs.returns_scale,
             use_padding=self._cfgs.use_padding,
         )
         eval_sampler.set_normalizer(dataset.normalizer)

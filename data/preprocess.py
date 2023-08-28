@@ -16,21 +16,49 @@ def clip_actions(dataset, clip_to_eps: bool = True, eps: float = 1e-5):
     return dataset
 
 
-def compute_returns(traj):
-    episode_return = 0
-    for _, _, rew, *_ in traj:
-        episode_return += rew
-    return episode_return
+def compute_discounted_cumsum_returns(traj, gamma: float) -> np.ndarray:
+    """
+    Calculate the discounted cumulative reward sum of traj
+    """
+
+    cumsum = np.zeros(len(traj))
+    cumsum[-1] = traj[-1][2]
+    for t in reversed(range(cumsum.shape[0] - 1)):
+        cumsum[t] = traj[t][2] + gamma * cumsum[t + 1]
+    return cumsum
 
 
-def compute_cost_returns(traj):
-    episode_cost_return = 0
-    for *_, cost in traj:
-        episode_cost_return += cost
-    return episode_cost_return
+def compute_discounted_cumsum_cost_returns(traj, gamma: float) -> np.ndarray:
+    """
+    Calculate the discounted cumulative cost sum of traj
+    """
+
+    cumsum = np.zeros(len(traj))
+    cumsum[-1] = traj[-1][-1]
+    for t in reversed(range(cumsum.shape[0] - 1)):
+        cumsum[t] = traj[t][-1] + gamma * cumsum[t + 1]
+    return cumsum
 
 
-def split_to_trajs(dataset, use_cost: bool = False):
+def compute_discounted_returns(
+    trajs,
+    discount: float,
+    cost_discount: float,
+    termination_penalty: float,
+):
+    for traj in trajs:
+        if np.any([bool(step[4]) for step in traj]) and termination_penalty is not None:
+            traj[-1][2] += termination_penalty
+        reward_returns = compute_discounted_cumsum_returns(traj, discount)
+        cost_returns = compute_discounted_cumsum_cost_returns(traj, cost_discount)
+
+        for idx, step in enumerate(traj):
+            step.append(reward_returns[idx])
+            step.append(cost_returns[idx])
+    return trajs
+
+
+def split_to_trajs(dataset):
     dones_float = np.zeros_like(dataset["rewards"])  # truncated and terminal
     for i in range(len(dones_float) - 1):
         if (
@@ -45,44 +73,29 @@ def split_to_trajs(dataset, use_cost: bool = False):
             dones_float[i] = 0
     dones_float[-1] = 1
 
+    if "costs" not in dataset:
+        dataset["costs"] = np.zeros_like(dataset["rewards"])
+
     trajs = [[]]
     for i in range(len(dataset["observations"])):
-        if use_cost:
-            trajs[-1].append(
-                (
-                    dataset["observations"][i],
-                    dataset["actions"][i],
-                    dataset["rewards"][i],
-                    dones_float[i],
-                    dataset["terminals"][i],
-                    dataset["next_observations"][i],
-                    dataset["costs"][i],
-                )
-            )
-        else:
-            trajs[-1].append(
-                (
-                    dataset["observations"][i],
-                    dataset["actions"][i],
-                    dataset["rewards"][i],
-                    dones_float[i],
-                    dataset["terminals"][i],
-                    dataset["next_observations"][i],
-                )
-            )
+        trajs[-1].append(
+            [
+                dataset["observations"][i],
+                dataset["actions"][i],
+                dataset["rewards"][i],
+                dones_float[i],
+                dataset["terminals"][i],
+                dataset["next_observations"][i],
+                dataset["costs"][i],
+            ]
+        )
         if dones_float[i] == 1.0 and i + 1 < len(dataset["observations"]):
             trajs.append([])
 
     return trajs
 
 
-def pad_trajs_to_dataset(
-    trajs,
-    max_traj_length: int,
-    use_cost: bool = False,
-    termination_penalty: float = None,
-    include_next_obs: bool = False,
-):
+def pad_trajs_to_dataset(trajs, max_traj_length: int, include_next_obs: bool = False):
     n_trajs = len(trajs)
 
     dataset = {}
@@ -95,8 +108,9 @@ def pad_trajs_to_dataset(
     dataset["terminals"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
     dataset["dones_float"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
     dataset["traj_lengths"] = np.zeros((n_trajs,), dtype=np.int32)
-    if use_cost:
-        dataset["costs"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
+    dataset["returns"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
+    dataset["costs"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
+    dataset["cost_returns"] = np.zeros((n_trajs, max_traj_length), dtype=np.float32)
     if include_next_obs:
         dataset["next_observations"] = np.zeros(
             (n_trajs, max_traj_length, obs_dim), dtype=np.float32
@@ -125,36 +139,17 @@ def pad_trajs_to_dataset(
                 np.stack([ts[5] for ts in traj], axis=0),
                 n=2,
             )
-        if use_cost:
-            dataset["costs"][idx, :traj_length] = np.stack(
-                [ts[6] for ts in traj], axis=0
-            )
-        if dataset["terminals"][idx].any() and termination_penalty is not None:
-            dataset["rewards"][idx, traj_length - 1] += termination_penalty
+        dataset["returns"][idx, :traj_length] = np.stack(
+            [ts[-2] for ts in traj], axis=0
+        )
+        dataset["costs"][idx, :traj_length] = np.stack([ts[6] for ts in traj], axis=0)
+        dataset["cost_returns"][idx, :traj_length] = np.stack(
+            [ts[-1] for ts in traj], axis=0
+        )
+        # if dataset["terminals"][idx].any() and termination_penalty is not None:
+        #     dataset["rewards"][idx, traj_length - 1] += termination_penalty
 
     return dataset
-
-
-def compute_discounted_cumsum_returns(traj, gamma: float) -> np.ndarray:
-    """
-    Calculate the discounted cumulative reward sum of traj
-    """
-    cumsum = np.zeros(len(traj))
-    cumsum[-1] = traj[-1][2]
-    for t in reversed(range(cumsum.shape[0] - 1)):
-        cumsum[t] = traj[t][2] + gamma * cumsum[t + 1]
-    return cumsum
-
-
-def compute_discounted_cumsum_cost_returns(traj, gamma: float) -> np.ndarray:
-    """
-    Calculate the discounted cumulative cost sum of traj
-    """
-    cumsum = np.zeros(len(traj))
-    cumsum[-1] = traj[-1][-1]
-    for t in reversed(range(cumsum.shape[0] - 1)):
-        cumsum[t] = traj[t][-1] + gamma * cumsum[t + 1]
-    return cumsum
 
 
 def grid_filter(
@@ -195,6 +190,8 @@ def grid_filter(
 
 
 def filter_trajectory(
+    cost_returns,
+    reward_returns,
     trajs,
     cost_min=-np.inf,
     cost_max=np.inf,
@@ -205,11 +202,9 @@ def filter_trajectory(
     max_num_per_bin=10,
     min_num_per_bin=1,
 ):
-    returns = [compute_returns(traj) for traj in trajs]
-    cost_returns = [compute_returns(traj) for traj in trajs]
     indices = grid_filter(
         cost_returns,
-        returns,
+        reward_returns,
         xmin=cost_min,
         xmax=cost_max,
         ymin=rew_min,
@@ -219,8 +214,10 @@ def filter_trajectory(
         max_num_per_bin=max_num_per_bin,
         min_num_per_bin=min_num_per_bin,
     )
-    trajs2 = [trajs[i] for i in indices]
-    return trajs2
+    cost_returns = np.array([cost_returns[i] for i in indices], dtype=np.float64)
+    reward_returns = np.array([reward_returns[i] for i in indices], dtype=np.float64)
+    trajs = [trajs[i] for i in indices]
+    return cost_returns, reward_returns, trajs
 
 
 def get_nearest_point(
@@ -279,12 +276,12 @@ def get_nearest_point(
     return new_idxes
 
 
-def augmentation(
+def pareto_augmentation(
     trajs: list,
     deg: int = 3,
-    max_rew_decrease: float = 1,
-    beta: float = 1,
-    augment_percent: float = 0.3,
+    max_rew_decrease: float = 1.0,
+    beta: float = 1.0,
+    aug_percent: float = 0.3,
     max_reward: float = 1000.0,
     min_reward: float = 0.0,
 ):
@@ -297,7 +294,7 @@ def augmentation(
         deg: The degree of the polynomial used to fit the Pareto frontier.
         max_rew_decrease: The maximum amount by which the reward of an augmented trajectory can decrease compared to the original.
         beta: The scaling factor used to weigh the distance between cost and reward when finding nearest neighbors.
-        augment_percent: The percentage of original trajectories to use for augmentation.
+        aug_percent: The percentage of original trajectories to use for augmentation.
         max_reward: The maximum reward value for augmented trajectories.
         min_reward: The minimum reward value for augmented trajectories.
 
@@ -306,16 +303,20 @@ def augmentation(
         aug_trajs: A list of dictionaries representing the augmented trajectories.
         pareto_frontier: A polynomial function representing the Pareto frontier of the original data.
     """
-    reward_returns = [compute_returns(traj) for traj in trajs]
-    cost_returns = [compute_cost_returns(traj) for traj in trajs]
-    reward_returns = np.array(reward_returns, dtype=np.float64)
-    cost_returns = np.array(cost_returns, dtype=np.float64)
+
+    if aug_percent == 0.0:
+        return trajs
+
+    reward_returns = np.array([traj[0][-2] for traj in trajs], dtype=np.float64)
+    cost_returns = np.array([traj[0][-1] for traj in trajs], dtype=np.float64)
 
     cmin, cmax = np.min(cost_returns), np.max(cost_returns)
     rmin, rmax = np.min(reward_returns), np.max(reward_returns)
     cbins, rbins = 10, 50
     max_npb, min_npb = 10, 2
-    trajs = filter_trajectory(
+    cost_returns, reward_returns, filtered_trajs = filter_trajectory(
+        cost_returns,
+        reward_returns,
         trajs,
         cost_min=cmin,
         cost_max=cmax,
@@ -326,11 +327,6 @@ def augmentation(
         max_num_per_bin=max_npb,
         min_num_per_bin=min_npb,
     )
-
-    reward_returns = [compute_returns(traj) for traj in trajs]
-    cost_returns = [compute_cost_returns(traj) for traj in trajs]
-    reward_returns = np.array(reward_returns, dtype=np.float64)
-    cost_returns = np.array(cost_returns, dtype=np.float64)
 
     pareto = oapackage.ParetoDoubleLong()
     for i in range(reward_returns.shape[0]):
@@ -347,7 +343,7 @@ def augmentation(
         np.polyfit(cost_returns_pareto, reward_returns_pareto, deg=deg)
     )
 
-    sample_num = int(augment_percent * cost_returns.shape[0])
+    sample_num = int(aug_percent * cost_returns.shape[0])
     # the augmented data should be within the cost return range of the dataset
     cost_returns_range = np.linspace(
         np.min(cost_returns), np.max(cost_returns), sample_num
@@ -372,98 +368,16 @@ def augmentation(
     for i, target in zip(nearest_idx, sampled_data):
         target_cost_returns, target_reward_returns = target[0], target[1]
         associated_traj = copy.deepcopy(trajs[i])
-        cost_returns = compute_discounted_cumsum_cost_returns(associated_traj, 1)
-        reward_returns = compute_discounted_cumsum_returns(associated_traj, 1)
-        cost_returns += target_cost_returns - cost_returns[0]
-        reward_returns += target_reward_returns - reward_returns[0]
+        # TODO(zbzhu): check here with osrl implementation
+        for step in associated_traj:
+            step[-1] += target_cost_returns - associated_traj[0][-1]
+            step[-2] += target_reward_returns - associated_traj[0][-2]
         aug_trajs.append(associated_traj)
+
     print(
         f"original data: {len(trajs)}, augment data: {len(aug_trajs)}, total: {len(trajs)+len(aug_trajs)}"
     )
-    return aug_trajs
-
-
-def random_augmentation(
-    trajs: list,
-    augment_percent: float = 0.3,
-    aug_rmin: float = 0,
-    aug_rmax: float = 600,
-    aug_cmin: float = 5,
-    aug_cmax: float = 50,
-    cgap: float = 5,
-    rstd: float = 1,
-    cstd: float = 0.25,
-):
-    """
-    Augments a list of trajectories with random noise.
-
-    Args:
-        trajs (list): A list of dictionaries, where each dictionary represents a trajectory
-            and contains "returns" and "cost_returns" keys that hold the returns and cost returns
-            for each time step of the trajectory.
-        augment_percent (float, optional): The percentage of trajectories to augment.
-        aug_rmin (float, optional): The minimum value for the augmented returns.
-        aug_rmax (float, optional): The maximum value for the augmented returns.
-        aug_cmin (float, optional): The minimum value for the augmented cost returns.
-        aug_cmax (float, optional): The maximum value for the augmented cost returns.
-        cgap (float, optional): The minimum distance between the augmented cost returns
-        rstd (float, optional): The standard deviation of the noise to add to the returns.
-        cstd (float, optional): The standard deviation of the noise to add to the cost returns.
-
-    Returns:
-        Tuple[List[int], List[Dict]]: A tuple containing two lists. The first list contains
-            the indices of the original trajectories that were augmented. The second list contains
-            the augmented trajectories, represented as dictionaries with "returns" and "cost_returns"
-            keys.
-    """
-    reward_returns = [compute_returns(traj) for traj in trajs]
-    cost_returns = [compute_cost_returns(traj) for traj in trajs]
-    reward_returns = np.array(reward_returns, dtype=np.float64)
-    cost_returns = np.array(cost_returns, dtype=np.float64)
-
-    cmin = np.min(cost_returns)
-
-    num = int(augment_percent * cost_returns.shape[0])
-    sampled_cr = np.random.uniform(
-        low=(aug_cmin, aug_rmin), high=(aug_cmax, aug_rmax), size=(num, 2)
-    )
-
-    idxes = []
-    original_data = np.hstack([cost_returns[:, None], reward_returns[:, None]])
-    original_idx = np.arange(0, original_data.shape[0])
-    # for i in trange(sampled_data.shape[0], desc="Calculating nearest point"):
-    for i in range(sampled_cr.shape[0]):
-        p = sampled_cr[i, :]
-        boundary = max(p[0] - cgap, cmin + 1)
-        mask = original_data[:, 0] <= boundary
-        # mask = np.logical_and(original_data[:, 0] <= p[0], original_data[:, 0] >= p[0] - 5)
-        delta = original_data[mask, :] - p
-        dist = np.hypot(delta[:, 0], delta[:, 1])
-        idx = np.argmin(dist)
-        idxes.append(original_idx[mask][idx])
-
-    # relabel the dataset
-    aug_trajs = []
-    for i, target in zip(idxes, sampled_cr):
-        target_cost_returns, target_reward_returns = target[0], target[1]
-        associated_traj = copy.deepcopy(trajs[i])
-        cost_returns = compute_discounted_cumsum_cost_returns(associated_traj, 1)
-        reward_returns = compute_discounted_cumsum_returns(associated_traj, 1)
-        cost_returns += (
-            target_cost_returns
-            - cost_returns[0]
-            + np.random.normal(loc=0, scale=cstd, size=cost_returns.shape)
-        )
-        reward_returns += (
-            target_reward_returns
-            - reward_returns[0]
-            + np.random.normal(loc=0, scale=rstd, size=reward_returns.shape)
-        )
-        aug_trajs.append(associated_traj)
-    print(
-        f"original data: {len(trajs)}, augment data: {len(aug_trajs)}, total: {len(trajs)+len(aug_trajs)}"
-    )
-    return aug_trajs
+    return trajs + aug_trajs
 
 
 def select_optimal_trajectory(
@@ -482,6 +396,8 @@ def select_optimal_trajectory(
     Returns:
         list: A list of dictionaries representing the optimal trajectories.
     """
+
+    # TODO(zbzhu): fix this. refer to `pareto_augmentation`
     reward_returns = [compute_returns(traj) for traj in trajs]
     cost_returns = [compute_cost_returns(traj) for traj in trajs]
 
@@ -506,57 +422,3 @@ def select_optimal_trajectory(
 
     traj2 = [trajs[i] for i in indices]
     return traj2
-
-
-def data_augmentation(
-    trajs: list,
-    augmentation_method,
-    augment_percent: float = 0.3,
-    deg: int = 3,
-    max_rew_decrease: float = 1,
-    beta: float = 1,
-    max_reward: float = 1000.0,
-    min_reward: float = 0.0,
-    aug_rmin: float = 0,
-    aug_rmax: float = 600,
-    aug_cmin: float = 5,
-    aug_cmax: float = 50,
-    cgap: float = 5,
-    rstd: float = 1,
-    cstd: float = 0.25,
-    rmin: float = 0,
-    cost_bins: float = 60,
-    max_num_per_bin: int = 1,
-):
-    if augmentation_method == "Augmentation":
-        aug_trajs = augmentation(
-            trajs=trajs,
-            deg=deg,
-            max_rew_decrease=max_rew_decrease,
-            beta=beta,
-            augment_percent=augment_percent,
-            max_reward=max_reward,
-            min_reward=min_reward,
-        )
-        return trajs + aug_trajs
-    elif augmentation_method == "RandomAugmentation":
-        aug_trajs = random_augmentation(
-            trajs=trajs,
-            augment_percent=augment_percent,
-            aug_rmin=aug_rmin,
-            aug_rmax=aug_rmax,
-            aug_cmin=aug_cmin,
-            aug_cmax=aug_cmax,
-            cgap=cgap,
-            rstd=rstd,
-            cstd=cstd,
-        )
-        return trajs + aug_trajs
-    elif augmentation_method == "ParetoFrontierOnly":
-        return select_optimal_trajectory(
-            trajs=trajs, rmin=rmin, cost_bins=cost_bins, max_num_per_bin=max_num_per_bin
-        )
-    elif augmentation_method == "":
-        return trajs
-    else:
-        raise NotImplementedError
