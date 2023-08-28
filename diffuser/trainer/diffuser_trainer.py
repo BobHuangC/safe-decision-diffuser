@@ -6,7 +6,7 @@ from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch
+from utilities.utils import set_random_seed, to_arch, str_to_list
 
 
 class DiffuserTrainer(BaseTrainer):
@@ -38,7 +38,13 @@ class DiffuserTrainer(BaseTrainer):
         )
 
         # setup evaluator
-        sampler_policy = DiffuserPolicy(self._planner, self._inv_model)
+        target_returns = str_to_list(self._cfgs.target_returns)
+        assert len(target_returns) == 2, target_returns
+        target_returns = [
+            dataset.normalizer.normalize(target_returns[0], "returns"),
+            dataset.normalizer.normalize(target_returns[1], "cost_returns"),
+        ]
+        sampler_policy = DiffuserPolicy(self._planner, self._inv_model, target_returns)
         self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_policy(self):

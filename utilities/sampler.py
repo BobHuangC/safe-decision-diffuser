@@ -114,15 +114,21 @@ class TrajSampler(object):
         rewards = [[] for _ in range(len(ready_env_ids))]
         next_observations = [[] for _ in range(len(ready_env_ids))]
         dones = [[] for _ in range(len(ready_env_ids))]
+        costs = [[] for _ in range(len(ready_env_ids))]
 
         trajs = []
         n_finished_trajs = 0
         while True:
             action = policy(observation, deterministic=deterministic)
             action = self._normalizer.unnormalize(action, "actions")
-            next_observation, reward, terminated, truncated, _ = self.envs.step(
+            next_observation, reward, terminated, truncated, info = self.envs.step(
                 action, ready_env_ids
             )
+            if "cost" in info[0]:
+                cost = np.array([info[i]["cost"] for i in range(len(info))])
+            else:
+                cost = np.zeros_like(reward)
+
             done = np.logical_or(terminated, truncated)
             if self._render:
                 getattr(self.envs, env_render_fn)()
@@ -138,6 +144,7 @@ class TrajSampler(object):
                 rewards[env_id].append(reward[idx])
                 next_observations[env_id].append(next_observation[idx])
                 dones[env_id].append(done[idx])
+                costs[env_id].append(cost[idx])
 
             if np.any(done):
                 env_ind_local = np.where(done)[0]
@@ -153,6 +160,7 @@ class TrajSampler(object):
                                 next_observations[ind], dtype=np.float32
                             ),
                             dones=np.array(dones[ind], dtype=np.float32),
+                            costs=np.array(costs[ind], dtype=np.float32),
                         )
                     )
                     observations[ind] = []
@@ -160,6 +168,7 @@ class TrajSampler(object):
                     rewards[ind] = []
                     next_observations[ind] = []
                     dones[ind] = []
+                    costs[ind] = []
 
                 n_finished_trajs += len(env_ind_local)
                 if n_finished_trajs >= n_trajs:

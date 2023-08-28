@@ -25,8 +25,6 @@ def get_config():
 
     config.seed = 100
     config.batch_size = 32
-    config.reward_scale = 1
-    config.reward_bias = 0
     config.clip_action = 0.999
     config.dim = 128
     config.dim_mults = "1-4-8"

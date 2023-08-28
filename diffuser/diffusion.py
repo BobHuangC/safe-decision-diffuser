@@ -439,7 +439,6 @@ class GaussianDiffusion:
         t,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
     ):
         """
         Sample x_{t-1} from the model at the given timestep.
@@ -475,9 +474,7 @@ class GaussianDiffusion:
             .reshape(-1, *(1 for _ in range(len(x.shape) - 1)))
         )
         if cond_fn is not None:
-            out["mean"] = self.condition_mean(
-                cond_fn, out, x, t, model_kwargs=model_kwargs
-            )
+            out["mean"] = self.condition_mean(cond_fn, out, x, t)
         sample = out["mean"] + nonzero_mask * np.exp(0.5 * out["log_variance"]) * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
@@ -492,7 +489,6 @@ class GaussianDiffusion:
         cost_returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
     ):
         """
         Generate samples from the model.
@@ -521,12 +517,20 @@ class GaussianDiffusion:
         for i in indices:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
             if self.returns_condition:
+                model_kwargs = dict(returns=returns)
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns"] = cost_returns
+
                 model_output_cond = model_forward(
-                    None, x, self._scale_timesteps(t), returns, use_dropout=False
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
                 rng_key, sample_key = jax.random.split(rng_key)
                 model_output_uncond = model_forward(
-                    sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
@@ -535,9 +539,7 @@ class GaussianDiffusion:
                 model_output = model_forward(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
-            out = self.p_sample(
-                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
-            )
+            out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
             x = out["sample"]
             x = apply_conditioning(x, conditions, condition_dim)
         return x
@@ -550,9 +552,9 @@ class GaussianDiffusion:
         conditions,
         condition_dim=None,
         returns=None,
+        cost_returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
     ):
         """
         A loop-jitted version of p_sample_loop().
@@ -571,12 +573,20 @@ class GaussianDiffusion:
             i, rng_key, x = val
             t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
             if self.returns_condition:
+                model_kwargs = dict(returns=returns)
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns"] = cost_returns
+
                 model_output_cond = mdl(
-                    None, x, self._scale_timesteps(t), returns, use_dropout=False
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
                 rng_key, sample_key = jax.random.split(rng_key)
                 model_output_uncond = mdl(
-                    sample_key, x, self._scale_timesteps(t), returns, force_dropout=True
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
@@ -585,9 +595,7 @@ class GaussianDiffusion:
                 model_output = mdl(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
-            out = self.p_sample(
-                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
-            )
+            out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
             x = out["sample"]
             x = apply_conditioning(x, conditions, condition_dim)
 
@@ -612,7 +620,6 @@ class GaussianDiffusion:
         returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
         eta=0.0,
     ):
         """
@@ -625,7 +632,7 @@ class GaussianDiffusion:
             model_putput, x, t, returns, clip_denoised=clip_denoised
         )
         if cond_fn is not None:
-            out = self.condition_score(cond_fn, out, x, t, model_kwargs=model_kwargs)
+            out = self.condition_score(cond_fn, out, x, t)
 
         # Usually our model outputs epsilon, but we re-derive it
         # in case we used x_start or x_prev prediction.
@@ -689,9 +696,9 @@ class GaussianDiffusion:
         conditions,
         condition_dim=None,
         returns=None,
+        cost_returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
         eta=0.0,
     ):
         """
@@ -708,17 +715,26 @@ class GaussianDiffusion:
         for i in indices:
             t = np.ones(shape[:-1], dtype=np.int32) * i
             if self.returns_condition:
+                model_kwargs = dict(returns=returns)
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns"] = cost_returns
+
                 model_output_cond = model_forward(
-                    x, self._scale_timesteps(t), returns, use_dropout=False
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
+                rng_key, sample_key = jax.random.split(rng_key)
                 model_output_uncond = model_forward(
-                    x, self._scale_timesteps(t), returns, force_dropout=True
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(x, self._scale_timesteps(t))
+                model_output = model_forward(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.ddim_sample(
@@ -728,7 +744,6 @@ class GaussianDiffusion:
                 t,
                 clip_denoised,
                 cond_fn,
-                model_kwargs,
                 eta,
             )
             x = out["sample"]
@@ -789,8 +804,6 @@ class GaussianDiffusion:
         :param model: the model to evaluate loss on.
         :param x_start: the [N x C x ...] tensor of inputs.
         :param t: a batch of timestep indices.
-        :param model_kwargs: if not None, a dict of extra keyword arguments to
-            pass to the model. This can be used for conditioning.
         :return: a dict with the key "loss" containing a tensor of shape [N].
                  Some mean or variance settings may also have other keys.
         """
