@@ -485,8 +485,9 @@ class GaussianDiffusion:
         shape,
         conditions,
         condition_dim=None,
-        returns=None,
-        cost_returns=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
     ):
@@ -516,10 +517,14 @@ class GaussianDiffusion:
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
+
+            model_kwargs = {}
+            if env_ts is not None:
+                model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
-                model_kwargs = dict(returns=returns)
+                model_kwargs["returns_to_go"] = returns_to_go
                 if self.cost_returns_condition:
-                    model_kwargs["cost_returns"] = cost_returns
+                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
@@ -536,7 +541,9 @@ class GaussianDiffusion:
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(None, x, self._scale_timesteps(t))
+                model_output = model_forward(
+                    None, x, self._scale_timesteps(t), **model_kwargs
+                )
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
@@ -551,8 +558,9 @@ class GaussianDiffusion:
         shape,
         conditions,
         condition_dim=None,
-        returns=None,
-        cost_returns=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
     ):
@@ -572,10 +580,14 @@ class GaussianDiffusion:
         def body_fn(mdl, val):
             i, rng_key, x = val
             t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
+
+            model_kwargs = {}
+            if env_ts is not None:
+                model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
-                model_kwargs = dict(returns=returns)
+                model_kwargs["returns_to_go"] = returns_to_go
                 if self.cost_returns_condition:
-                    model_kwargs["cost_returns"] = cost_returns
+                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = mdl(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
@@ -592,7 +604,7 @@ class GaussianDiffusion:
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = mdl(None, x, self._scale_timesteps(t))
+                model_output = mdl(None, x, self._scale_timesteps(t), **model_kwargs)
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
@@ -794,9 +806,11 @@ class GaussianDiffusion:
         x_start,
         conditions,
         t,
+        masks=None,
+        env_ts=None,
         condition_dim=None,
-        returns=None,
-        cost_returns=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
     ):
         """
         Compute training losses for a single timestep.
@@ -814,10 +828,12 @@ class GaussianDiffusion:
         x_t = apply_conditioning(x_t, conditions, condition_dim)
 
         model_kwargs = {}
+        if env_ts is not None:
+            model_kwargs["env_ts"] = env_ts
         if self.returns_condition:
-            model_kwargs["returns"] = returns
+            model_kwargs["returns_to_go"] = returns_to_go
         if self.cost_returns_condition:
-            model_kwargs["cost_returns"] = cost_returns
+            model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
         rng_key, sample_key = jax.random.split(rng_key)
         model_output = model_forward(
@@ -879,14 +895,16 @@ class GaussianDiffusion:
                 ModelMeanType.START_X: x_start,
                 ModelMeanType.EPSILON: noise,
             }[self.model_mean_type]
-
             assert model_output.shape == target.shape == x_start.shape
-            if self.loss_weights is None:
-                terms["mse"] = mean_flat((target - model_output) ** 2)
+
+            mse = (target - model_output) ** 2
+            if self.loss_weights is not None:
+                mse = self.loss_weights * mse
+            if masks is not None:
+                terms["mse"] = mean_flat(masks * mse) / mean_flat(masks)
             else:
-                terms["mse"] = mean_flat(
-                    self.loss_weights * (target - model_output) ** 2
-                )
+                terms["mse"] = mean_flat(mse)
+
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:
