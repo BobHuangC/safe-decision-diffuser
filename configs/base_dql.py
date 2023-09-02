@@ -1,30 +1,28 @@
-from ml_collections import ConfigDict
+from ml_collections import ConfigDict, config_dict
 
 from utilities.utils import WandBLogger
 
 
-def get_config():
+def get_base_config():
     config = ConfigDict()
-    config.exp_name = "dql_d4rl"
-    config.log_dir_format = (
-        "{exp_name}/{env}/lr_{algo_cfg.lr}-temp_{algo_cfg.sample_temperature}/{seed}"
-    )
+    config.exp_name = config_dict.required_placeholder(str)
+    config.log_dir_format = config_dict.required_placeholder(str)
 
     config.trainer = "DiffusionQLTrainer"
     config.type = "model-free"
 
-    config.env = "walker2d-medium-replay-v2"
-    config.dataset = "d4rl"
+    config.env = config_dict.required_placeholder(str)
+    config.dataset = config_dict.required_placeholder(str)
     config.dataset_class = "QLearningDataset"
     config.use_padding = True
     config.normalizer = "LimitsNormalizer"
-    config.max_traj_length = 1000
+    config.max_traj_length = config_dict.required_placeholder(int)
     config.horizon = 1
     config.returns_scale = 1.0
-    config.return_condition = False
+    config.returns_condition = False
     config.termination_penalty = 0.0
 
-    config.seed = 42
+    config.seed = 100
     config.batch_size = 256
     config.reward_scale = 1
     config.reward_bias = 0
@@ -36,8 +34,8 @@ def get_config():
     config.policy_log_std_multiplier = 1.0
     config.policy_log_std_offset = -1.0
 
-    config.n_epochs = 2000
-    config.n_train_step_per_epoch = 1000
+    config.n_epochs = config_dict.required_placeholder(int)
+    config.n_train_step_per_epoch = config_dict.required_placeholder(int)
 
     config.evaluator_class = "OnlineEvaluator"
     config.eval_period = 10
