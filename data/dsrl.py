@@ -18,6 +18,7 @@ from .preprocess import (
 def get_dataset(
     env,
     max_traj_length: int,
+    horizon: int,
     discount: float = 1.0,
     cost_discount: float = 1.0,
     termination_penalty: float = None,
@@ -37,6 +38,7 @@ def get_dataset(
     preprocess_fn = compose(
         partial(
             pad_trajs_to_dataset,
+            horizon=horizon,
             max_traj_length=max_traj_length,
             include_next_obs=include_next_obs,
         ),

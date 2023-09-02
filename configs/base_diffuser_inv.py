@@ -20,6 +20,7 @@ def get_base_config():
     config.horizon = config_dict.required_placeholder(int)
     config.returns_condition = True
     config.cost_returns_condition = True
+    config.env_ts_condition = True
     config.termination_penalty = 0.0
     config.target_returns = config_dict.required_placeholder(str)
 
@@ -38,6 +39,7 @@ def get_base_config():
 
     config.seed = 100
     config.batch_size = 256
+    config.discount = 1.0
     config.clip_action = 0.999
     config.dim = 64
     config.dim_mults = "1-2-4"
@@ -53,8 +55,8 @@ def get_base_config():
 
     config.evaluator_class = "OnlineEvaluator"
     config.eval_period = 10
-    config.eval_n_trajs = 20
-    config.num_eval_envs = 20
+    config.eval_n_trajs = 10
+    config.num_eval_envs = 10
     config.eval_env_seed = 0
 
     config.activation = "mish"
@@ -65,7 +67,7 @@ def get_base_config():
     config.logging = WandBLogger.get_default_config()
 
     config.algo_cfg = ConfigDict()
-    config.algo_cfg.horizon = config.horizon
+    config.algo_cfg.horizon = config.get_ref("horizon")
     config.algo_cfg.loss_discount = 1.0
     config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.num_timesteps = 100

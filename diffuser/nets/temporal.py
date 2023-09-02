@@ -52,6 +52,7 @@ class TemporalUnet(nn.Module):
     cost_returns_condition: bool = False
     condition_dropout: float = 0.1
     kernel_size: int = 5
+    max_traj_length: int = 1000
 
     def setup(self):
         self.dims = dims = [
@@ -65,10 +66,11 @@ class TemporalUnet(nn.Module):
     def __call__(
         self,
         rng,
-        x,
-        time,
-        returns: jnp.ndarray = None,
-        cost_returns: jnp.ndarray = None,
+        x: jnp.ndarray,
+        time: jnp.ndarray,
+        env_ts: jnp.ndarray,
+        returns_to_go: jnp.ndarray = None,
+        cost_returns_to_go: jnp.ndarray = None,
         use_dropout: bool = True,
         force_dropout: bool = False,
     ):
@@ -102,10 +104,12 @@ class TemporalUnet(nn.Module):
             )
 
         t = time_mlp(time)
+        env_ts_emb = nn.Embed(self.max_traj_length, self.dim)(env_ts)
+        emb = jnp.stack([t, env_ts_emb], axis=1)
         if self.returns_condition:
-            assert returns is not None
-            returns = returns.reshape(-1, 1)
-            returns_embed = returns_mlp(returns)
+            assert returns_to_go is not None
+            returns_to_go = returns_to_go.reshape(-1, 1)
+            returns_embed = returns_mlp(returns_to_go)
             if use_dropout:
                 rng, sample_key = jax.random.split(rng)
                 mask = mask_dist.sample(
@@ -115,18 +119,21 @@ class TemporalUnet(nn.Module):
 
             if force_dropout:
                 returns_embed = returns_embed * 0
-            t = jnp.concatenate([t, returns_embed], axis=-1)
+            emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
         if self.cost_returns_condition:
-            assert cost_returns is not None
-            cost_returns = cost_returns.reshape(-1, 1)
+            assert cost_returns_to_go is not None
+            cost_returns = cost_returns_to_go.reshape(-1, 1)
             cost_returns_embed = cost_returns_mlp(cost_returns)
             if use_dropout:
                 cost_returns_embed = cost_returns_embed * mask
 
             if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
-            t = jnp.concatenate([t, cost_returns_embed], axis=-1)
+            emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
+
+        emb = nn.LayerNorm()(emb)
+        emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
 
         h = []
         num_resolutions = len(self.in_out)
@@ -137,12 +144,12 @@ class TemporalUnet(nn.Module):
                 dim_out,
                 kernel_size=self.kernel_size,
                 mish=True,
-            )(x, t)
+            )(x, emb)
             x = ResidualTemporalBlock(
                 dim_out,
                 kernel_size=self.kernel_size,
                 mish=True,
-            )(x, t)
+            )(x, emb)
             h.append(x)
 
             if not is_last:
@@ -153,12 +160,12 @@ class TemporalUnet(nn.Module):
             mid_dim,
             kernel_size=self.kernel_size,
             mish=True,
-        )(x, t)
+        )(x, emb)
         x = ResidualTemporalBlock(
             mid_dim,
             kernel_size=self.kernel_size,
             mish=True,
-        )(x, t)
+        )(x, emb)
 
         for ind, (dim_in, _) in enumerate(reversed(self.in_out[1:])):
             is_last = ind >= (num_resolutions - 1)
@@ -168,12 +175,12 @@ class TemporalUnet(nn.Module):
                 dim_in,
                 kernel_size=self.kernel_size,
                 mish=True,
-            )(x, t)
+            )(x, emb)
             x = ResidualTemporalBlock(
                 dim_in,
                 kernel_size=self.kernel_size,
                 mish=True,
-            )(x, t)
+            )(x, emb)
 
             if not is_last:
                 x = UpSample1d(dim_in)(x)
@@ -202,6 +209,7 @@ class DiffusionPlanner(nn.Module):
     sample_method: str = "ddpm"
     dpm_steps: int = 15
     dpm_t_end: float = 0.001
+    max_traj_length: int = 1000
 
     def setup(self):
         self.base_net = TemporalUnet(
@@ -212,10 +220,17 @@ class DiffusionPlanner(nn.Module):
             cost_returns_condition=self.cost_returns_condition,
             condition_dropout=self.condition_dropout,
             kernel_size=self.kernel_size,
+            max_traj_length=self.max_traj_length,
         )
 
     def ddpm_sample(
-        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+        self,
+        rng,
+        conditions,
+        env_ts,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
     ):
         batch_size = list(conditions.values())[0].shape[0]
         return self.diffusion.p_sample_loop_jit(
@@ -224,8 +239,9 @@ class DiffusionPlanner(nn.Module):
             shape=(batch_size, self.horizon, self.sample_dim),
             conditions=conditions,
             condition_dim=self.sample_dim - self.action_dim,
-            returns=returns,
-            cost_returns=cost_returns,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
             clip_denoised=True,
         )
 
@@ -234,9 +250,10 @@ class DiffusionPlanner(nn.Module):
         rng,
         samples,
         conditions,
+        env_ts,
         deterministic=False,
-        returns=None,
-        cost_returns=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
     ):
         raise NotImplementedError
         noise_clip = True
@@ -245,10 +262,17 @@ class DiffusionPlanner(nn.Module):
         )
 
         def wrap_model(model_fn):
-            def wrapped_model_fn(x, t, returns=None, cost_returns=None):
+            def wrapped_model_fn(x, t, returns_to_go=None, cost_returns_to_go=None):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
-                out = model_fn(rng, x, t, returns=returns, cost_returns=cost_returns)
+                out = model_fn(
+                    rng,
+                    x,
+                    t,
+                    env_ts=env_ts,
+                    returns_to_go=returns_to_go,
+                    cost_returns_to_go=cost_returns_to_go,
+                )
                 # add noise clipping
                 if noise_clip:
                     t = t.astype(jnp.int32)
@@ -269,7 +293,11 @@ class DiffusionPlanner(nn.Module):
         dpm_sampler = DPM_Solver(
             model_fn=wrap_model(
                 partial(
-                    self.base_net, samples, returns=returns, cost_returns=cost_returns
+                    self.base_net,
+                    samples,
+                    env_ts=env_ts,
+                    returns_to_go=returns_to_go,
+                    cost_returns_to_go=cost_returns_to_go,
                 )
             ),
             noise_schedule=ns,
@@ -281,7 +309,13 @@ class DiffusionPlanner(nn.Module):
         return out
 
     def ddim_sample(
-        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+        self,
+        rng,
+        conditions,
+        env_ts,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
     ):
         # expect a loop-jitted version of ddim_sample_loop, otherwise it's too slow
         raise NotImplementedError
@@ -291,27 +325,46 @@ class DiffusionPlanner(nn.Module):
             model_forward=self.base_net,
             shape=(batch_size, self.horizon, self.sample_dim),
             conditions=conditions,
-            returns=returns,
-            cost_returns=cost_returns,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
             clip_denoised=True,
         )
 
     def __call__(
-        self, rng, conditions, deterministic=False, returns=None, cost_returns=None
+        self,
+        rng,
+        conditions,
+        env_ts,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
     ):
         return getattr(self, f"{self.sample_method}_sample")(
-            rng, conditions, deterministic, returns, cost_returns
+            rng, conditions, env_ts, deterministic, returns_to_go, cost_returns_to_go
         )
 
-    def loss(self, rng_key, samples, conditions, ts, returns=None, cost_returns=None):
+    def loss(
+        self,
+        rng_key,
+        samples,
+        conditions,
+        ts,
+        env_ts,
+        masks,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+    ):
         terms = self.diffusion.training_losses(
             rng_key,
             model_forward=self.base_net,
             x_start=samples,
             conditions=conditions,
             condition_dim=self.sample_dim - self.action_dim,
-            returns=returns,
-            cost_returns=cost_returns,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
             t=ts,
+            masks=masks,
         )
         return terms

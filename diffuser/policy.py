@@ -1,4 +1,3 @@
-from typing import List
 from functools import partial
 
 import jax
@@ -135,12 +134,9 @@ class SamplerPolicy(object):  # used for dql
 
 
 class DiffuserPolicy(object):
-    def __init__(
-        self, planner, inv_model, target_returns: List[float], act_method: str = "ddpm"
-    ):
+    def __init__(self, planner, inv_model, act_method: str = "ddpm"):
         self.planner = planner
         self.inv_model = inv_model
-        self.target_returns = target_returns
         self.act_method = act_method
 
     def update_params(self, params):
@@ -149,17 +145,23 @@ class DiffuserPolicy(object):
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
     def ddpm_act(
-        self, params, rng, observations, deterministic
+        self,
+        params,
+        rng,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic,
     ):  # deterministic is not used
         conditions = {0: observations}
-        returns = jnp.ones((observations.shape[0], 1)) * self.target_returns[0]
-        cost_returns = jnp.ones((observations.shape[0], 1)) * self.target_returns[1]
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
-            returns=returns,
-            cost_returns=cost_returns,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
             method=self.planner.ddpm_sample,
         )
 
@@ -178,17 +180,23 @@ class DiffuserPolicy(object):
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
     def ddim_act(
-        self, params, rng, observations, deterministic
+        self,
+        params,
+        rng,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic,
     ):  # deterministic is not used
         conditions = {0: observations}
-        returns = jnp.ones((observations.shape[0], 1)) * self.target_returns[0]
-        cost_returns = jnp.ones((observations.shape[0], 1)) * self.target_returns[1]
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
             conditions=conditions,
-            returns=returns,
-            cost_returns=cost_returns,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
             method=self.planner.ddim_sample,
         )
 
@@ -205,9 +213,22 @@ class DiffuserPolicy(object):
 
         return actions
 
-    def __call__(self, observations, deterministic=False):
+    def __call__(
+        self,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic=False,
+    ):
         actions = getattr(self, f"{self.act_method}_act")(
-            self.params, next_rng(), observations, deterministic
+            self.params,
+            next_rng(),
+            observations,
+            env_ts,
+            returns_to_go,
+            cost_returns_to_go,
+            deterministic,
         )
         assert jnp.all(jnp.isfinite(actions))
         return jax.device_get(actions)
