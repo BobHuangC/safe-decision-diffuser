@@ -35,11 +35,11 @@ class OnlineEvaluator(BaseEvaluator):
                 self._best_returns[method], cur_return
             )
 
-            metrics["average_cost" + post] = cur_cost = np.mean(
+            metrics["average_cost_return" + post] = cur_cost = np.mean(
                 [np.sum(t["costs"]) for t in trajs]
             )
             self._recent_costs[method].append(cur_cost)
-            metrics["average_10_cost" + post] = np.mean(self._recent_costs[method])
+            metrics["average_10_cost_return" + post] = np.mean(self._recent_costs[method])
 
             metrics["average_traj_length" + post] = np.mean(
                 [len(t["rewards"]) for t in trajs]
