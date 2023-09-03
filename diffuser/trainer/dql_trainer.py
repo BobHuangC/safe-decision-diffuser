@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 from diffuser.algos import DiffusionQL
+from diffuser.hps import hyperparameters
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
 from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
 from diffuser.policy import SamplerPolicy
@@ -45,6 +46,7 @@ class DiffusionQLTrainer(BaseTrainer):
         self._vf = self._setup_vf()
 
         # setup agent
+        self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._agent = DiffusionQL(
             self._cfgs.algo_cfg, self._policy, self._qf, self._vf, self._policy_dist
         )

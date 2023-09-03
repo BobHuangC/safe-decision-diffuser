@@ -25,7 +25,6 @@ import torch
 import tqdm
 
 from diffuser.constants import DATASET, DATASET_MAP, ENV_MAP
-from diffuser.hps import hyperparameters
 from utilities.data_utils import cycle, numpy_collate
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
@@ -46,7 +45,6 @@ class BaseTrainer:
         else:
             self._cfgs = config
 
-        self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._cfgs.algo_cfg.lr_decay_steps = (
             self._cfgs.n_epochs * self._cfgs.n_train_step_per_epoch
         )
