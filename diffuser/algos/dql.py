@@ -71,7 +71,6 @@ class DiffusionQL(Algo):
                 )
             else:
                 opt = optax.adamw(get_lr(), weight_decay=weight_decay)
-
             return opt
 
         self._train_states["policy"] = TrainState.create(
