@@ -72,6 +72,7 @@ class DiffuserTrainer(BaseTrainer):
         planner = DiffusionPlanner(
             diffusion=gd,
             horizon=self._cfgs.horizon,
+            history_horizon=self._cfgs.history_horizon,
             sample_dim=plan_sample_dim,
             action_dim=plan_action_dim,
             dim=self._cfgs.dim,

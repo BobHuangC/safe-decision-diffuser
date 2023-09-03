@@ -154,7 +154,7 @@ class DiffuserPolicy(object):
         cost_returns_to_go,
         deterministic,
     ):  # deterministic is not used
-        conditions = {0: observations}
+        conditions = {(0, self.planner.history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
@@ -189,7 +189,7 @@ class DiffuserPolicy(object):
         cost_returns_to_go,
         deterministic,
     ):  # deterministic is not used
-        conditions = {0: observations}
+        conditions = {(0, self.planner.history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
