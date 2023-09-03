@@ -152,8 +152,12 @@ class TrajSampler(object):
                 cost = np.zeros_like(reward)
 
             env_ts[ready_env_ids] += 1
-            returns_to_go[ready_env_ids] -= reward
-            cost_returns_to_go[ready_env_ids] -= cost
+            returns_to_go[ready_env_ids] = np.max(
+                returns_to_go[ready_env_ids] - reward, 0
+            )
+            cost_returns_to_go[ready_env_ids] = np.max(
+                cost_returns_to_go[ready_env_ids] - cost, 0
+            )
             done = np.logical_or(terminated, truncated)
             if self._render:
                 getattr(self.envs, env_render_fn)()
@@ -195,9 +199,9 @@ class TrajSampler(object):
                     dones[ind] = []
                     costs[ind] = []
 
-                returns_to_go[env_ind_local] = self._target_returns[0]
-                cost_returns_to_go[env_ind_local] = self._target_returns[1]
-                env_ts[env_ind_local] = 0
+                returns_to_go[env_ind_global] = self._target_returns[0]
+                cost_returns_to_go[env_ind_global] = self._target_returns[1]
+                env_ts[env_ind_global] = 0
 
                 n_finished_trajs += len(env_ind_local)
                 if n_finished_trajs >= n_trajs:

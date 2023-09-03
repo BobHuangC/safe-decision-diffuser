@@ -104,7 +104,11 @@ class DecisionDiffuser(Algo):
         train_states["planner"] = train_states["planner"].apply_gradients(
             grads=grad_planner[0]["planner"]
         )
-        metrics = dict(diff_loss=aux_planner["loss"])
+        metrics = dict(
+            diff_loss=aux_planner["loss"],
+            planner_grad_norm=optax.global_norm(grad_planner[0]["planner"]),
+            planner_weight_norm=optax.global_norm(train_states["planner"].params),
+        )
 
         if self.inv_model is not None:
             inv_loss_fn = self.get_inv_loss(batch)
@@ -117,6 +121,10 @@ class DecisionDiffuser(Algo):
                 grads=grad_inv_model[0]["inv_model"]
             )
             metrics["inv_loss"] = aux_inv_model["loss"]
+            metrics["inv_grad_norm"] = optax.global_norm(
+                grad_inv_model[0]["inv_model"]
+            )
+            metrics["inv_weight_norm"] = optax.global_norm(train_states["inv_model"].params)
 
         return train_states, metrics
 

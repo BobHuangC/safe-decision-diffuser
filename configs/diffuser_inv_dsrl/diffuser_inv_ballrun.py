@@ -17,6 +17,7 @@ def get_config():
     config.max_traj_length = 100
     config.horizon = 12
 
+    config.eval_period = 50
     config.eval_n_trajs = 20
     config.num_eval_envs = 20
 
