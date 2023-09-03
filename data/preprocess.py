@@ -21,7 +21,7 @@ def compute_discounted_cumsum_returns(traj, gamma: float) -> np.ndarray:
     Calculate the discounted cumulative reward sum of traj
     """
 
-    cumsum = np.zeros(len(traj))
+    cumsum = np.zeros(len(traj), dtype=np.float32)
     cumsum[-1] = traj[-1][2]
     for t in reversed(range(cumsum.shape[0] - 1)):
         cumsum[t] = traj[t][2] + gamma * cumsum[t + 1]
