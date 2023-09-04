@@ -154,7 +154,8 @@ class DiffuserPolicy(object):
         cost_returns_to_go,
         deterministic,
     ):  # deterministic is not used
-        conditions = {(0, self.planner.history_horizon + 1): observations}
+        history_horizon = self.planner.history_horizon
+        conditions = {(0, history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
@@ -167,14 +168,18 @@ class DiffuserPolicy(object):
 
         if self.inv_model is not None:
             obs_comb = jnp.concatenate(
-                [plan_samples[:, 0], plan_samples[:, 1]], axis=-1
+                [
+                    plan_samples[:, history_horizon],
+                    plan_samples[:, history_horizon + 1],
+                ],
+                axis=-1,
             )
             actions = self.inv_model.apply(
                 params["inv_model"],
                 obs_comb,
             )
         else:
-            actions = plan_samples[:, 0, -self.planner.action_dim :]
+            actions = plan_samples[:, history_horizon, -self.planner.action_dim :]
 
         return actions
 
@@ -189,7 +194,8 @@ class DiffuserPolicy(object):
         cost_returns_to_go,
         deterministic,
     ):  # deterministic is not used
-        conditions = {(0, self.planner.history_horizon + 1): observations}
+        history_horizon = self.planner.history_horizon
+        conditions = {(0, history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
@@ -202,14 +208,18 @@ class DiffuserPolicy(object):
 
         if self.inv_model is not None:
             obs_comb = jnp.concatenate(
-                [plan_samples[:, 0], plan_samples[:, 1]], axis=-1
+                [
+                    plan_samples[:, history_horizon],
+                    plan_samples[:, history_horizon + 1],
+                ],
+                axis=-1,
             )
             actions = self.inv_model.apply(
                 params["inv_model"],
                 obs_comb,
             )
         else:
-            actions = plan_samples[:, 0, -self.planner.action_dim :]
+            actions = plan_samples[:, history_horizon, -self.planner.action_dim :]
 
         return actions
 
