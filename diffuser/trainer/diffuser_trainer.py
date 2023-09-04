@@ -20,6 +20,7 @@ class DiffuserTrainer(BaseTrainer):
         target_returns = str_to_list(self._cfgs.target_returns)
         assert len(target_returns) == 2, target_returns
         eval_sampler.set_target_returns(target_returns)
+        eval_sampler.env.set_target_cost(target_returns[1])
         data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
@@ -72,6 +73,7 @@ class DiffuserTrainer(BaseTrainer):
         planner = DiffusionPlanner(
             diffusion=gd,
             horizon=self._cfgs.horizon,
+            history_horizon=self._cfgs.history_horizon,
             sample_dim=plan_sample_dim,
             action_dim=plan_action_dim,
             dim=self._cfgs.dim,
