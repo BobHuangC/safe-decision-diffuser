@@ -13,57 +13,75 @@
 # limitations under the License.
 
 from typing import List
-import torch
+
 import numpy as np
+import torch
 
 from utilities.normalization import DatasetNormalizer
 
 
 class SequenceDataset(torch.utils.data.Dataset):
-    """ DataLoader with customized sampler. """
+    """DataLoader with customized sampler."""
 
     def __init__(
         self,
         data: dict,
         horizon: int,
         max_traj_length: int,
+        history_horizon: int = 0,
         normalizer: str = "LimitsNormalizer",
         discrete_action: bool = False,
-        use_padding: bool = True,
         use_action: bool = True,
         include_returns: bool = True,
-        discount: float = 0.99,
-        returns_scale: float = 1.0,
-        use_future_masks: bool = False,
+        include_cost_returns: bool = True,
+        use_inv_dynamic: bool = True,
     ) -> None:
         self.include_returns = include_returns
+        self.include_cost_returns = include_cost_returns
         self.use_action = use_action
-        self.use_future_masks = use_future_masks
-        self.use_padding = use_padding
+        self.use_inv_dynamic = use_inv_dynamic
         self.max_traj_length = max_traj_length
         self.horizon = horizon
-        self.returns_scale = returns_scale
+        self.history_horizon = history_horizon
         self.discrete_action = discrete_action
         if discrete_action:
             raise NotImplementedError
 
-        self.discount = discount
-        self.discounts = self.discount ** np.arange(self.max_traj_length)[:, None]
-
         self._data = data
-        self.normalizer = DatasetNormalizer(
-            self._data, normalizer,
-        )
+        self.normalizer = DatasetNormalizer(self._data, normalizer)
 
         self._keys = list(data.keys()).remove("traj_lengths")
         self._indices = self.make_indices()
 
         self.n_episodes = len(self._data)
         self.normalize()
+        self.pad_history()
         print(self._data)
 
     def __len__(self):
         return len(self._indices)
+
+    def pad_history(self, keys=None):
+        if keys is None:
+            keys = ["normed_observations"]
+            if self.use_action:
+                if self.discrete_action:
+                    keys.append("actions")
+                else:
+                    keys.append("normed_actions")
+
+        for key in keys:
+            shape = self._data[key].shape
+            self._data[key] = np.concatenate(
+                [
+                    np.zeros(
+                        (shape[0], self.history_horizon, *shape[2:]),
+                        dtype=self._data[key].dtype,
+                    ),
+                    self._data[key],
+                ],
+                axis=1,
+            )
 
     def make_indices(self):
         """
@@ -73,23 +91,10 @@ class SequenceDataset(torch.utils.data.Dataset):
 
         indices = []
         for i, traj_length in enumerate(self._data["traj_lengths"]):
-            # get `max_start`
-            if self.use_future_masks:
-                max_start = min(traj_length - 1, self.max_traj_length - 1)
-                if not self.use_padding:
-                    max_start = min(max_start, traj_length - 1)
-            else:
-                max_start = min(traj_length - 1, self.max_traj_length - self.horizon + 1)
-                if not self.use_padding:
-                    max_start = min(max_start, traj_length - self.horizon + 1)
-
             # get `end` and `mask_end` for each `start`
-            for start in range(max_start):
+            for start in range(traj_length - 1):
                 end = start + self.horizon
-                if not self.use_padding:
-                    mask_end = min(end, traj_length)
-                else:
-                    mask_end = min(end, self.max_traj_length)
+                mask_end = min(end, traj_length)
                 indices.append((i, start, end, mask_end))
         indices = np.array(indices)
         return indices
@@ -99,73 +104,59 @@ class SequenceDataset(torch.utils.data.Dataset):
         normalize fields that will be predicted by the diffusion model
         """
         if keys is None:
-            keys = ["observations", "actions"] if self.use_action else ["observations"]
+            keys = ["observations", "returns", "cost_returns"]
+            if self.use_action:
+                keys.append("actions")
 
         for key in keys:
-            array = self._data[key].reshape(
-                self.n_episodes * self.max_traj_length, *self._data[key].shape[2:]
-            )
+            shape = self._data[key].shape
+            array = self._data[key].reshape(shape[0] * shape[1], *shape[2:])
             normed = self.normalizer(array, key)
-            self._data[f"normed_{key}"] = normed.reshape(
-                self.n_episodes, self.max_traj_length, *self._data[key].shape[2:]
-            )
+            self._data[f"normed_{key}"] = normed.reshape(shape)
 
     def get_conditions(self, observations):
         """
         condition on current observation for planning
         """
 
-        return {0: observations[0]}
+        return {(0, self.history_horizon + 1): observations[: self.history_horizon + 1]}
 
     def __getitem__(self, idx):
         path_ind, start, end, mask_end = self._indices[idx]
 
-        observations = self._data.normed_observations[path_ind, start:end]
+        # shift by `self.history_horizon`
+        history_start = start
+        start = history_start + self.history_horizon
+        end = end + self.history_horizon
+        mask_end = mask_end + self.history_horizon
+
+        observations = self._data.normed_observations[path_ind, history_start:end]
         if self.use_action:
             if self.discrete_action:
-                actions = self._data.actions[path_ind, start:end]
+                actions = self._data.actions[path_ind, history_start:end]
             else:
-                actions = self._data.normed_actions[path_ind, start:end]
+                actions = self._data.normed_actions[path_ind, history_start:end]
 
-        if mask_end < end:
-            observations = np.concatenate(
-                [
-                    observations,
-                    np.zeros(
-                        (end - mask_end, observations.shape[-1]),
-                        dtype=observations.dtype,
-                    ),
-                ],
-                axis=0,
-            )
-            if self.use_action:
-                actions = np.concatenate(
-                    [
-                        actions,
-                        np.zeros(
-                            (end - mask_end, actions.shape[-1]),
-                            dtype=actions.dtype,
-                        ),
-                    ],
-                    axis=0,
-                )
-
-        masks = np.zeros((observations.shape[0], observations.shape[1]))
-        masks[: mask_end - start] = 1.0
+        masks = np.zeros((observations.shape[0], 1))
+        if self.use_inv_dynamic:
+            masks[start - history_start + 1 : mask_end - history_start] = 1.0
+        else:
+            masks[start - history_start : mask_end - history_start] = 1.0
 
         conditions = self.get_conditions(observations)
+        ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
+
+        # a little confusing here. Remember that history_start is the original ts in the traj
+        ret_dict["env_ts"] = history_start
+        # returns and cost_returns are not padded, so history_start is used
         if self.include_returns:
-            rewards = self._data.rewards[path_ind, start:]
-            discounts = self.discounts[: len(rewards)]
-            returns = (discounts * rewards).sum(axis=0).squeeze(-1)
-            returns = np.array([returns / self.returns_scale], dtype=np.float32)
-            ret_dict = dict(
-                samples=observations, conditions=conditions, masks=masks, returns=returns
-            )
-        else:
-            ret_dict = dict(
-                samples=observations, conditions=conditions, masks=masks
-            )
+            ret_dict["returns_to_go"] = self._data.normed_returns[
+                path_ind, history_start
+            ].reshape(1, 1)
+        if self.include_cost_returns:
+            ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
+                path_ind, history_start
+            ].reshape(1, 1)
 
         if self.use_action:
             ret_dict["actions"] = actions
@@ -175,8 +166,23 @@ class SequenceDataset(torch.utils.data.Dataset):
 
 class QLearningDataset(SequenceDataset):
     def make_indices(self):
+        """
+        makes indices for sampling from dataset;
+        each index maps to a datapoint
+        """
+
         assert self.horizon == 1, "QLearningDataset only supports horizon=1"
-        return super().make_indices()
+        indices = []
+        for i, traj_length in enumerate(self._data["traj_lengths"]):
+            # get `max_start`
+            max_start = traj_length
+            # get `end` and `mask_end` for each `start`
+            for start in range(max_start):
+                end = start + self.horizon
+                mask_end = min(end, traj_length)
+                indices.append((i, start, end, mask_end))
+        indices = np.array(indices)
+        return indices
 
     def normalize(self, keys: List[str] = None) -> None:
         """
@@ -185,30 +191,35 @@ class QLearningDataset(SequenceDataset):
 
         super().normalize(keys)
 
-        array = self._data["next_observations"].reshape(
-            self.n_episodes * self.max_traj_length, *self._data["next_observations"].shape[2:]
-        )
+        shape = self._data["next_observations"].shape
+        array = self._data["next_observations"].reshape(shape[0] * shape[1], *shape[2:])
         normed = self.normalizer(array, "observations")
-        self._data["normed_next_observations"] = normed.reshape(
-            self.n_episodes, self.max_traj_length, *self._data["next_observations"].shape[2:]
-        )
+        self._data["normed_next_observations"] = normed.reshape(shape)
 
     def get_conditions(self, observations):
-        raise AttributeError("QLearningDataset does not support conditioning")
+        return {}
 
     def __getitem__(self, idx):
         path_ind, start, end, mask_end = self._indices[idx]
 
         observations = self._data.normed_observations[path_ind, start:end].squeeze(0)
-        actions = self._data.actions[path_ind, start:end].squeeze(0)
+        actions = self._data.normed_actions[path_ind, start:end].squeeze(0)
         rewards = self._data.rewards[path_ind, start:end].squeeze(0)
-        next_observations = self._data.normed_next_observations[path_ind, start:end].squeeze(0)
+        next_observations = self._data.normed_next_observations[
+            path_ind, start:end
+        ].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
 
-        return dict(
+        conditions = self.get_conditions(observations)
+        next_conditions = self.get_conditions(next_observations)
+
+        ret_dict = dict(
             observations=observations,
             actions=actions,
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
+            conditions=conditions,
+            next_conditions=next_conditions,
         )
+        return ret_dict

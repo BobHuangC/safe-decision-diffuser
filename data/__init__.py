@@ -14,6 +14,6 @@
 
 """dataset and sampler."""
 
-from data.sequence import SequenceDataset, QLearningDataset
+from data.sequence import QLearningDataset, SequenceDataset
 
 __all__ = ["SequenceDataset", "QLearningDataset"]

@@ -1,4 +1,5 @@
 from functools import partial
+
 import jax
 import jax.numpy as jnp
 
@@ -22,30 +23,39 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
     def act(self, params, rng, observations, deterministic):
+        conditions = {}
         return self.policy.apply(
-            params["policy"], rng, observations, deterministic, repeat=None
+            params["policy"], rng, observations, conditions, deterministic, repeat=None
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
-            params["policy"], key, observations, deterministic, repeat=num_samples
+            params["policy"],
+            key,
+            observations,
+            conditions,
+            deterministic,
+            repeat=num_samples,
         )
         q1 = self.qf.apply(params["qf1"], observations, actions)
         q2 = self.qf.apply(params["qf2"], observations, actions)
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpmensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             repeat=num_samples,
             method=self.policy.ddpm_sample,
@@ -55,15 +65,17 @@ class SamplerPolicy(object):  # used for dql
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpmensemble_act(self, params, rng, observations, deterministic, num_samples):
         rng, key = jax.random.split(rng)
+        conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             repeat=num_samples,
             method=self.policy.dpm_sample,
@@ -73,34 +85,40 @@ class SamplerPolicy(object):  # used for dql
         q = jnp.minimum(q1, q2)
 
         idx = jax.random.categorical(rng, q)
-        return jnp.take(actions, idx, axis=-2)
+        return actions[jnp.arange(actions.shape[0]), idx]
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpm_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.dpm_sample,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddim_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.ddim_sample,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpm_act(self, params, rng, observations, deterministic, num_samples):
+        conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
+            conditions,
             deterministic,
             method=self.policy.ddpm_sample,
         )
@@ -116,9 +134,7 @@ class SamplerPolicy(object):  # used for dql
 
 
 class DiffuserPolicy(object):
-    def __init__(
-        self, planner, inv_model, act_method="ddpm"
-    ):
+    def __init__(self, planner, inv_model, act_method: str = "ddpm"):
         self.planner = planner
         self.inv_model = inv_model
         self.act_method = act_method
@@ -128,44 +144,101 @@ class DiffuserPolicy(object):
         return self
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
-    def ddpm_act(self, params, rng, observations, deterministic):
-        conditions = {0: observations}
-        returns = jnp.ones((observations.shape[0], 1)) * 0.9
-        plan_observations = self.planner.apply(
-            self.params["planner"],
+    def ddpm_act(
+        self,
+        params,
+        rng,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic,
+    ):  # deterministic is not used
+        history_horizon = self.planner.history_horizon
+        conditions = {(0, history_horizon + 1): observations}
+        plan_samples = self.planner.apply(
+            params["planner"],
             rng,
             conditions=conditions,
-            returns=returns,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
             method=self.planner.ddpm_sample,
         )
-        obs_comb = jnp.concatenate([plan_observations[:, 0], plan_observations[:, 1]], axis=-1)
-        actions = self.inv_model.apply(
-            self.params["inv_model"],
-            obs_comb,
-        )
+
+        if self.inv_model is not None:
+            obs_comb = jnp.concatenate(
+                [
+                    plan_samples[:, history_horizon],
+                    plan_samples[:, history_horizon + 1],
+                ],
+                axis=-1,
+            )
+            actions = self.inv_model.apply(
+                params["inv_model"],
+                obs_comb,
+            )
+        else:
+            actions = plan_samples[:, history_horizon, -self.planner.action_dim :]
+
         return actions
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
-    def ddim_act(self, params, rng, observations, deterministic):  # deterministic is not used
-        conditions = {0: observations}
-        returns = jnp.ones((observations.shape[0], 1)) * 0.9
-        plan_observations = self.policy.apply(
-            self.params["planner"],
+    def ddim_act(
+        self,
+        params,
+        rng,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic,
+    ):  # deterministic is not used
+        history_horizon = self.planner.history_horizon
+        conditions = {(0, history_horizon + 1): observations}
+        plan_samples = self.planner.apply(
+            params["planner"],
             rng,
             conditions=conditions,
-            returns=returns,
-            method=self.policy.ddim_sample,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            method=self.planner.ddim_sample,
         )
-        obs_comb = jnp.concatenate([plan_observations[:, 0], plan_observations[:, 1]], axis=-1)
-        actions = self.inv_model.apply(
-            self.params["inv_model"],
-            obs_comb,
-        )
+
+        if self.inv_model is not None:
+            obs_comb = jnp.concatenate(
+                [
+                    plan_samples[:, history_horizon],
+                    plan_samples[:, history_horizon + 1],
+                ],
+                axis=-1,
+            )
+            actions = self.inv_model.apply(
+                params["inv_model"],
+                obs_comb,
+            )
+        else:
+            actions = plan_samples[:, history_horizon, -self.planner.action_dim :]
+
         return actions
 
-    def __call__(self, observations, deterministic=False):
+    def __call__(
+        self,
+        observations,
+        env_ts,
+        returns_to_go,
+        cost_returns_to_go,
+        deterministic=False,
+    ):
         actions = getattr(self, f"{self.act_method}_act")(
-            self.params, next_rng(), observations, deterministic
+            self.params,
+            next_rng(),
+            observations,
+            env_ts,
+            returns_to_go,
+            cost_returns_to_go,
+            deterministic,
         )
         assert jnp.all(jnp.isfinite(actions))
         return jax.device_get(actions)

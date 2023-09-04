@@ -23,7 +23,7 @@ of beta schedules.
 import enum
 import math
 
-# import numpy as np
+import flax
 import jax
 import jax.numpy as np
 
@@ -156,10 +156,12 @@ class GaussianDiffusion:
         model_var_type,
         loss_type,
         returns_condition=False,
-        condition_guidence_w=1.2,
+        cost_returns_condition=False,
+        condition_guidance_w=1.2,
         min_value=-1.0,
         max_value=1.0,
         rescale_timesteps=False,
+        sample_temperature=1.0,
     ):
         self.schedule_name = schedule_name
         self.model_mean_type = model_mean_type
@@ -168,9 +170,12 @@ class GaussianDiffusion:
         self.rescale_timesteps = rescale_timesteps
         self.min_value = min_value
         self.max_value = max_value
+        self.sample_temperature = sample_temperature
+        self.loss_weights = None  # now set externally
 
         self.returns_condition = returns_condition
-        self.condition_guidence_w = condition_guidence_w
+        self.cost_returns_condition = cost_returns_condition
+        self.condition_guidance_w = condition_guidance_w
 
         betas = get_named_beta_schedule(schedule_name, num_timesteps)
         betas = np.array(betas, dtype=np.float32)
@@ -434,7 +439,6 @@ class GaussianDiffusion:
         t,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
     ):
         """
         Sample x_{t-1} from the model at the given timestep.
@@ -456,7 +460,7 @@ class GaussianDiffusion:
         """
 
         out = self.p_mean_variance(model_output, x, t, clip_denoised=clip_denoised)
-        noise = jax.random.normal(rng, x.shape, dtype=x.dtype)
+        noise = self.sample_temperature * jax.random.normal(rng, x.shape, dtype=x.dtype)
 
         # nonzero_mask = (
         #   (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
@@ -464,11 +468,13 @@ class GaussianDiffusion:
         # nonzero_mask = (
         #   (t != 0).astype(np.float32).reshape((-1, *([1] * (len(x.shape) - 1))))
         # )
-        nonzero_mask = (t != 0).astype(np.float32).reshape(-1, 1, 1)
+        nonzero_mask = (
+            (t != 0)
+            .astype(np.float32)
+            .reshape(-1, *(1 for _ in range(len(x.shape) - 1)))
+        )
         if cond_fn is not None:
-            out["mean"] = self.condition_mean(
-                cond_fn, out, x, t, model_kwargs=model_kwargs
-            )
+            out["mean"] = self.condition_mean(cond_fn, out, x, t)
         sample = out["mean"] + nonzero_mask * np.exp(0.5 * out["log_variance"]) * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
@@ -478,10 +484,12 @@ class GaussianDiffusion:
         model_forward,
         shape,
         conditions,
-        returns=None,
+        condition_dim=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
     ):
         """
         Generate samples from the model.
@@ -489,6 +497,7 @@ class GaussianDiffusion:
         :param model_forward: the model apply function without passing params.
         :param shape: the shape of the samples, (N, C, H, W).
         :param returns: if not None, a 1-D array of conditioned returns
+        :param cost_returns: if not None, a 1-D array of conditioned cost_returns
         :param noise: if specified, the noise from the encoder to sample.
                       Should be of the same shape as `shape`.
         :param clip_denoised: if True, clip x_start predictions to [-1, 1].
@@ -502,28 +511,116 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
-        x = jax.random.normal(sample_key, shape)
-        x = apply_conditioning(x, conditions)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
+        x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
+
+            model_kwargs = {}
+            if env_ts is not None:
+                model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
-                model_output_cond = model_forward(None, x, self._scale_timesteps(t), returns, use_dropout=False)
+                model_kwargs["returns_to_go"] = returns_to_go
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+
+                model_output_cond = model_forward(
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
+                )
                 rng_key, sample_key = jax.random.split(rng_key)
-                model_output_uncond = model_forward(sample_key, x, self._scale_timesteps(t), returns, force_dropout=True)
-                model_output = model_output_uncond + self.condition_guidence_w * (
+                model_output_uncond = model_forward(
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
+                )
+                model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(x, self._scale_timesteps(t))
+                model_output = model_forward(
+                    None, x, self._scale_timesteps(t), **model_kwargs
+                )
 
             rng_key, sample_key = jax.random.split(rng_key)
-            out = self.p_sample(
-                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs
-            )
+            out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
             x = out["sample"]
-            x = apply_conditioning(x, conditions)
+            x = apply_conditioning(x, conditions, condition_dim)
+        return x
+
+    def p_sample_loop_jit(
+        self,
+        rng_key,
+        model_forward,
+        shape,
+        conditions,
+        condition_dim=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        clip_denoised=True,
+        cond_fn=None,
+    ):
+        """
+        A loop-jitted version of p_sample_loop().
+        It is used for U-Net sampling since unrolling all the loops when using p_sample_loop() is slow.
+        It can NOT be used for dql, since currently dql's model_forward is wrapped with `partial`,
+        which can not be combined with `flax.linen.while_loop`.
+        """
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
+        x = apply_conditioning(x, conditions, condition_dim)
+
+        indices = np.arange(self.num_timesteps)[::-1]
+
+        def body_fn(mdl, val):
+            i, rng_key, x = val
+            t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
+
+            model_kwargs = {}
+            if env_ts is not None:
+                model_kwargs["env_ts"] = env_ts
+            if self.returns_condition:
+                model_kwargs["returns_to_go"] = returns_to_go
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+
+                model_output_cond = mdl(
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
+                )
+                rng_key, sample_key = jax.random.split(rng_key)
+                model_output_uncond = mdl(
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
+                )
+                model_output = model_output_uncond + self.condition_guidance_w * (
+                    model_output_cond - model_output_uncond
+                )
+            else:
+                model_output = mdl(None, x, self._scale_timesteps(t), **model_kwargs)
+
+            rng_key, sample_key = jax.random.split(rng_key)
+            out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
+            x = out["sample"]
+            x = apply_conditioning(x, conditions, condition_dim)
+
+            return i + 1, rng_key, x
+
+        def loop_stop_fn(mdl, c):
+            i, _, _ = c
+            return i < self.num_timesteps
+
+        _, _, x = flax.linen.while_loop(
+            loop_stop_fn, body_fn, model_forward, (0, rng_key, x)
+        )
+
         return x
 
     def ddim_sample(
@@ -535,7 +632,6 @@ class GaussianDiffusion:
         returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
         eta=0.0,
     ):
         """
@@ -544,9 +640,11 @@ class GaussianDiffusion:
         Same usage as p_sample().
         """
 
-        out = self.p_mean_variance(model_putput, x, t, returns, clip_denoised=clip_denoised)
+        out = self.p_mean_variance(
+            model_putput, x, t, returns, clip_denoised=clip_denoised
+        )
         if cond_fn is not None:
-            out = self.condition_score(cond_fn, out, x, t, model_kwargs=model_kwargs)
+            out = self.condition_score(cond_fn, out, x, t)
 
         # Usually our model outputs epsilon, but we re-derive it
         # in case we used x_start or x_prev prediction.
@@ -608,10 +706,11 @@ class GaussianDiffusion:
         model_forward,
         shape,
         conditions,
+        condition_dim=None,
         returns=None,
+        cost_returns=None,
         clip_denoised=True,
         cond_fn=None,
-        model_kwargs=None,
         eta=0.0,
     ):
         """
@@ -622,29 +721,50 @@ class GaussianDiffusion:
 
         rng_key, sample_key = jax.random.split(rng_key)
         x = jax.random.normal(sample_key, shape)
-        x = apply_conditioning(x, conditions)
+        x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
             t = np.ones(shape[:-1], dtype=np.int32) * i
             if self.returns_condition:
-                model_output_cond = model_forward(x, self._scale_timesteps(t), returns, use_dropout=False)
-                model_output_uncond = model_forward(x, self._scale_timesteps(t), returns, force_dropout=True)
-                model_output = model_output_uncond + self.condition_guidence_w * (
+                model_kwargs = dict(returns=returns)
+                if self.cost_returns_condition:
+                    model_kwargs["cost_returns"] = cost_returns
+
+                model_output_cond = model_forward(
+                    None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
+                )
+                rng_key, sample_key = jax.random.split(rng_key)
+                model_output_uncond = model_forward(
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    force_dropout=True,
+                    **model_kwargs,
+                )
+                model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(x, self._scale_timesteps(t))
+                model_output = model_forward(None, x, self._scale_timesteps(t))
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.ddim_sample(
-                sample_key, model_output, x, t, clip_denoised, cond_fn, model_kwargs, eta
+                sample_key,
+                model_output,
+                x,
+                t,
+                clip_denoised,
+                cond_fn,
+                eta,
             )
             x = out["sample"]
-            x = apply_conditioning(x, conditions)
+            x = apply_conditioning(x, conditions, condition_dim)
         return x
 
-    def _vb_terms_bpd(self, model_ouput, x_start, x_t, conditions, t, clip_denoised=True):
+    def _vb_terms_bpd(
+        self, model_ouput, x_start, x_t, conditions, t, clip_denoised=True
+    ):
         """
         Get a term for the variational lower-bound.
 
@@ -679,26 +799,52 @@ class GaussianDiffusion:
         output = np.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
-    def training_losses(self, rng_key, model_forward, x_start, conditions, t, returns=None):
+    def training_losses(
+        self,
+        rng_key,
+        model_forward,
+        x_start,
+        conditions,
+        t,
+        masks=None,
+        env_ts=None,
+        condition_dim=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+    ):
         """
         Compute training losses for a single timestep.
 
         :param model: the model to evaluate loss on.
         :param x_start: the [N x C x ...] tensor of inputs.
         :param t: a batch of timestep indices.
-        :param model_kwargs: if not None, a dict of extra keyword arguments to
-            pass to the model. This can be used for conditioning.
         :return: a dict with the key "loss" containing a tensor of shape [N].
                  Some mean or variance settings may also have other keys.
         """
 
-        noise = jax.random.normal(rng_key, x_start.shape, dtype=x_start.dtype)
+        rng_key, sample_key = jax.random.split(rng_key)
+        noise = jax.random.normal(sample_key, x_start.shape, dtype=x_start.dtype)
         x_t = self.q_sample(x_start, t, noise=noise)
-        x_t = apply_conditioning(x_t, conditions)
+        x_t = apply_conditioning(x_t, conditions, condition_dim)
+
+        model_kwargs = {}
+        if env_ts is not None:
+            model_kwargs["env_ts"] = env_ts
         if self.returns_condition:
-            model_output = model_forward(rng_key, x_t, self._scale_timesteps(t), returns)
-        else:
-            model_output = model_forward(x_t, self._scale_timesteps(t))
+            model_kwargs["returns_to_go"] = returns_to_go
+        if self.cost_returns_condition:
+            model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        model_output = model_forward(
+            sample_key,
+            x_t,
+            self._scale_timesteps(t),
+            **model_kwargs,
+        )
+
+        if self.model_mean_type != ModelMeanType.EPSILON:
+            model_output = apply_conditioning(model_output, conditions, condition_dim)
 
         terms = {"model_output": model_output, "x_t": x_t}
         terms["ts_weights"] = _extract_into_tensor(
@@ -707,7 +853,12 @@ class GaussianDiffusion:
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
             terms["loss"] = self._vb_terms_bpd(
-                model_output, x_start=x_start, x_t=x_t, conditions=conditions, t=t, clip_denoised=False
+                model_output,
+                x_start=x_start,
+                x_t=x_t,
+                conditions=conditions,
+                t=t,
+                clip_denoised=False,
             )["output"]
             if self.loss_type == LossType.RESCALED_KL:
                 terms["loss"] *= self.num_timesteps
@@ -725,7 +876,12 @@ class GaussianDiffusion:
                     [model_output.detach(), model_var_values], axis=1
                 )
                 terms["vb"] = self._vb_terms_bpd(
-                    frozen_out, x_start=x_start, x_t=x_t, conditions=conditions, t=t, clip_denoised=False
+                    frozen_out,
+                    x_start=x_start,
+                    x_t=x_t,
+                    conditions=conditions,
+                    t=t,
+                    clip_denoised=False,
                 )["output"]
                 if self.loss_type == LossType.RESCALED_MSE:
                     # Divide by 1000 for equivalence with initial implementation.
@@ -739,11 +895,16 @@ class GaussianDiffusion:
                 ModelMeanType.START_X: x_start,
                 ModelMeanType.EPSILON: noise,
             }[self.model_mean_type]
-            if self.model_mean_type != ModelMeanType.EPSILON:
-                target = apply_conditioning(target, conditions)
-
             assert model_output.shape == target.shape == x_start.shape
-            terms["mse"] = mean_flat((target - model_output) ** 2)
+
+            mse = (target - model_output) ** 2
+            if self.loss_weights is not None:
+                mse = self.loss_weights * mse
+            if masks is not None:
+                terms["mse"] = mean_flat(masks * mse) / mean_flat(masks)
+            else:
+                terms["mse"] = mean_flat(mse)
+
             if "vb" in terms:
                 terms["loss"] = terms["mse"] + terms["vb"]
             else:

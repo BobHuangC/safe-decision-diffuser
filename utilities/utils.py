@@ -14,14 +14,16 @@
 
 """General utils for training."""
 
+import functools
+import importlib
 import os
-import sys
 import pprint
 import random
+import string
+import sys
 import tempfile
 import time
 import uuid
-import importlib
 from copy import copy
 from socket import gethostname
 
@@ -41,10 +43,30 @@ def to_arch(string):
     return tuple(int(x) for x in string.split("-"))
 
 
-def apply_conditioning(x, conditions):
+def str_to_list(string):
+    return [float(x) for x in string.split(",")]
+
+
+def apply_conditioning(x, conditions, condition_dim: int):
     for t, val in conditions.items():
-        x.at[:, t].set(val)
+        assert condition_dim is not None
+        x = x.at[:, t[0] : t[1], :condition_dim].set(val)
     return x
+
+
+def compose(*functions):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+
+
+def dot_key_dict_to_nested_dicts(dict_in):
+    dict_out = {}
+    for key, value in dict_in.items():
+        cur = dict_out
+        *keys, leaf = key.split(".")
+        for k in keys:
+            cur = cur.setdefault(k, {})
+        cur[leaf] = value
+    return dict_out
 
 
 class Timer(object):
@@ -66,13 +88,12 @@ class WandBLogger(object):
     @staticmethod
     def get_default_config(updates=None):
         config = ConfigDict()
-        config.team = "jax_offrl"
+        config.team = "jax_diffrl"
         config.online = False
-        config.prefix = ""
-        config.project = "OfflineRL"
+        config.project = "DiffusionRL"
         config.output_dir = "logs"
         config.random_delay = 0.0
-        config.experiment_id = config_dict.placeholder(str)
+        config.log_dir = config_dict.placeholder(str)
         config.anonymous = config_dict.placeholder(str)
         config.notes = config_dict.placeholder(str)
 
@@ -80,22 +101,17 @@ class WandBLogger(object):
             config.update(ConfigDict(updates).copy_and_resolve_references())
         return config
 
-    def __init__(self, config, variant, env_name):
+    def __init__(self, config, variant):
         self.config = self.get_default_config(config)
 
-        if self.config.experiment_id is None:
-            self.config.experiment_id = uuid.uuid4().hex
-
-        if self.config.prefix != "":
-            self.config.project = "{}--{}".format(
-                self.config.prefix, self.config.project
-            )
+        if self.config.log_dir is None:
+            self.config.log_dir = uuid.uuid4().hex
 
         if self.config.output_dir == "":
             self.config.output_dir = tempfile.mkdtemp()
         else:
             self.config.output_dir = os.path.join(
-                self.config.output_dir, self.config.experiment_id
+                self.config.output_dir, self.config.log_dir
             )
             os.makedirs(self.config.output_dir, exist_ok=True)
 
@@ -113,7 +129,6 @@ class WandBLogger(object):
             config=self._variant,
             project=self.config.project,
             dir=self.config.output_dir,
-            id=self.config.experiment_id,
             anonymous=self.config.anonymous,
             notes=self.config.notes,
             settings=wandb.Settings(
@@ -215,3 +230,8 @@ def import_file(path, module_name):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+class DotFormatter(string.Formatter):
+    def get_field(self, field_name, args, kwargs):
+        return (self.get_value(field_name, args, kwargs), field_name)

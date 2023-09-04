@@ -13,28 +13,23 @@
 # limitations under the License.
 
 import importlib
-from collections import deque
 
 import absl
 import absl.flags
+import dsrl  # noqa
 import gym
+import gymnasium
 import jax
 import jax.numpy as jnp
-import numpy as np
+import torch
 import tqdm
 
-from data.dataset import get_d4rl_dataset
-from diffuser.constants import (
-    DATASET,
-    DATASET_ABBR_MAP,
-    DATASET_MAP,
-    ENV_MAP,
-    ENVNAME_MAP,
-)
-from diffuser.hps import hyperparameters
+from diffuser.constants import DATASET, DATASET_MAP, ENV_MAP
+from utilities.data_utils import cycle, numpy_collate
 from utilities.jax_utils import batch_to_jax
 from utilities.sampler import TrajSampler
 from utilities.utils import (
+    DotFormatter,
     Timer,
     WandBLogger,
     get_user_flags,
@@ -44,10 +39,12 @@ from viskit.logging import logger, setup_logger
 
 
 class BaseTrainer:
-    def __init__(self, config):
-        self._cfgs = absl.flags.FLAGS
+    def __init__(self, config, use_absl: bool = True):
+        if use_absl:
+            self._cfgs = absl.flags.FLAGS
+        else:
+            self._cfgs = config
 
-        self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._cfgs.algo_cfg.lr_decay_steps = (
             self._cfgs.n_epochs * self._cfgs.n_train_step_per_epoch
         )
@@ -58,10 +55,7 @@ class BaseTrainer:
             act_fn = getattr(jax.nn, self._cfgs.activation)
 
         self._act_fn = act_fn
-
         self._variant = get_user_flags(self._cfgs, config)
-        for k, v in self._cfgs.algo_cfg.items():
-            self._variant[f"algo.{k}"] = v
 
         # get high level env
         env_name_full = self._cfgs.env
@@ -75,59 +69,23 @@ class BaseTrainer:
     def train(self):
         self._setup()
 
-        act_methods = self._cfgs.act_method.split("-")
         viskit_metrics = {}
-        recent_returns = {method: deque(maxlen=10) for method in act_methods}
-        best_returns = {method: -float("inf") for method in act_methods}
         for epoch in range(self._cfgs.n_epochs):
             metrics = {"epoch": epoch}
 
+            with Timer() as eval_timer:
+                if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
+                    self._evaluator.update_params(self._agent.eval_params)
+                    eval_metrics = self._evaluator.evaluate(epoch)
+                    metrics.update(eval_metrics)
+
+                if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
+                    self._save_model(epoch)
+
             with Timer() as train_timer:
-                # for _ in range(1):
                 for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
                     batch = batch_to_jax(next(self._dataloader))
                     metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
-
-            with Timer() as eval_timer:
-                if epoch == 0 or (epoch + 1) % self._cfgs.eval_period == 0:
-                    for method in act_methods:
-                        trajs = self._sample_trajs(method)
-
-                        post = "" if len(act_methods) == 1 else "_" + method
-                        metrics["average_return" + post] = np.mean(
-                            [np.sum(t["rewards"]) for t in trajs]
-                        )
-                        metrics["average_traj_length" + post] = np.mean(
-                            [len(t["rewards"]) for t in trajs]
-                        )
-                        metrics[
-                            "average_normalizd_return" + post
-                        ] = cur_return = np.mean(
-                            [
-                                self._eval_sampler.env.get_normalized_score(
-                                    np.sum(t["rewards"])
-                                )
-                                for t in trajs
-                            ]
-                        )
-                        recent_returns[method].append(cur_return)
-                        metrics["average_10_normalized_return" + post] = np.mean(
-                            recent_returns[method]
-                        )
-                        metrics["best_normalized_return" + post] = best_returns[
-                            method
-                        ] = max(best_returns[method], cur_return)
-                        metrics["done" + post] = np.mean(
-                            [np.sum(t["dones"]) for t in trajs]
-                        )
-
-                    if self._cfgs.save_model:
-                        save_data = {
-                            "agent": self._agent,
-                            "variant": self._variant,
-                            "epoch": epoch,
-                        }
-                        self._wandb_logger.save_pickle(save_data, f"model_{epoch}.pkl")
 
             metrics["train_time"] = train_timer()
             metrics["eval_time"] = eval_timer()
@@ -138,80 +96,158 @@ class BaseTrainer:
             logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
         # save model
-        if self._cfgs.save_model:
-            save_data = {"agent": self._agent, "variant": self._variant, "epoch": epoch}
-            self._wandb_logger.save_pickle(save_data, "model_final.pkl")
+        if (
+            self._cfgs.save_period > 0
+            and self._cfgs.n_epochs % self._cfgs.save_period == 0
+        ):
+            self._save_model(self._cfgs.n_epochs)
+
+        if (
+            self._cfgs.eval_period > 0
+            and self._cfgs.n_epochs % self._cfgs.eval_period == 0
+        ):
+            self._evaluator.update_params(self._agent.eval_params)
+            self._evaluator.evaluate(self._cfgs.n_epochs)
 
     def _setup(self):
         raise NotImplementedError
 
-    def _sample_trajs(self):
-        raise NotImplementedError
+    def _save_model(self, epoch: int):
+        save_data = {
+            "agent_states": self._agent.train_states,
+            "variant": self._variant,
+            "epoch": epoch,
+        }
+        logger.save_orbax_checkpoint(save_data, f"checkpoints/model_{epoch}")
 
     def _setup_logger(self):
-        env_name_high = ENVNAME_MAP[self._env]
-        env_name_full = self._cfgs.env
-        dataset_name_abbr = DATASET_ABBR_MAP[self._cfgs.dataset]
-
         logging_configs = self._cfgs.logging
-        logging_configs["project"] = (
-            f"{self._cfgs.trainer}-{env_name_high}-{dataset_name_abbr}"
+        logging_configs["log_dir"] = DotFormatter().vformat(
+            self._cfgs.log_dir_format, [], self._variant
         )
-        wandb_logger = WandBLogger(
-            config=logging_configs, variant=self._variant, env_name=env_name_full
-        )
+        wandb_logger = WandBLogger(config=logging_configs, variant=self._variant)
         setup_logger(
             variant=self._variant,
-            base_log_dir=self._cfgs.logging.output_dir,
-            exp_id=wandb_logger.experiment_id,
+            log_dir=wandb_logger.output_dir,
             seed=self._cfgs.seed,
             include_exp_prefix_sub_dir=False,
         )
         return wandb_logger
 
     def _setup_d4rl(self):
-        eval_sampler = TrajSampler(gym.make(self._cfgs.env), self._cfgs.max_traj_length)
-
-        norm_reward = self._cfgs.norm_reward
-        if "antmaze" in self._cfgs.env:
-            norm_reward = False
+        from data.d4rl import get_dataset
 
         if self._cfgs.dataset_class in ["QLearningDataset"]:
             include_next_obs = True
         else:
             include_next_obs = False
 
-        dataset = get_d4rl_dataset(
+        eval_sampler = TrajSampler(
+            lambda: gym.make(self._cfgs.env),
+            self._cfgs.num_eval_envs,
+            self._cfgs.eval_env_seed,
+            self._cfgs.max_traj_length,
+            use_env_ts=self._cfgs.env_ts_condition,
+            history_horizon=getattr(self._cfgs, "history_horizon", 0),
+        )
+        dataset = get_dataset(
             eval_sampler.env,
+            discount=self._cfgs.discount,
+            horizon=self._cfgs.horizon,
             max_traj_length=self._cfgs.max_traj_length,
-            norm_reward=norm_reward,
             include_next_obs=include_next_obs,
+            termination_penalty=self._cfgs.termination_penalty,
         )
-        dataset["rewards"] = (
-            dataset["rewards"] * self._cfgs.reward_scale + self._cfgs.reward_bias
-        )
-        dataset["actions"] = np.clip(
-            dataset["actions"], -self._cfgs.clip_action, self._cfgs.clip_action
-        )
+        return dataset, eval_sampler
 
-        dataset = getattr(importlib.import_module("data.sequence"), self._cfgs.dataset_class)(
-            dataset, horizon=self._cfgs.horizon, max_traj_length=self._cfgs.max_traj_length
+    def _setup_dsrl(self):
+        from data.dsrl import get_dataset
+
+        if self._cfgs.dataset_class in ["QLearningDataset"]:
+            include_next_obs = True
+        else:
+            include_next_obs = False
+
+        eval_sampler = TrajSampler(
+            lambda: gymnasium.make(self._cfgs.env),
+            self._cfgs.num_eval_envs,
+            self._cfgs.eval_env_seed,
+            self._cfgs.max_traj_length,
+            use_env_ts=self._cfgs.env_ts_condition,
+            history_horizon=getattr(self._cfgs, "history_horizon", 0),
         )
-        eval_sampler.set_normalizer(dataset.normalizer)
+        eval_sampler.env.set_target_cost(self._cfgs.cost_limit)
+        dataset = get_dataset(
+            eval_sampler.env,
+            discount=self._cfgs.discount,
+            horizon=self._cfgs.horizon,
+            max_traj_length=self._cfgs.max_traj_length,
+            termination_penalty=self._cfgs.termination_penalty,
+            include_next_obs=include_next_obs,
+            pareto_optimal_only=self._cfgs.aug_pareto_optimal_only,
+            aug_percent=self._cfgs.aug_percent,
+            deg=self._cfgs.aug_deg,
+            max_rew_decrease=self._cfgs.aug_max_rew_decrease,
+            beta=self._cfgs.aug_beta,
+            max_reward=self._cfgs.aug_max_reward,
+            min_reward=self._cfgs.aug_min_reward,
+            rmin=self._cfgs.aug_rmin,
+            cost_bins=self._cfgs.aug_cost_bins,
+            max_num_per_bin=self._cfgs.aug_max_num_per_bin,
+        )
         return dataset, eval_sampler
 
     def _setup_dataset(self):
         dataset_type = DATASET_MAP[self._cfgs.dataset]
-
         if dataset_type == DATASET.D4RL:
             dataset, eval_sampler = self._setup_d4rl()
-        elif dataset_type == DATASET.RLUP:
-            dataset, eval_sampler = self._setup_rlup()
+        elif dataset_type == DATASET.DSRL:
+            dataset, eval_sampler = self._setup_dsrl()
         else:
             raise NotImplementedError
 
+        dataset = getattr(
+            importlib.import_module("data.sequence"), self._cfgs.dataset_class
+        )(
+            dataset,
+            horizon=self._cfgs.horizon,
+            history_horizon=self._cfgs.history_horizon,
+            max_traj_length=self._cfgs.max_traj_length,
+            include_returns=self._cfgs.returns_condition,
+            include_cost_returns=self._cfgs.cost_returns_condition,
+            normalizer=self._cfgs.normalizer,
+            use_inv_dynamic=getattr(self._cfgs, "use_inv_dynamic", False),
+        )
+        eval_sampler.set_normalizer(dataset.normalizer)
+
         self._observation_dim = eval_sampler.env.observation_space.shape[0]
         self._action_dim = eval_sampler.env.action_space.shape[0]
-        self._max_action = float(eval_sampler.env.action_space.high[0])
 
         return dataset, eval_sampler
+
+    def _setup_evaluator(self, sampler_policy, eval_sampler, dataset):
+        evaluator_class = getattr(
+            importlib.import_module("diffuser.evaluator"), self._cfgs.evaluator_class
+        )
+
+        if evaluator_class.eval_mode == "online":
+            evaluator = evaluator_class(self._cfgs, sampler_policy, eval_sampler)
+        elif evaluator_class.eval_mode == "offline":
+            eval_data_sampler = torch.utils.data.RandomSampler(dataset)
+            eval_dataloader = cycle(
+                torch.utils.data.DataLoader(
+                    dataset,
+                    sampler=eval_data_sampler,
+                    batch_size=self._cfgs.eval_batch_size,
+                    collate_fn=numpy_collate,
+                    drop_last=True,
+                    num_workers=4,
+                )
+            )
+            evaluator = evaluator_class(self._cfgs, sampler_policy, eval_dataloader)
+        elif evaluator_class.eval_mode == "skip":
+            evaluator = evaluator_class(self._cfgs, sampler_policy)
+        else:
+            raise NotImplementedError(f"Unknown eval_mode: {self._cfgs.eval_mode}")
+
+        return evaluator

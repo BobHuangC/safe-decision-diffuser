@@ -12,15 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-
 from setuptools import find_packages, setup
-
-here = os.path.abspath(os.path.dirname(__file__))
-
-
-with open(os.path.join(here, "requirements.txt"), encoding="utf-8") as f:
-    requirements = f.read().splitlines()
 
 setup(
     name="offrl",
@@ -51,5 +43,7 @@ setup(
     ],
     keywords="jax offline reinforcement learning",
     packages=find_packages(exclude=[]),
-    install_requires=requirements,
+    requires=[
+        "black==23.1.0",
+    ],
 )

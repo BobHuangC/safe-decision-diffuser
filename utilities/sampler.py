@@ -14,9 +14,13 @@
 
 """Agent trajectory samplers."""
 
+from collections import deque
 import time
+from typing import Callable
 
 import numpy as np
+
+from env import get_envs
 
 WIDTH = 250
 HEIGHT = 200
@@ -74,71 +78,175 @@ class StepSampler(object):
 
 
 class TrajSampler(object):
-    def __init__(self, env, max_traj_length=1000, render=False):
+    def __init__(
+        self,
+        env_fn: Callable,
+        num_envs: int,
+        seed: int,
+        max_traj_length: int = 1000,
+        render: bool = False,
+        use_env_ts: bool = False,
+        history_horizon: int = 0,
+    ):
         self.max_traj_length = max_traj_length
-        self._env = env
+        self.use_env_ts = use_env_ts
+        self.history_horizon = history_horizon
+        self._env = env_fn()
+        self._envs = get_envs(env_fn, num_envs)
+        self._envs.seed(seed)
+        self._num_envs = num_envs
         self._render = render
         self._normalizer = None
+        self._target_returns = None
 
     def set_normalizer(self, normalizer):
         self._normalizer = normalizer
 
+    def set_target_returns(self, target_returns):
+        self._target_returns = target_returns
+
     def sample(
         self,
         policy,
-        n_trajs,
-        deterministic=False,
-        replay_buffer=None,
-        obs_statistics=(0, 1, np.inf),
-        env_render_fn="render",
+        n_trajs: int,
+        deterministic: bool = False,
+        env_render_fn: str = "render",
     ):
-        trajs = []
-        for _ in range(n_trajs):
-            observations = []
-            actions = []
-            rewards = []
-            next_observations = []
-            dones = []
+        assert n_trajs > 0
+        ready_env_ids = np.arange(min(self._num_envs, n_trajs))
+        if self._target_returns is not None:
+            returns_to_go = np.ones(len(ready_env_ids)) * self._target_returns[0]
+            cost_returns_to_go = np.ones(len(ready_env_ids)) * self._target_returns[1]
+        if self.use_env_ts:
+            env_ts = np.zeros(len(ready_env_ids), dtype=np.int32)
 
-            observation = self.env.reset()
-            observation = self._normalizer.normalize(observation, "observations")
+        observation, _ = self.envs.reset(ready_env_ids)
+        observation = self._normalizer.normalize(observation, "observations")
 
-            done = False
-            while not done:
-                action = policy(
-                    observation.reshape(1, -1), deterministic=deterministic
-                ).reshape(-1)
-                next_observation, reward, done, _ = self.env.step(action)
-                if self._render:
-                    getattr(self.env, env_render_fn)()
-                    time.sleep(0.01)
-
-                next_observation = self._normalizer.normalize(next_observation, "observations")
-                observations.append(observation)
-                actions.append(action)
-                rewards.append(reward)
-                dones.append(done)
-                next_observations.append(next_observation)
-
-                if replay_buffer is not None:
-                    replay_buffer.add_sample(
-                        observation, action, reward, next_observation, done
-                    )
-
-                observation = next_observation
-
-            trajs.append(
-                dict(
-                    observations=np.array(observations, dtype=np.float32),
-                    actions=np.array(actions, dtype=np.float32),
-                    rewards=np.array(rewards, dtype=np.float32),
-                    next_observations=np.array(next_observations, dtype=np.float32),
-                    dones=np.array(dones, dtype=np.float32),
-                )
+        if self.history_horizon > 0:
+            obs_queue = deque(maxlen=self.history_horizon + 1)
+            obs_queue.extend(
+                [np.zeros_like(observation) for _ in range(self.history_horizon)]
             )
 
+        observations = [[] for i in range(len(ready_env_ids))]
+        actions = [[] for _ in range(len(ready_env_ids))]
+        rewards = [[] for _ in range(len(ready_env_ids))]
+        next_observations = [[] for _ in range(len(ready_env_ids))]
+        dones = [[] for _ in range(len(ready_env_ids))]
+        costs = [[] for _ in range(len(ready_env_ids))]
+
+        trajs = []
+        n_finished_trajs = 0
+        while True:
+            policy_kwargs = {}
+            if self._target_returns is not None:
+                policy_kwargs["returns_to_go"] = self._normalizer.normalize(
+                    returns_to_go[ready_env_ids], "returns"
+                )
+                policy_kwargs["cost_returns_to_go"] = self._normalizer.normalize(
+                    cost_returns_to_go[ready_env_ids], "cost_returns"
+                )
+            if self.use_env_ts:
+                policy_kwargs["env_ts"] = env_ts[ready_env_ids]
+
+            if self.history_horizon > 0:
+                obs_queue.append(observation)
+                full_observation = np.stack(list(obs_queue), axis=1)
+            else:
+                full_observation = observation
+
+            action = policy(
+                full_observation, deterministic=deterministic, **policy_kwargs
+            )
+            action = self._normalizer.unnormalize(action, "actions")
+
+            next_observation, reward, terminated, truncated, info = self.envs.step(
+                action, ready_env_ids
+            )
+            if "cost" in info[0]:
+                cost = np.array([info[i]["cost"] for i in range(len(info))])
+            else:
+                cost = np.zeros_like(reward)
+
+            env_ts[ready_env_ids] += 1
+            returns_to_go[ready_env_ids] = np.max(
+                returns_to_go[ready_env_ids] - reward, 0
+            )
+            cost_returns_to_go[ready_env_ids] = np.max(
+                cost_returns_to_go[ready_env_ids] - cost, 0
+            )
+            done = np.logical_or(terminated, truncated)
+            if self._render:
+                getattr(self.envs, env_render_fn)()
+                time.sleep(0.01)
+
+            next_observation = self._normalizer.normalize(
+                next_observation, "observations"
+            )
+
+            for idx, env_id in enumerate(ready_env_ids):
+                observations[env_id].append(observation[idx])
+                actions[env_id].append(action[idx])
+                rewards[env_id].append(reward[idx])
+                next_observations[env_id].append(next_observation[idx])
+                dones[env_id].append(done[idx])
+                costs[env_id].append(cost[idx])
+
+            if np.any(done):
+                env_ind_local = np.where(done)[0]
+                env_ind_global = ready_env_ids[env_ind_local]
+
+                for ind in env_ind_local:
+                    trajs.append(
+                        dict(
+                            observations=np.array(observations[ind], dtype=np.float32),
+                            actions=np.array(actions[ind], dtype=np.float32),
+                            rewards=np.array(rewards[ind], dtype=np.float32),
+                            next_observations=np.array(
+                                next_observations[ind], dtype=np.float32
+                            ),
+                            dones=np.array(dones[ind], dtype=np.float32),
+                            costs=np.array(costs[ind], dtype=np.float32),
+                        )
+                    )
+                    observations[ind] = []
+                    actions[ind] = []
+                    rewards[ind] = []
+                    next_observations[ind] = []
+                    dones[ind] = []
+                    costs[ind] = []
+
+                returns_to_go[env_ind_global] = self._target_returns[0]
+                cost_returns_to_go[env_ind_global] = self._target_returns[1]
+                env_ts[env_ind_global] = 0
+
+                if self.history_horizon > 0:
+                    for i in range(len(obs_queue)):
+                        obs_queue[i][env_ind_global] = 0.0
+
+                n_finished_trajs += len(env_ind_local)
+                if n_finished_trajs >= n_trajs:
+                    trajs = trajs[:n_trajs]
+                    break
+
+                # surplus_env_num = len(ready_env_ids) - (n_trajs - n_finished_trajs)
+                # if surplus_env_num > 0:
+                #     mask = np.ones_like(ready_env_ids, dtype=bool)
+                #     mask[env_ind_local[:surplus_env_num]] = False
+                #     ready_env_ids = ready_env_ids[mask]
+
+                obs_reset, _ = self.envs.reset(env_ind_global)
+                obs_reset = self._normalizer.normalize(obs_reset, "observations")
+                next_observation[env_ind_global] = obs_reset
+
+            observation = next_observation
         return trajs
 
     @property
     def env(self):
         return self._env
+
+    @property
+    def envs(self):
+        return self._envs

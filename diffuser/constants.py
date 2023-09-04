@@ -36,6 +36,15 @@ ENV_MAP = {
     "cartpole": ENV.Mujoco,
     "fish": ENV.Mujoco,
     "antmaze": ENV.Antmaze,
+    "Ant": ENV.Mujoco,
+    "Ball": ENV.Antmaze,
+    "Car": ENV.Antmaze,
+    "Drone": ENV.Antmaze,
+    "Cheetah": ENV.Mujoco,
+    "Hopper": ENV.Mujoco,
+    "Walker": ENV.Mujoco,
+    "Swimmer": ENV.Mujoco,
+    "Point": ENV.Mujoco,
 }
 
 ENVNAME_MAP = {
@@ -49,8 +58,9 @@ ENVNAME_MAP = {
 class DATASET(IntEnum):
     D4RL = 1
     RLUP = 2
+    DSRL = 3
 
 
-DATASET_MAP = {"d4rl": DATASET.D4RL, "rl_unplugged": DATASET.RLUP}
+DATASET_MAP = {"d4rl": DATASET.D4RL, "rl_unplugged": DATASET.RLUP, "dsrl": DATASET.DSRL}
 
-DATASET_ABBR_MAP = {"d4rl": "D4RL", "rl_unplugged": "RLUP"}
+DATASET_ABBR_MAP = {"d4rl": "D4RL", "rl_unplugged": "RLUP", "dsrl": "DSRL"}

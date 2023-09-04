@@ -4,18 +4,21 @@ Based on rllab's logger.
 
 https://github.com/rll/rllab
 """
-from enum import Enum
-from contextlib import contextmanager
-import numpy as np
+import csv
+import datetime
+import errno
+import json
 import os
 import os.path as osp
-import sys
-import datetime
-import dateutil.tz
-import csv
-import json
 import pickle
-import errno
+import sys
+from contextlib import contextmanager
+from enum import Enum
+
+import dateutil.tz
+import numpy as np
+import orbax
+from flax.training import orbax_utils
 
 from viskit.tabulate import tabulate
 
@@ -201,7 +204,9 @@ class Logger(object):
 
         :param data: Something pickle'able.
         """
+
         file_name = osp.join(self._snapshot_dir, file_name)
+        mkdir_p(os.path.dirname(file_name))
         if mode == "joblib":
             import joblib
 
@@ -291,6 +296,15 @@ class Logger(object):
         del self._prefixes[-1]
         self._prefix_str = "".join(self._prefixes)
 
+    def save_orbax_checkpoint(self, data, relative_path: str):
+        if os.path.isabs(relative_path):
+            raise ValueError("orbax checkpoint path should be relative to snapshot dir")
+        file_name = osp.join(self._snapshot_dir, relative_path)
+        mkdir_p(os.path.dirname(file_name))
+        orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+        save_args = orbax_utils.save_args_from_target(data)
+        orbax_checkpointer.save(file_name, data, save_args=save_args, force=True)
+
 
 def safe_json(data):
     if data is None:
@@ -323,42 +337,7 @@ def dict_to_safe_json(d):
     return new_d
 
 
-def create_exp_name(exp_prefix, exp_id=0, seed=0):
-    """
-    Create a semi-unique experiment name that has a timestamp
-    :param exp_prefix:
-    :param exp_id:
-    :return:
-    """
-
-    now = datetime.datetime.now(dateutil.tz.tzlocal())
-    timestamp = now.strftime("%Y_%m_%d_%H_%M_%S")
-    return "%s_%s-s-%d--%s" % (exp_prefix, timestamp, seed, str(exp_id))
-
-
-def create_log_dir(
-    exp_prefix,
-    base_log_dir,
-    exp_id=0,
-    seed=0,
-    include_exp_prefix_sub_dir=True,
-):
-    """
-    Creates and returns a unique log directory.
-
-    :param exp_prefix: All experiments with this prefix will have log
-    directories be under this directory.
-    :param exp_id: The number of the specific experiment run within this
-    experiment.
-    :param base_log_dir: The directory where all log should be saved.
-    :return:
-    """
-
-    exp_name = create_exp_name(exp_prefix, exp_id=exp_id, seed=seed)
-    if include_exp_prefix_sub_dir:
-        log_dir = osp.join(base_log_dir, exp_prefix.replace("_", "-"), exp_name)
-    else:
-        log_dir = osp.join(base_log_dir, exp_name)
+def create_log_dir(log_dir):
     if osp.exists(log_dir):
         print("WARNING: Log directory already exists {}".format(log_dir))
     os.makedirs(log_dir, exist_ok=True)
@@ -366,7 +345,6 @@ def create_log_dir(
 
 
 def setup_logger(
-    exp_prefix="default",
     variant=None,
     text_log_file="debug.log",
     variant_log_file="variant.json",
@@ -374,8 +352,8 @@ def setup_logger(
     snapshot_mode="last",
     snapshot_gap=1,
     log_tabular_only=False,
-    base_log_dir=None,
-    **create_log_dir_kwargs
+    log_dir=None,
+    **create_log_dir_kwargs,
 ):
     """
     Set up logger to have some reasonable default settings.
@@ -400,10 +378,7 @@ def setup_logger(
     :return:
     """
 
-    log_dir = create_log_dir(
-        exp_prefix, base_log_dir=base_log_dir, **create_log_dir_kwargs
-    )
-
+    # log_dir = create_log_dir(log_dir, **create_log_dir_kwargs)
     if variant is not None:
         logger.log("Variant:")
         logger.log(json.dumps(dict_to_safe_json(variant), indent=2))

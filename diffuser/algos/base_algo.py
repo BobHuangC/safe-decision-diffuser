@@ -43,23 +43,3 @@ class Algo(abc.ABC):
     @abc.abstractmethod
     def total_steps(self):
         """Total training steps."""
-
-
-class Trainer(abc.ABC):
-    """A Trainer object implements the training loop of an Algo."""
-
-    @abc.abstractmethod
-    def train(self):
-        """The training loop function."""
-
-    @abc.abstractmethod
-    def _setup(self):
-        """Set up the trainer, including logger, dataset samplers, networks, and the corresponding agent."""
-
-    @abc.abstractmethod
-    def _setup_logger(self):
-        """Setup the logger."""
-
-    @abc.abstractmethod
-    def _setup_dataset(self):
-        """Setup datasets. This function covers all datasets. Individual datasets should be implemented as standalone functions."""

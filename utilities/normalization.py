@@ -97,7 +97,7 @@ class Normalizer:
         raise NotImplementedError()
 
 
-class DebugNormalizer(Normalizer):
+class NoopNormalizer(Normalizer):
     """
     identity function
     """

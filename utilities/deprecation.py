@@ -1,6 +1,8 @@
 import functools
 import warnings
 
+warnings.simplefilter("once", DeprecationWarning)
+
 
 def deprecated(replacement=None):
     def decorator(func):
@@ -11,5 +13,12 @@ def deprecated(replacement=None):
                 message += f" Use {replacement} instead."
             warnings.warn(message, category=DeprecationWarning)
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
+
+
+def deprecation(msg: str) -> None:
+    """Deprecation warning wrapper."""
+    warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
