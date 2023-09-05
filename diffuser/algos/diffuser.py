@@ -53,15 +53,15 @@ class DecisionDiffuser(Algo):
         planner_params = self.planner.init(
             next_rng(),
             next_rng(),
-            jnp.zeros(
+            samples=jnp.zeros(
                 (10, self.horizon + self.history_horizon, self.planner.sample_dim)
-            ),  # samples
-            {
+            ),
+            conditions={
                 (0, self.history_horizon + 1): jnp.zeros(
                     (10, self.history_horizon + 1, self.observation_dim)
                 )
-            },  # conditions
-            jnp.zeros((10,), dtype=jnp.int32),  # ts
+            },
+            ts=jnp.zeros((10,), dtype=jnp.int32),
             masks=jnp.ones((10, self.horizon + self.history_horizon, 1)),
             env_ts=jnp.zeros((10,), dtype=np.int32),
             returns_to_go=jnp.zeros((10, 1)),

@@ -146,7 +146,7 @@ class SequenceDataset(torch.utils.data.Dataset):
         conditions = self.get_conditions(observations)
         ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
 
-        # a little confusing here. Remember that history_start is the original ts in the traj
+        # a little confusing here. Note that history_start is the original ts in the traj
         ret_dict["env_ts"] = history_start
         # returns and cost_returns are not padded, so history_start is used
         if self.include_returns:

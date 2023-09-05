@@ -211,7 +211,7 @@ class BaseTrainer:
         )(
             dataset,
             horizon=self._cfgs.horizon,
-            history_horizon=self._cfgs.history_horizon,
+            history_horizon=getattr(self._cfgs, "history_horizon", 0),
             max_traj_length=self._cfgs.max_traj_length,
             include_returns=self._cfgs.returns_condition,
             include_cost_returns=self._cfgs.cost_returns_condition,

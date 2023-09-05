@@ -154,7 +154,7 @@ class TrajSampler(object):
                 obs_queue.append(observation)
                 full_observation = np.stack(list(obs_queue), axis=1)
             else:
-                full_observation = observation
+                full_observation = np.expand_dims(observation, axis=1)
 
             action = policy(
                 full_observation, deterministic=deterministic, **policy_kwargs
