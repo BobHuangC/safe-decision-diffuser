@@ -1,5 +1,5 @@
 from .helpers import GaussianPolicy
-from .stational import Critic, DiffusionPolicy, InverseDynamic, Value
+from .tem_stational import Critic, DiffusionPolicy, InverseDynamic, Value
 from .temporal import DiffusionPlanner
 
 __all__ = [

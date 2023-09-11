@@ -165,6 +165,7 @@ class DecisionDiffuser(Algo):
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)
             masks = batch["masks"]
+            print(masks.shape, ' this is masks.shape in diffuser.py')
             terms, ts = self.get_diff_terms(
                 params,
                 samples,

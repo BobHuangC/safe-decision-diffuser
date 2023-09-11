@@ -8,7 +8,7 @@ from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch
+from utilities.utils import set_random_seed, to_arch, str_to_list
 
 
 class DiffusionQLTrainer(BaseTrainer):
@@ -19,6 +19,9 @@ class DiffusionQLTrainer(BaseTrainer):
 
         # setup dataset and eval_sample
         dataset, eval_sampler = self._setup_dataset()
+        target_returns = str_to_list(self._cfgs.target_returns)
+        assert len(target_returns) == 2, target_returns
+        eval_sampler.set_target_returns(target_returns)
         data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
@@ -83,6 +86,8 @@ class DiffusionQLTrainer(BaseTrainer):
             model_mean_type=ModelMeanType.EPSILON,
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
+            returns_condition=self._cfgs.returns_condition,
+            cost_returns_condition=self._cfgs.cost_returns_condition,
             # min_value=-self._max_action,
             # max_value=self._max_action,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,

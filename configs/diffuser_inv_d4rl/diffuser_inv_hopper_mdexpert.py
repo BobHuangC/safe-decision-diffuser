@@ -10,6 +10,7 @@ def get_config():
     config.dataset = "d4rl"
     config.returns_condition = True
     config.cost_returns_condition = False
+    config.env_ts_condition = True
     config.returns_scale = 400.0
     config.termination_penalty = -100.0
 

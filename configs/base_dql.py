@@ -18,12 +18,28 @@ def get_base_config():
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = config_dict.required_placeholder(int)
     config.horizon = 1
+    config.returns_condition = True
+    config.cost_returns_condition = True
+    config.env_ts_condition = True
     config.returns_scale = 1.0
-    config.returns_condition = False
     config.termination_penalty = 0.0
+
+    # data aug configs
+    config.aug_percent = 0.3
+    config.aug_deg = 2
+    config.aug_max_rew_decrease = 100.0
+    config.aug_beta = 1.0
+    config.aug_max_reward = 500.0
+    config.aug_min_reward = 1.0
+
+    config.aug_pareto_optimal_only = False
+    config.aug_rmin = 0
+    config.aug_cost_bins = 60
+    config.aug_max_num_per_bin = 1
 
     config.seed = 100
     config.batch_size = 256
+    config.discount = 1.0
     config.reward_scale = 1
     config.reward_bias = 0
     config.clip_action = 0.999
