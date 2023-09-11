@@ -14,6 +14,7 @@
 
 """Agent trajectory samplers."""
 
+from collections import deque
 import time
 from typing import Callable
 
@@ -85,9 +86,11 @@ class TrajSampler(object):
         max_traj_length: int = 1000,
         render: bool = False,
         use_env_ts: bool = False,
+        history_horizon: int = 0,
     ):
         self.max_traj_length = max_traj_length
         self.use_env_ts = use_env_ts
+        self.history_horizon = history_horizon
         self._env = env_fn()
         self._envs = get_envs(env_fn, num_envs)
         self._envs.seed(seed)
@@ -120,6 +123,12 @@ class TrajSampler(object):
         observation, _ = self.envs.reset(ready_env_ids)
         observation = self._normalizer.normalize(observation, "observations")
 
+        if self.history_horizon > 0:
+            obs_queue = deque(maxlen=self.history_horizon + 1)
+            obs_queue.extend(
+                [np.zeros_like(observation) for _ in range(self.history_horizon)]
+            )
+
         observations = [[] for i in range(len(ready_env_ids))]
         actions = [[] for _ in range(len(ready_env_ids))]
         rewards = [[] for _ in range(len(ready_env_ids))]
@@ -140,7 +149,16 @@ class TrajSampler(object):
                 )
             if self.use_env_ts:
                 policy_kwargs["env_ts"] = env_ts[ready_env_ids]
-            action = policy(observation, deterministic=deterministic, **policy_kwargs)
+
+            if self.history_horizon > 0:
+                obs_queue.append(observation)
+                full_observation = np.stack(list(obs_queue), axis=1)
+            else:
+                full_observation = np.expand_dims(observation, axis=1)
+
+            action = policy(
+                full_observation, deterministic=deterministic, **policy_kwargs
+            )
             action = self._normalizer.unnormalize(action, "actions")
 
             next_observation, reward, terminated, truncated, info = self.envs.step(
@@ -203,6 +221,10 @@ class TrajSampler(object):
                 cost_returns_to_go[env_ind_global] = self._target_returns[1]
                 env_ts[env_ind_global] = 0
 
+                if self.history_horizon > 0:
+                    for i in range(len(obs_queue)):
+                        obs_queue[i][env_ind_global] = 0.0
+
                 n_finished_trajs += len(env_ind_local)
                 if n_finished_trajs >= n_trajs:
                     trajs = trajs[:n_trajs]
@@ -216,7 +238,7 @@ class TrajSampler(object):
 
                 obs_reset, _ = self.envs.reset(env_ind_global)
                 obs_reset = self._normalizer.normalize(obs_reset, "observations")
-                next_observation[env_ind_local] = obs_reset
+                next_observation[env_ind_global] = obs_reset
 
             observation = next_observation
         return trajs

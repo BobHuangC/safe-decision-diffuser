@@ -14,10 +14,10 @@ def get_base_config():
     config.env = config_dict.required_placeholder(str)
     config.dataset = config_dict.required_placeholder(str)
     config.dataset_class = "SequenceDataset"
-    config.use_padding = True
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = config_dict.required_placeholder(int)
     config.horizon = config_dict.required_placeholder(int)
+    config.history_horizon = 0
     config.returns_condition = True
     config.cost_returns_condition = True
     config.env_ts_condition = True
@@ -41,7 +41,7 @@ def get_base_config():
     config.batch_size = 256
     config.discount = 1.0
     config.clip_action = 0.999
-    config.dim = 64
+    config.dim = 128
     config.dim_mults = "1-2-4"
     config.kernel_size = 5
     config.condition_guidance_w = 1.2
@@ -68,6 +68,7 @@ def get_base_config():
 
     config.algo_cfg = ConfigDict()
     config.algo_cfg.horizon = config.get_ref("horizon")
+    config.algo_cfg.history_horizon = config.get_ref("history_horizon")
     config.algo_cfg.loss_discount = 1.0
     config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.num_timesteps = 100

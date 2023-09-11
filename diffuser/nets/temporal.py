@@ -200,6 +200,7 @@ class DiffusionPlanner(nn.Module):
     sample_dim: int
     action_dim: int
     horizon: int
+    history_horizon: int
     dim: int
     dim_mults: Tuple[int]
     returns_condition: bool = True
@@ -236,7 +237,7 @@ class DiffusionPlanner(nn.Module):
         return self.diffusion.p_sample_loop_jit(
             rng_key=rng,
             model_forward=self.base_net,
-            shape=(batch_size, self.horizon, self.sample_dim),
+            shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
             conditions=conditions,
             condition_dim=self.sample_dim - self.action_dim,
             returns_to_go=returns_to_go,
@@ -323,7 +324,7 @@ class DiffusionPlanner(nn.Module):
         return self.diffusion.ddim_sample_loop(
             rng_key=rng,
             model_forward=self.base_net,
-            shape=(batch_size, self.horizon, self.sample_dim),
+            shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
             conditions=conditions,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
