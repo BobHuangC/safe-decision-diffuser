@@ -23,23 +23,23 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic"))
     def act(
-        self, 
-        params, 
-        rng, 
-        observations, 
-        env_ts, 
-        returns_to_go, 
+        self,
+        params,
+        rng,
+        observations,
+        env_ts,
+        returns_to_go,
         cost_returns_to_go,
-        deterministic, 
-        ):
+        deterministic,
+    ):
         conditions = {}
         return self.policy.apply(
-            params["policy"], 
-            rng, 
-            observations, 
-            conditions, 
+            params["policy"],
+            rng,
+            observations,
+            conditions,
             env_ts,
-            deterministic, 
+            deterministic,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             repeat=None,
@@ -47,16 +47,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ensemble_act(
-        self, 
-        params, 
-        rng, 
-        observations, 
+        self,
+        params,
+        rng,
+        observations,
         env_ts,
         deterministic,
-        returns_to_go, 
-        cost_returns_to_go, 
-        num_samples
-        ):
+        returns_to_go,
+        cost_returns_to_go,
+        num_samples,
+    ):
         rng, key = jax.random.split(rng)
         conditions = {}
         actions = self.policy.apply(
@@ -79,16 +79,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpmensemble_act(
-        self, 
-        params, 
-        rng, 
-        observations, 
+        self,
+        params,
+        rng,
+        observations,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
-        deterministic, 
+        deterministic,
         num_samples,
-        ):
+    ):
         rng, key = jax.random.split(rng)
         conditions = {}
         actions = self.policy.apply(
@@ -112,15 +112,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpmensemble_act(
-        self, 
-        params, 
-        rng, 
-        observations, 
+        self,
+        params,
+        rng,
+        observations,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
-        deterministic, 
-        num_samples):
+        deterministic,
+        num_samples,
+    ):
         rng, key = jax.random.split(rng)
         conditions = {}
         actions = self.policy.apply(
@@ -144,15 +145,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def dpm_act(
-        self, 
-        params, 
-        rng, 
+        self,
+        params,
+        rng,
         observations,
         env_ts,
         returns_to_go,
-        cost_returns_to_go, 
-        deterministic, 
-        num_samples):
+        cost_returns_to_go,
+        deterministic,
+        num_samples,
+    ):
         conditions = {}
         return self.policy.apply(
             params["policy"],
@@ -168,15 +170,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddim_act(
-        self, 
-        params, 
-        rng, 
+        self,
+        params,
+        rng,
         observations,
         env_ts,
         returns_to_go,
-        cost_returns_to_go, 
-        deterministic, 
-        num_samples):
+        cost_returns_to_go,
+        deterministic,
+        num_samples,
+    ):
         conditions = {}
         return self.policy.apply(
             params["policy"],
@@ -192,15 +195,16 @@ class SamplerPolicy(object):  # used for dql
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
     def ddpm_act(
-        self, 
-        params, 
-        rng, 
-        observations, 
+        self,
+        params,
+        rng,
+        observations,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
-        deterministic, 
-        num_samples):
+        deterministic,
+        num_samples,
+    ):
         conditions = {}
         return self.policy.apply(
             params["policy"],
@@ -215,22 +219,22 @@ class SamplerPolicy(object):  # used for dql
         )
 
     def __call__(
-        self, 
-        observations, 
+        self,
+        observations,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
-        deterministic=False
+        deterministic=False,
     ):
         actions = getattr(self, f"{self.act_method}_act")(
-            self.params, 
-            next_rng(), 
-            observations, 
+            self.params,
+            next_rng(),
+            observations,
             env_ts,
             returns_to_go,
             cost_returns_to_go,
-            deterministic, 
-            self.num_samples
+            deterministic,
+            self.num_samples,
         )
         if isinstance(actions, tuple):
             actions = actions[0]

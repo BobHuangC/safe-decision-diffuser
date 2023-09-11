@@ -901,8 +901,8 @@ class GaussianDiffusion:
             if self.loss_weights is not None:
                 mse = self.loss_weights * mse
             if masks is not None:
-                print(masks.shape, ' this is masks.shape in diffusion.py')
-                print(mse.shape, ' this is mse.shape in diffusion.py')
+                print(masks.shape, " this is masks.shape in diffusion.py")
+                print(mse.shape, " this is mse.shape in diffusion.py")
                 terms["mse"] = mean_flat(masks * mse) / mean_flat(masks)
             else:
                 terms["mse"] = mean_flat(mse)

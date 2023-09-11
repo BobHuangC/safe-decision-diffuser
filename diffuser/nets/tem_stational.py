@@ -25,19 +25,18 @@ class PolicyNet(nn.Module):
     condition_dropout: float = 0.1
     max_traj_length: int = 1000
 
-    
     @nn.compact
     def __call__(
-        self, 
-        state, 
-        rng, 
-        action, 
-        time: jnp.ndarray, 
-        env_ts: jnp.ndarray, 
+        self,
+        state,
+        rng,
+        action,
+        time: jnp.ndarray,
+        env_ts: jnp.ndarray,
         returns_to_go: jnp.ndarray,
         cost_returns_to_go: jnp.ndarray,
-        use_dropout: bool = True, 
-        force_dropout: bool = False
+        use_dropout: bool = True,
+        force_dropout: bool = False,
     ):
         act_fn = mish
 
@@ -46,10 +45,9 @@ class PolicyNet(nn.Module):
         time_embed = TimeEmbedding(self.time_embed_size, self.act)(time)
         emb = jnp.concatenate([state, action, time_embed], axis=-1)
         env_ts = jnp.squeeze(env_ts)
-        
+
         env_ts_emb = nn.Embed(self.max_traj_length, self.dim)(env_ts)
         emb = jnp.concatenate([emb, env_ts_emb], axis=-1)
-
 
         mask_dist = None
         if self.returns_condition:
@@ -78,7 +76,7 @@ class PolicyNet(nn.Module):
 
         if self.returns_condition:
             assert returns_to_go is not None
-            returns_to_go = jnp.expand_dims(returns_to_go, axis=-1) 
+            returns_to_go = jnp.expand_dims(returns_to_go, axis=-1)
             returns_embed = returns_mlp(returns_to_go)
             if use_dropout:
                 rng, sample_key = jax.random.split(rng)
@@ -89,8 +87,7 @@ class PolicyNet(nn.Module):
             if force_dropout:
                 returns_embed = returns_embed * 0
 
-            emb = jnp.concatenate([emb, returns_embed], axis = -1)
-
+            emb = jnp.concatenate([emb, returns_embed], axis=-1)
 
         if self.cost_returns_condition:
             assert cost_returns_to_go is not None
@@ -100,14 +97,11 @@ class PolicyNet(nn.Module):
                 cost_returns_embed = cost_returns_embed * mask
             if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
-            emb = jnp.concatenate([emb, cost_returns_embed], axis = -1)
-
-
+            emb = jnp.concatenate([emb, cost_returns_embed], axis=-1)
 
         emb = nn.LayerNorm()(emb)
         # emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
         x = emb
-
 
         for feat in self.arch:
             x = nn.Dense(feat)(x)
@@ -116,8 +110,6 @@ class PolicyNet(nn.Module):
             x = self.act(x)
         x = nn.Dense(self.output_dim)(x)
         return x
-        
-
 
 
 class DiffusionPolicy(nn.Module):
@@ -143,42 +135,43 @@ class DiffusionPolicy(nn.Module):
         )
 
     def __call__(
-        self, 
-        rng, 
-        observations, 
-        conditions, 
-        env_ts, 
-        deterministic=False, 
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts,
+        deterministic=False,
         repeat=None,
         returns_to_go=None,
-        cost_returns_to_go=None):
+        cost_returns_to_go=None,
+    ):
         return getattr(self, f"{self.sample_method}_sample")(
-            rng, 
-            observations, 
-            conditions, 
-            env_ts, 
-            deterministic, 
+            rng,
+            observations,
+            conditions,
+            env_ts,
+            deterministic,
             repeat,
             returns_to_go,
-            cost_returns_to_go
+            cost_returns_to_go,
         )
 
     def ddpm_sample(
-        self, 
-        rng, 
-        observations, 
-        conditions, 
-        env_ts, 
-        deterministic=False, 
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts,
+        deterministic=False,
         repeat=None,
         returns_to_go=None,
-        cost_returns_to_go=None):
+        cost_returns_to_go=None,
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
             env_ts = extend_and_repeat(env_ts, 1, repeat)
             returns_to_go = extend_and_repeat(returns_to_go, 1, repeat)
             cost_returns_to_go = extend_and_repeat(cost_returns_to_go, 1, repeat)
-            
 
         shape = observations.shape[:-1] + (self.action_dim,)
 
@@ -194,15 +187,16 @@ class DiffusionPolicy(nn.Module):
         )
 
     def dpm_sample(
-        self, 
-        rng, 
-        observations, 
-        conditions, 
-        env_ts, 
-        deterministic=False, 
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts,
+        deterministic=False,
         repeat=None,
         returns_to_go=None,
-        cost_returns_to_go=None):
+        cost_returns_to_go=None,
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
             env_ts = extend_and_repeat(env_ts, 1, repeat)
@@ -249,15 +243,16 @@ class DiffusionPolicy(nn.Module):
         return out
 
     def ddim_sample(
-        self, 
-        rng, 
-        observations, 
-        conditions, 
-        env_ts, 
-        deterministic=False, 
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts,
+        deterministic=False,
         repeat=None,
         returns_to_go=None,
-        cost_returns_to_go=None):
+        cost_returns_to_go=None,
+    ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
             env_ts = extend_and_repeat(env_ts, 1, repeat)
@@ -277,12 +272,12 @@ class DiffusionPolicy(nn.Module):
         )
 
     def loss(
-        self, 
-        rng_key, 
-        observations, 
-        actions, 
-        conditions, 
-        ts, 
+        self,
+        rng_key,
+        observations,
+        actions,
+        conditions,
+        ts,
         env_ts,
         returns_to_go=None,
         cost_returns_to_go=None,

@@ -51,13 +51,13 @@ class DiffusionQL(Algo):
         policy_params = self.policy.init(
             next_rng(),
             next_rng(),
-            observations = jnp.zeros((10, self.observation_dim)),
-            actions = jnp.zeros((10, self.action_dim)),
+            observations=jnp.zeros((10, self.observation_dim)),
+            actions=jnp.zeros((10, self.action_dim)),
             conditions={},
-            ts = jnp.zeros((10, ), dtype=jnp.int32),  # ts
+            ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
             env_ts=jnp.zeros((10, 1), dtype=jnp.int32),
-            returns_to_go=jnp.zeros((10, )),
-            cost_returns_to_go=jnp.zeros((10, )),
+            returns_to_go=jnp.zeros((10,)),
+            cost_returns_to_go=jnp.zeros((10,)),
             method=self.policy.loss,
         )
 
@@ -171,9 +171,9 @@ class DiffusionQL(Algo):
                     tgt_q = jnp.minimum(tgt_q1_max, tgt_q2_max)
             else:
                 next_action = self.policy.apply(
-                    tgt_params["policy"], 
-                    rng, 
-                    next_observations, 
+                    tgt_params["policy"],
+                    rng,
+                    next_observations,
                     conditions,
                     env_ts=env_ts,
                     returns_to_go=returns_to_go,
@@ -203,22 +203,20 @@ class DiffusionQL(Algo):
         return value_loss_fn
 
     def get_diff_terms(
-        self, 
-        params, 
-        observations, 
-        actions, 
-        dones, 
-        conditions, 
+        self,
+        params,
+        observations,
+        actions,
+        dones,
+        conditions,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
-        rng):
+        rng,
+    ):
         rng, split_rng = jax.random.split(rng)
         ts = jax.random.randint(
-            split_rng, 
-            dones.shape, 
-            minval=0, 
-            maxval=self.diffusion.num_timesteps
+            split_rng, dones.shape, minval=0, maxval=self.diffusion.num_timesteps
         )
         rng, split_rng = jax.random.split(rng)
         terms = self.policy.apply(
@@ -270,14 +268,14 @@ class DiffusionQL(Algo):
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)
             terms, ts, _ = self.get_diff_terms(
-                params, 
-                observations=observations, 
-                actions=actions, 
-                dones=dones, 
+                params,
+                observations=observations,
+                actions=actions,
+                dones=dones,
                 conditions=conditions,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
-                cost_returns_to_go=cost_returns_to_go, 
+                cost_returns_to_go=cost_returns_to_go,
                 rng=rng,
             )
             diff_loss = terms["loss"].mean()

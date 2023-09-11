@@ -15,7 +15,7 @@ def get_config():
     config.env_ts_condition = True
     config.target_returns = "500.0,10.0"
     config.cost_limit = 10.0
-    
+
     config.max_traj_length = 1000
     config.horizon = 1
 

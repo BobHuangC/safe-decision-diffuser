@@ -225,9 +225,7 @@ class QLearningDataset(SequenceDataset):
 
         ret_dict["env_ts"] = start
         if self.include_returns:
-            ret_dict["returns_to_go"] = self._data.normed_returns[
-                path_ind, start
-            ]
+            ret_dict["returns_to_go"] = self._data.normed_returns[path_ind, start]
         if self.include_cost_returns:
             ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
                 path_ind, start
