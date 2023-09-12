@@ -4,12 +4,105 @@ from typing import Tuple
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import distrax
 from einops import repeat
 
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType, _extract_into_tensor
 from diffuser.dpm_solver import DPM_Solver, NoiseScheduleVP
 from diffuser.nets.helpers import TimeEmbedding, mish, multiple_action_q_function
 from utilities.jax_utils import extend_and_repeat
+
+
+class CondPolicyNet(nn.Module):
+    output_dim: int
+    arch: Tuple = (256, 256, 256)
+    time_embed_size: int = 16
+    act: callable = mish
+    use_layer_norm: bool = False
+    returns_condition: bool = False
+    cost_returns_condition: bool = False
+    env_ts_condition: bool = True
+    condition_dropout: float = 0.25
+    max_traj_length: int = 1000
+
+    @nn.compact
+    def __call__(
+        self,
+        state: jnp.ndarray,
+        rng: jnp.ndarray,
+        action: jnp.ndarray,
+        t: jnp.ndarray,
+        env_ts: jnp.ndarray,
+        returns_to_go: jnp.ndarray = None,
+        cost_returns_to_go: jnp.ndarray = None,
+        use_dropout: bool = True,
+        force_dropout: bool = False,
+    ):
+        emb = TimeEmbedding(self.time_embed_size, self.act)(t)
+        if self.env_ts_condition or self.returns_condition:
+            emb = jnp.expand_dims(emb, 1)
+
+        if self.env_ts_condition:
+            env_ts_emb = nn.Embed(self.max_traj_length, self.time_embed_size)(env_ts)
+            emb = jnp.concatenate([emb, jnp.expand_dims(env_ts_emb, 1)], axis=1)
+
+        mask_dist = None
+        if self.returns_condition:
+            returns_to_go = returns_to_go.reshape(-1, 1)
+            returns_embed = nn.Sequential(
+                [
+                    nn.Dense(self.time_embed_size),
+                    self.act,
+                    nn.Dense(self.time_embed_size),
+                    self.act,
+                    nn.Dense(self.time_embed_size),
+                ]
+            )(returns_to_go)
+            mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
+            if use_dropout:
+                rng, sample_key = jax.random.split(rng)
+                mask = mask_dist.sample(
+                    seed=sample_key, sample_shape=(returns_embed.shape[0], 1)
+                )
+                returns_embed = returns_embed * mask
+
+            if force_dropout:
+                returns_embed = returns_embed * 0
+            emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
+
+        if self.cost_returns_condition:
+            assert self.returns_condition is True
+            cost_returns_to_go = cost_returns_to_go.reshape(-1, 1)
+            cost_returns_embed = nn.Sequential(
+                [
+                    nn.Dense(self.time_embed_size),
+                    self.act,
+                    nn.Dense(self.time_embed_size),
+                    self.act,
+                    nn.Dense(self.time_embed_size),
+                ]
+            )(cost_returns_to_go)
+            if use_dropout:
+                cost_returns_embed = cost_returns_embed * mask
+
+            if force_dropout:
+                cost_returns_embed = cost_returns_embed * 0
+            emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
+
+        if self.env_ts_condition or self.returns_condition:
+            emb = nn.LayerNorm()(emb)
+            emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
+
+        x = jnp.concatenate([state, action, emb], axis=-1)
+
+        for feat in self.arch:
+            x = nn.Dense(feat)(x)
+            if self.use_layer_norm:
+                x = nn.LayerNorm()(x)
+            x = self.act(x)
+
+        x = nn.Dense(self.output_dim)(x)
+        return x
 
 
 class PolicyNet(nn.Module):
@@ -48,23 +141,66 @@ class DiffusionPolicy(nn.Module):
     sample_method: str = "ddpm"
     dpm_steps: int = 15
     dpm_t_end: float = 0.001
+    env_ts_condition: bool = False
+    returns_condition: bool = False
+    cost_returns_condition: bool = False
+    condition_dropout: float = 0.25
+    max_traj_length: int = 1000
 
     def setup(self):
-        self.base_net = PolicyNet(
-            output_dim=self.action_dim,
-            arch=self.arch,
-            time_embed_size=self.time_embed_size,
-            act=self.act,
-            use_layer_norm=self.use_layer_norm,
-        )
+        if self.env_ts_condition or self.returns_condition:
+            self.base_net = CondPolicyNet(
+                output_dim=self.action_dim,
+                arch=self.arch,
+                time_embed_size=self.time_embed_size,
+                act=self.act,
+                use_layer_norm=self.use_layer_norm,
+                returns_condition=self.returns_condition,
+                cost_returns_condition=self.cost_returns_condition,
+                condition_dropout=self.condition_dropout,
+                max_traj_length=self.max_traj_length,
+            )
+        else:
+            self.base_net = PolicyNet(
+                output_dim=self.action_dim,
+                arch=self.arch,
+                time_embed_size=self.time_embed_size,
+                act=self.act,
+                use_layer_norm=self.use_layer_norm,
+            )
 
-    def __call__(self, rng, observations, conditions, deterministic=False, repeat=None):
+    def __call__(
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
+    ):
         return getattr(self, f"{self.sample_method}_sample")(
-            rng, observations, conditions, deterministic, repeat
+            rng,
+            observations,
+            conditions,
+            env_ts,
+            deterministic,
+            returns_to_go,
+            cost_returns_to_go,
+            repeat,
         )
 
     def ddpm_sample(
-        self, rng, observations, conditions, deterministic=False, repeat=None
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
     ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
@@ -76,11 +212,22 @@ class DiffusionPolicy(nn.Module):
             model_forward=partial(self.base_net, observations),
             shape=shape,
             conditions=conditions,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
             clip_denoised=True,
         )
 
     def dpm_sample(
-        self, rng, observations, conditions, deterministic=False, repeat=None
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
     ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
@@ -93,10 +240,19 @@ class DiffusionPolicy(nn.Module):
         )
 
         def wrap_model(model_fn):
-            def wrapped_model_fn(x, t):
+            def wrapped_model_fn(
+                x, t, env_ts=None, returns_to_go=None, cost_returns_to_go=None
+            ):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
-                out = model_fn(x, t)
+                out = model_fn(
+                    rng,
+                    x,
+                    t,
+                    env_ts=env_ts,
+                    returns_to_go=returns_to_go,
+                    cost_returns_to_go=cost_returns_to_go,
+                )
                 # add noise clipping
                 if noise_clip:
                     t = t.astype(jnp.int32)
@@ -125,7 +281,15 @@ class DiffusionPolicy(nn.Module):
         return out
 
     def ddim_sample(
-        self, rng, observations, conditions, deterministic=False, repeat=None
+        self,
+        rng,
+        observations,
+        conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
     ):
         if repeat is not None:
             observations = extend_and_repeat(observations, 1, repeat)
@@ -137,16 +301,32 @@ class DiffusionPolicy(nn.Module):
             model_forward=partial(self.base_net, observations),
             shape=shape,
             conditions=conditions,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
             clip_denoised=True,
         )
 
-    def loss(self, rng_key, observations, actions, conditions, ts):
+    def loss(
+        self,
+        rng_key,
+        observations,
+        actions,
+        conditions,
+        ts,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+    ):
         terms = self.diffusion.training_losses(
             rng_key,
             model_forward=partial(self.base_net, observations),
             x_start=actions,
             conditions=conditions,
             t=ts,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
         )
         return terms
 

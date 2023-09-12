@@ -263,7 +263,9 @@ class DiffusionPlanner(nn.Module):
         )
 
         def wrap_model(model_fn):
-            def wrapped_model_fn(x, t, returns_to_go=None, cost_returns_to_go=None):
+            def wrapped_model_fn(
+                x, t, env_ts, returns_to_go=None, cost_returns_to_go=None
+            ):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
                 out = model_fn(

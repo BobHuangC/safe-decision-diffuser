@@ -155,6 +155,7 @@ class GaussianDiffusion:
         model_mean_type,
         model_var_type,
         loss_type,
+        env_ts_condition=False,
         returns_condition=False,
         cost_returns_condition=False,
         condition_guidance_w=1.2,
@@ -173,6 +174,7 @@ class GaussianDiffusion:
         self.sample_temperature = sample_temperature
         self.loss_weights = None  # now set externally
 
+        self.env_ts_condition = env_ts_condition
         self.returns_condition = returns_condition
         self.cost_returns_condition = cost_returns_condition
         self.condition_guidance_w = condition_guidance_w
@@ -519,11 +521,14 @@ class GaussianDiffusion:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
 
             model_kwargs = {}
-            if env_ts is not None:
+            if self.env_ts_condition:
+                assert env_ts is not None
                 model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
+                assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
                 if self.cost_returns_condition:
+                    assert cost_returns_to_go is not None
                     model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = model_forward(
@@ -582,11 +587,14 @@ class GaussianDiffusion:
             t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
 
             model_kwargs = {}
-            if env_ts is not None:
+            if self.env_ts_condition:
+                assert env_ts is not None
                 model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
+                assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
                 if self.cost_returns_condition:
+                    assert cost_returns_to_go is not None
                     model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = mdl(
@@ -901,8 +909,6 @@ class GaussianDiffusion:
             if self.loss_weights is not None:
                 mse = self.loss_weights * mse
             if masks is not None:
-                print(masks.shape, " this is masks.shape in diffusion.py")
-                print(mse.shape, " this is mse.shape in diffusion.py")
                 terms["mse"] = mean_flat(masks * mse) / mean_flat(masks)
             else:
                 terms["mse"] = mean_flat(mse)

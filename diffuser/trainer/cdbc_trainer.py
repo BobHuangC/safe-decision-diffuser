@@ -1,17 +1,16 @@
-import numpy as np
 import torch
 
-from diffuser.algos import DiffusionQL
+from diffuser.algos import CondDiffusionBC
 from diffuser.hps import hyperparameters
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
-from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
+from diffuser.nets import DiffusionPolicy
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
 from utilities.utils import set_random_seed, to_arch, str_to_list
 
 
-class DiffusionQLTrainer(BaseTrainer):
+class CondDiffusionBCTrainer(BaseTrainer):
     def _setup(self):
         set_random_seed(self._cfgs.seed)
         # setup logger
@@ -36,50 +35,16 @@ class DiffusionQLTrainer(BaseTrainer):
             )
         )
 
-        if self._cfgs.algo_cfg.target_entropy >= 0.0:
-            action_space = self._eval_sampler.env.action_space
-            self._cfgs.algo_cfg.target_entropy = -np.prod(action_space.shape).item()
-
         # setup policy
         self._policy = self._setup_policy()
-        self._policy_dist = GaussianPolicy(
-            self._action_dim, temperature=self._cfgs.policy_temp
-        )
-
-        # setup Q-function
-        self._qf = self._setup_qf()
-        self._vf = self._setup_vf()
 
         # setup agent
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
-        self._agent = DiffusionQL(
-            self._cfgs.algo_cfg, self._policy, self._qf, self._vf, self._policy_dist
-        )
+        self._agent = CondDiffusionBC(self._cfgs.algo_cfg, self._policy)
 
         # setup sampler policy
-        sampler_policy = SamplerPolicy(self._agent.policy, self._agent.qf)
+        sampler_policy = SamplerPolicy(self._agent.policy)
         self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
-
-    def _setup_qf(self):
-        qf = Critic(
-            self._observation_dim,
-            self._action_dim,
-            to_arch(self._cfgs.qf_arch),
-            use_layer_norm=self._cfgs.qf_layer_norm,
-            act=self._act_fn,
-            orthogonal_init=self._cfgs.orthogonal_init,
-        )
-        return qf
-
-    def _setup_vf(self):
-        vf = Value(
-            self._observation_dim,
-            to_arch(self._cfgs.qf_arch),
-            use_layer_norm=self._cfgs.qf_layer_norm,
-            act=self._act_fn,
-            orthogonal_init=self._cfgs.orthogonal_init,
-        )
-        return vf
 
     def _setup_policy(self):
         gd = GaussianDiffusion(
@@ -88,6 +53,7 @@ class DiffusionQLTrainer(BaseTrainer):
             model_mean_type=ModelMeanType.EPSILON,
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
+            env_ts_condition=self._cfgs.env_ts_condition,
             returns_condition=self._cfgs.returns_condition,
             cost_returns_condition=self._cfgs.cost_returns_condition,
             # min_value=-self._max_action,
@@ -104,6 +70,10 @@ class DiffusionQLTrainer(BaseTrainer):
             sample_method=self._cfgs.sample_method,
             dpm_steps=self._cfgs.algo_cfg.dpm_steps,
             dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+            env_ts_condition=self._cfgs.env_ts_condition,
+            returns_condition=self._cfgs.returns_condition,
+            cost_returns_condition=self._cfgs.cost_returns_condition,
+            condition_dropout=self._cfgs.condition_dropout,
         )
 
         return policy

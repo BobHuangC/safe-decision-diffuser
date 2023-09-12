@@ -8,13 +8,13 @@ from utilities.jax_utils import next_rng
 
 class SamplerPolicy(object):  # used for dql
     def __init__(
-        self, policy, qf=None, mean=0, std=1, ensemble=False, act_method="ddpm"
+        self, policy, qf=None, mean=0, std=1, num_samples=50, act_method="ddpm"
     ):
         self.policy = policy
         self.qf = qf
         self.mean = mean
         self.std = std
-        self.num_samples = 50
+        self.num_samples = num_samples
         self.act_method = act_method
 
     def update_params(self, params):
@@ -190,7 +190,6 @@ class SamplerPolicy(object):  # used for dql
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             method=self.policy.ddim_sample,
-            repeat=num_samples,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
@@ -215,7 +214,6 @@ class SamplerPolicy(object):  # used for dql
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             method=self.policy.ddpm_sample,
-            repeat=num_samples,
         )
 
     def __call__(
@@ -226,6 +224,8 @@ class SamplerPolicy(object):  # used for dql
         cost_returns_to_go,
         deterministic=False,
     ):
+        if len(observations.shape) > 2:
+            observations = observations.squeeze(1)
         actions = getattr(self, f"{self.act_method}_act")(
             self.params,
             next_rng(),

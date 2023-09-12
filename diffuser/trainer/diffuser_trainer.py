@@ -20,7 +20,8 @@ class DiffuserTrainer(BaseTrainer):
         target_returns = str_to_list(self._cfgs.target_returns)
         assert len(target_returns) == 2, target_returns
         eval_sampler.set_target_returns(target_returns)
-        eval_sampler.env.set_target_cost(target_returns[1])
+        if hasattr(eval_sampler.env, "set_target_cost"):
+            eval_sampler.env.set_target_cost(target_returns[1])
         data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
