@@ -1,10 +1,10 @@
 from functools import partial
 from typing import Tuple
 
+import distrax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import distrax
 from einops import repeat
 
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType, _extract_into_tensor

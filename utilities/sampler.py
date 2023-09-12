@@ -14,8 +14,8 @@
 
 """Agent trajectory samplers."""
 
-from collections import deque
 import time
+from collections import deque
 from typing import Callable
 
 import numpy as np

@@ -6,7 +6,7 @@ from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch, str_to_list
+from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
 class DiffuserTrainer(BaseTrainer):

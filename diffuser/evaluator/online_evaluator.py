@@ -38,15 +38,26 @@ class OnlineEvaluator(BaseEvaluator):
                 [len(t["rewards"]) for t in trajs]
             )
 
-            cur_return, cur_cost_return = np.mean(
-                [
-                    self._eval_sampler.env.get_normalized_score(
-                        np.sum(t["rewards"]), np.sum(t["costs"])
-                    )
-                    for t in trajs
-                ],
-                axis=0,
-            )
+            if hasattr(self._eval_sampler.env, "set_target_cost"):
+                cur_return, cur_cost_return = np.mean(
+                    [
+                        self._eval_sampler.env.get_normalized_score(
+                            np.sum(t["rewards"]), np.sum(t["costs"])
+                        )
+                        for t in trajs
+                    ],
+                    axis=0,
+                )
+            else:
+                cur_return = np.mean(
+                    [
+                        self._eval_sampler.env.get_normalized_score(
+                            np.sum(t["rewards"])
+                        )
+                        for t in trajs
+                    ],
+                )
+                cur_cost_return = cur_cost
             metrics["average_normalized_return" + post] = cur_return
             metrics["average_normalized_cost_return" + post] = cur_cost_return
 

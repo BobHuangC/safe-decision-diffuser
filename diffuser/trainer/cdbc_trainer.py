@@ -1,13 +1,13 @@
 import torch
 
 from diffuser.algos import CondDiffusionBC
-from diffuser.hps import hyperparameters
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
+from diffuser.hps import hyperparameters
 from diffuser.nets import DiffusionPolicy
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch, str_to_list
+from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
 class CondDiffusionBCTrainer(BaseTrainer):
