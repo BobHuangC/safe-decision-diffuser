@@ -48,7 +48,7 @@ def get_base_config():
     config.n_train_step_per_epoch = config_dict.required_placeholder(int)
 
     config.evaluator_class = "OnlineEvaluator"
-    config.eval_period = 10
+    config.eval_period = 100
     config.eval_n_trajs = 10
     config.num_eval_envs = 10
     config.eval_env_seed = 0

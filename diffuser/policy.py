@@ -335,9 +335,9 @@ class DiffuserPolicy(object):
     def __call__(
         self,
         observations,
-        env_ts,
-        returns_to_go,
-        cost_returns_to_go,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         deterministic=False,
     ):
         actions = getattr(self, f"{self.act_method}_act")(
