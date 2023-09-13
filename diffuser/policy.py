@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from utilities.jax_utils import next_rng
 
 
-class CondSamplerPolicy(object):  # used for cdbc
+class SamplerPolicy(object):  # used for cdbc and dql
     def __init__(
         self, policy, qf=None, mean=0, std=1, num_samples=50, act_method="ddpm"
     ):
@@ -219,9 +219,9 @@ class CondSamplerPolicy(object):  # used for cdbc
     def __call__(
         self,
         observations,
-        env_ts,
-        returns_to_go,
-        cost_returns_to_go,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         deterministic=False,
     ):
         if len(observations.shape) > 2:
@@ -235,135 +235,6 @@ class CondSamplerPolicy(object):  # used for cdbc
             cost_returns_to_go,
             deterministic,
             self.num_samples,
-        )
-        if isinstance(actions, tuple):
-            actions = actions[0]
-        assert jnp.all(jnp.isfinite(actions))
-        return jax.device_get(actions)
-
-
-class SamplerPolicy(object):  # used for dql
-    def __init__(
-        self, policy, qf=None, mean=0, std=1, ensemble=False, act_method="ddpm"
-    ):
-        self.policy = policy
-        self.qf = qf
-        self.mean = mean
-        self.std = std
-        self.num_samples = 50
-        self.act_method = act_method
-
-    def update_params(self, params):
-        self.params = params
-        return self
-
-    @partial(jax.jit, static_argnames=("self", "deterministic"))
-    def act(self, params, rng, observations, deterministic):
-        conditions = {}
-        return self.policy.apply(
-            params["policy"], rng, observations, conditions, deterministic, repeat=None
-        )
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def ensemble_act(self, params, rng, observations, deterministic, num_samples):
-        rng, key = jax.random.split(rng)
-        conditions = {}
-        actions = self.policy.apply(
-            params["policy"],
-            key,
-            observations,
-            conditions,
-            deterministic,
-            repeat=num_samples,
-        )
-        q1 = self.qf.apply(params["qf1"], observations, actions)
-        q2 = self.qf.apply(params["qf2"], observations, actions)
-        q = jnp.minimum(q1, q2)
-
-        idx = jax.random.categorical(rng, q)
-        return actions[jnp.arange(actions.shape[0]), idx]
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def ddpmensemble_act(self, params, rng, observations, deterministic, num_samples):
-        rng, key = jax.random.split(rng)
-        conditions = {}
-        actions = self.policy.apply(
-            params["policy"],
-            rng,
-            observations,
-            conditions,
-            deterministic,
-            repeat=num_samples,
-            method=self.policy.ddpm_sample,
-        )
-        q1 = self.qf.apply(params["qf1"], observations, actions)
-        q2 = self.qf.apply(params["qf2"], observations, actions)
-        q = jnp.minimum(q1, q2)
-
-        idx = jax.random.categorical(rng, q)
-        return actions[jnp.arange(actions.shape[0]), idx]
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def dpmensemble_act(self, params, rng, observations, deterministic, num_samples):
-        rng, key = jax.random.split(rng)
-        conditions = {}
-        actions = self.policy.apply(
-            params["policy"],
-            rng,
-            observations,
-            conditions,
-            deterministic,
-            repeat=num_samples,
-            method=self.policy.dpm_sample,
-        )
-        q1 = self.qf.apply(params["qf1"], observations, actions)
-        q2 = self.qf.apply(params["qf2"], observations, actions)
-        q = jnp.minimum(q1, q2)
-
-        idx = jax.random.categorical(rng, q)
-        return actions[jnp.arange(actions.shape[0]), idx]
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def dpm_act(self, params, rng, observations, deterministic, num_samples):
-        conditions = {}
-        return self.policy.apply(
-            params["policy"],
-            rng,
-            observations,
-            conditions,
-            deterministic,
-            method=self.policy.dpm_sample,
-        )
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def ddim_act(self, params, rng, observations, deterministic, num_samples):
-        conditions = {}
-        return self.policy.apply(
-            params["policy"],
-            rng,
-            observations,
-            conditions,
-            deterministic,
-            method=self.policy.ddim_sample,
-        )
-
-    @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))
-    def ddpm_act(self, params, rng, observations, deterministic, num_samples):
-        conditions = {}
-        return self.policy.apply(
-            params["policy"],
-            rng,
-            observations,
-            conditions,
-            deterministic,
-            method=self.policy.ddpm_sample,
-        )
-
-    def __call__(self, observations, deterministic=False):
-        if len(observations.shape) > 2:
-            observations = observations.squeeze(1)
-        actions = getattr(self, f"{self.act_method}_act")(
-            self.params, next_rng(), observations, deterministic, self.num_samples
         )
         if isinstance(actions, tuple):
             actions = actions[0]
