@@ -169,7 +169,8 @@ class TrajSampler(object):
             else:
                 cost = np.zeros_like(reward)
 
-            env_ts[ready_env_ids] += 1
+            if self.use_env_ts:
+                env_ts[ready_env_ids] += 1
             if self._target_returns is not None:
                 returns_to_go[ready_env_ids] = np.max(
                     returns_to_go[ready_env_ids] - reward, 0
@@ -221,7 +222,8 @@ class TrajSampler(object):
                 if self._target_returns is not None:
                     returns_to_go[env_ind_global] = self._target_returns[0]
                     cost_returns_to_go[env_ind_global] = self._target_returns[1]
-                env_ts[env_ind_global] = 0
+                if self.use_env_ts:
+                    env_ts[env_ind_global] = 0
 
                 if self.history_horizon > 0:
                     for i in range(len(obs_queue)):

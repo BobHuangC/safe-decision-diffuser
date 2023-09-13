@@ -4,7 +4,7 @@ from diffuser.algos import CondDiffusionBC
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
 from diffuser.hps import hyperparameters
 from diffuser.nets import DiffusionPolicy
-from diffuser.policy import SamplerPolicy
+from diffuser.policy import CondSamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
 from utilities.utils import set_random_seed, str_to_list, to_arch
@@ -43,7 +43,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
         self._agent = CondDiffusionBC(self._cfgs.algo_cfg, self._policy)
 
         # setup sampler policy
-        sampler_policy = SamplerPolicy(self._agent.policy)
+        sampler_policy = CondSamplerPolicy(self._agent.policy)
         self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_policy(self):
