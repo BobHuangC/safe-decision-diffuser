@@ -43,7 +43,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
         self._agent = CondDiffusionBC(self._cfgs.algo_cfg, self._policy)
 
         # setup sampler policy
-        sampler_policy = CondSamplerPolicy(self._agent.policy)
+        sampler_policy = SamplerPolicy(self._agent.policy)
         self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_policy(self):
