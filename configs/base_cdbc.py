@@ -37,7 +37,7 @@ def get_base_config():
     config.aug_cost_bins = 60
     config.aug_max_num_per_bin = 1
 
-    config.seed = 100
+    config.seed = 300
     config.batch_size = 256
     config.discount = 1.0
     config.policy_arch = "256-256-256"

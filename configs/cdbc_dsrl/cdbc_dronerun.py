@@ -9,7 +9,7 @@ def get_config():
 
     config.env = "OfflineDroneRun-v0"
     config.dataset = "dsrl"
-    config.returns_condition = True
+    config.returns_condition = False
     config.cost_returns_condition = True
     config.env_ts_condition = True
 

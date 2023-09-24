@@ -9,7 +9,7 @@ def get_config():
 
     config.env = "OfflineCarCircle-v0"
     config.dataset = "dsrl"
-    config.returns_condition = True
+    config.returns_condition = False
     config.cost_returns_condition = True
     config.env_ts_condition = True
 
@@ -24,7 +24,7 @@ def get_config():
     config.num_eval_envs = 10
 
     # data aug configs
-    config.aug_percent = 0.2
+    config.aug_percent = 0
     config.aug_deg = 4
     config.aug_max_rew_decrease = 100.0
     config.aug_beta = 1.0

@@ -527,9 +527,9 @@ class GaussianDiffusion:
             if self.returns_condition:
                 assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
-                if self.cost_returns_condition:
-                    assert cost_returns_to_go is not None
-                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
@@ -593,9 +593,9 @@ class GaussianDiffusion:
             if self.returns_condition:
                 assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
-                if self.cost_returns_condition:
-                    assert cost_returns_to_go is not None
-                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
                 model_output_cond = mdl(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
@@ -736,8 +736,8 @@ class GaussianDiffusion:
             t = np.ones(shape[:-1], dtype=np.int32) * i
             if self.returns_condition:
                 model_kwargs = dict(returns=returns)
-                if self.cost_returns_condition:
-                    model_kwargs["cost_returns"] = cost_returns
+            if self.cost_returns_condition:
+                model_kwargs["cost_returns"] = cost_returns
 
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs

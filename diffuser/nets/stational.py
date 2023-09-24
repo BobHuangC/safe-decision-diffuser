@@ -71,7 +71,7 @@ class CondPolicyNet(nn.Module):
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
         if self.cost_returns_condition:
-            assert self.returns_condition is True
+            # assert self.returns_condition is True
             cost_returns_to_go = cost_returns_to_go.reshape(-1, 1)
             cost_returns_embed = nn.Sequential(
                 [
@@ -83,7 +83,14 @@ class CondPolicyNet(nn.Module):
                 ]
             )(cost_returns_to_go)
             if use_dropout:
-                cost_returns_embed = cost_returns_embed * mask
+                if self.returns_condition:
+                    cost_returns_embed = cost_returns_embed * mask
+                else:
+                    mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
+                    rng, sample_key = jax.random.split(rng)
+                    mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
+                    cost_returns_embed = cost_returns_embed * mask
+                    
 
             if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
