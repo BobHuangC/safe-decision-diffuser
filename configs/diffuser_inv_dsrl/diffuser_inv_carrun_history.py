@@ -3,7 +3,7 @@ from configs.base_diffuser_inv import get_base_config
 
 def get_config():
     config = get_base_config()
-    config.exp_name = "diffuser_inv_dsrl_noneg"
+    config.exp_name = "diffuser_inv_dsrl"
     config.log_dir_format = "{exp_name}/{env}/h_{horizon}-hh_{history_horizon}-tgt_{target_returns}-gn_{algo_cfg.max_grad_norm}-usecost_{cost_returns_condition}/{seed}"
 
     config.env = "OfflineCarRun-v0"
@@ -14,6 +14,7 @@ def get_config():
     config.target_returns = "575.0,10.0"
     config.cost_limit = 10.0
 
+    # config.batch_size = 512
     config.max_traj_length = 200
     config.horizon = 12
     config.history_horizon = 8

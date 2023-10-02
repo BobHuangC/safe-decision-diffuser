@@ -1,15 +1,16 @@
 import torch
 
-from diffuser.algos import DecisionDiffuser
+from diffuser.algos import CondDiffusionBC
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
-from diffuser.nets import DiffusionPlanner, InverseDynamic
-from diffuser.policy import DiffuserPolicy
+from diffuser.hps import hyperparameters
+from diffuser.nets import DiffusionPolicy
+from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
 from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
-class DiffuserTrainer(BaseTrainer):
+class CondDiffusionBCTrainer(BaseTrainer):
     def _setup(self):
         set_random_seed(self._cfgs.seed)
         # setup logger
@@ -35,15 +36,14 @@ class DiffuserTrainer(BaseTrainer):
         )
 
         # setup policy
-        self._planner, self._inv_model = self._setup_policy()
+        self._policy = self._setup_policy()
 
         # setup agent
-        self._agent = DecisionDiffuser(
-            self._cfgs.algo_cfg, self._planner, self._inv_model
-        )
+        self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
+        self._agent = CondDiffusionBC(self._cfgs.algo_cfg, self._policy)
 
-        # setup evaluator
-        sampler_policy = DiffuserPolicy(self._planner, self._inv_model)
+        # setup sampler policy
+        sampler_policy = SamplerPolicy(self._agent.policy)
         self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
 
     def _setup_policy(self):
@@ -56,37 +56,24 @@ class DiffuserTrainer(BaseTrainer):
             env_ts_condition=self._cfgs.env_ts_condition,
             returns_condition=self._cfgs.returns_condition,
             cost_returns_condition=self._cfgs.cost_returns_condition,
-            condition_guidance_w=self._cfgs.condition_guidance_w,
+            # min_value=-self._max_action,
+            # max_value=self._max_action,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
-
-        if self._cfgs.use_inv_dynamic:
-            inv_model = InverseDynamic(
-                action_dim=self._action_dim,
-                hidden_dims=to_arch(self._cfgs.inv_hidden_dims),
-            )
-            plan_sample_dim = self._observation_dim
-            plan_action_dim = 0
-        else:
-            inv_model = None
-            plan_sample_dim = self._observation_dim + self._action_dim
-            plan_action_dim = self._action_dim
-
-        planner = DiffusionPlanner(
+        policy = DiffusionPolicy(
             diffusion=gd,
-            horizon=self._cfgs.horizon,
-            history_horizon=self._cfgs.history_horizon,
-            sample_dim=plan_sample_dim,
-            action_dim=plan_action_dim,
-            dim=self._cfgs.dim,
-            dim_mults=to_arch(self._cfgs.dim_mults),
-            returns_condition=self._cfgs.returns_condition,
-            cost_returns_condition=self._cfgs.cost_returns_condition,
-            condition_dropout=self._cfgs.condition_dropout,
-            kernel_size=self._cfgs.kernel_size,
+            observation_dim=self._observation_dim,
+            action_dim=self._action_dim,
+            arch=to_arch(self._cfgs.policy_arch),
+            time_embed_size=self._cfgs.algo_cfg.time_embed_size,
+            use_layer_norm=self._cfgs.policy_layer_norm,
             sample_method=self._cfgs.sample_method,
             dpm_steps=self._cfgs.algo_cfg.dpm_steps,
             dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
-            max_traj_length=self._cfgs.max_traj_length,
+            env_ts_condition=self._cfgs.env_ts_condition,
+            returns_condition=self._cfgs.returns_condition,
+            cost_returns_condition=self._cfgs.cost_returns_condition,
+            condition_dropout=self._cfgs.condition_dropout,
         )
-        return planner, inv_model
+
+        return policy

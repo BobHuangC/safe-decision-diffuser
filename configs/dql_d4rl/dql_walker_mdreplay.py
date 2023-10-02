@@ -1,4 +1,4 @@
-from config.base_dql import get_base_config
+from configs.base_dql import get_base_config
 
 
 def get_config():

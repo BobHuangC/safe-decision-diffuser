@@ -8,7 +8,7 @@ def get_base_config():
     config.exp_name = config_dict.required_placeholder(str)
     config.log_dir_format = config_dict.required_placeholder(str)
 
-    config.trainer = "DiffusionQLTrainer"
+    config.trainer = "CondDiffusionBCTrainer"
     config.type = "model-free"
 
     config.env = config_dict.required_placeholder(str)
@@ -18,42 +18,45 @@ def get_base_config():
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = config_dict.required_placeholder(int)
     config.horizon = 1
-    config.returns_scale = 1.0
-    config.returns_condition = False
-    config.cost_returns_condition = False
-    config.env_ts_condition = False
+    config.returns_condition = True
+    config.cost_returns_condition = True
+    config.env_ts_condition = True
     config.termination_penalty = 0.0
+    config.target_returns = config_dict.required_placeholder(str)
 
-    config.seed = 100
+    # data aug configs
+    config.aug_percent = 0.3
+    config.aug_deg = 2
+    config.aug_max_rew_decrease = 100.0
+    config.aug_beta = 1.0
+    config.aug_max_reward = 500.0
+    config.aug_min_reward = 1.0
+
+    config.aug_pareto_optimal_only = False
+    config.aug_rmin = 0
+    config.aug_cost_bins = 60
+    config.aug_max_num_per_bin = 1
+
+    config.seed = 300
     config.batch_size = 256
     config.discount = 1.0
-    config.reward_scale = 1
-    config.reward_bias = 0
-    config.clip_action = 0.999
-    config.encoder_arch = "64-64"
     config.policy_arch = "256-256-256"
-    config.qf_arch = "256-256-256"
-    config.orthogonal_init = False
-    config.policy_log_std_multiplier = 1.0
-    config.policy_log_std_offset = -1.0
+    config.condition_guidance_w = 1.2
+    config.condition_dropout = 0.25
 
     config.n_epochs = config_dict.required_placeholder(int)
     config.n_train_step_per_epoch = config_dict.required_placeholder(int)
 
     config.evaluator_class = "OnlineEvaluator"
-    config.eval_period = 10
+    config.eval_period = 100
     config.eval_n_trajs = 10
     config.num_eval_envs = 10
     config.eval_env_seed = 0
 
-    config.qf_layer_norm = False
     config.policy_layer_norm = False
     config.activation = "mish"
-    config.obs_norm = False
-    config.act_method = "ddpmensemble"
+    config.act_method = "ddpm"
     config.sample_method = "ddpm"
-    config.policy_temp = 1.0
-    config.norm_reward = False
 
     config.save_period = 0
     config.logging = WandBLogger.get_default_config()
@@ -66,45 +69,16 @@ def get_base_config():
     config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "linear"
     config.algo_cfg.time_embed_size = 16
-    config.algo_cfg.alpha = 2.0  # NOTE 0.25 in diffusion rl but 2.5 in td3
-    config.algo_cfg.use_pred_astart = True
-    config.algo_cfg.max_q_backup = False
-    config.algo_cfg.max_q_backup_topk = 1
-    config.algo_cfg.max_q_backup_samples = 10
-    config.algo_cfg.nstep = 1
 
     # learning related
     config.algo_cfg.lr = 3e-4
-    config.algo_cfg.diff_coef = 1.0
-    config.algo_cfg.guide_coef = 1.0
     config.algo_cfg.lr_decay = False
     config.algo_cfg.lr_decay_steps = 1000000
     config.algo_cfg.max_grad_norm = 0.0
     config.algo_cfg.weight_decay = 0.0
 
-    config.algo_cfg.loss_type = "TD3"
-    config.algo_cfg.sample_logp = False
-
-    config.algo_cfg.adv_norm = False
-    # CRR-related hps
-    config.algo_cfg.sample_actions = 10
-    config.algo_cfg.crr_ratio_upper_bound = 20
-    config.algo_cfg.crr_beta = 1.0
-    config.algo_cfg.crr_weight_mode = "mle"
-    config.algo_cfg.fixed_std = True
-    config.algo_cfg.crr_multi_sample_mse = False
-    config.algo_cfg.crr_avg_fn = "mean"
-    config.algo_cfg.crr_fn = "exp"
-
-    # IQL-related hps
-    config.algo_cfg.expectile = 0.7
-    config.algo_cfg.awr_temperature = 3.0
-
     # for dpm-solver
     config.algo_cfg.dpm_steps = 15
     config.algo_cfg.dpm_t_end = 0.001
-
-    # useless
-    config.algo_cfg.target_entropy = -1
 
     return config
