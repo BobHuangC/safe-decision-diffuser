@@ -39,14 +39,13 @@ class CondPolicyNet(nn.Module):
         force_dropout: bool = False,
     ):
         emb = TimeEmbedding(self.time_embed_size, self.act)(t)
-        if self.env_ts_condition or self.returns_condition:
+        if self.env_ts_condition or self.returns_condition or self.cost_returns_condition:
             emb = jnp.expand_dims(emb, 1)
 
         if self.env_ts_condition:
             env_ts_emb = nn.Embed(self.max_traj_length, self.time_embed_size)(env_ts)
             emb = jnp.concatenate([emb, jnp.expand_dims(env_ts_emb, 1)], axis=1)
 
-        mask_dist = None
         if self.returns_condition:
             returns_to_go = returns_to_go.reshape(-1, 1)
             returns_embed = nn.Sequential(
@@ -71,7 +70,6 @@ class CondPolicyNet(nn.Module):
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
         if self.cost_returns_condition:
-            # assert self.returns_condition is True
             cost_returns_to_go = cost_returns_to_go.reshape(-1, 1)
             cost_returns_embed = nn.Sequential(
                 [
@@ -90,13 +88,12 @@ class CondPolicyNet(nn.Module):
                     rng, sample_key = jax.random.split(rng)
                     mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
                     cost_returns_embed = cost_returns_embed * mask
-                    
 
             if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 
-        if self.env_ts_condition or self.returns_condition:
+        if self.env_ts_condition or self.returns_condition or self.cost_returns_condition:
             emb = nn.LayerNorm()(emb)
             emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
 
