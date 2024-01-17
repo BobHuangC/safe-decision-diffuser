@@ -17,7 +17,7 @@ Apart from this, you'll have to setup your MuJoCo environment and key as well. P
 You can run decision-diffuser experiments using the following command:
 
 ```bash
-python train.py --config configs/diffuser_inv_dsrl/diffuser_inv_carrun.py
+python train.py --config configs/cdbc_dsrl/cdbc_antrun_mlp.py
 ```
 
 By default we use `ddpm` solver. To use `dpm`, set `--sample_method=dpm` and `-algo_cfg.num_timesteps=1000`.

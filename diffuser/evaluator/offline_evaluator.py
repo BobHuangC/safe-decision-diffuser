@@ -28,14 +28,14 @@ class DiffuserOfflineEvaluator(BaseEvaluator):
         metrics = {}
 
         samples = eval_batch["samples"]
-        conditions = eval_batch["conditions"]
+        observation_conditions = eval_batch["observation_conditions"]
         returns = eval_batch["returns"]
         actions = eval_batch["actions"]
 
         plan_samples = self._policy.planner.apply(
             params["planner"],
             rng,
-            conditions=conditions,
+            observation_conditions=observation_conditions,
             returns=returns,
             method=self._policy.planner.ddpm_sample,
         )

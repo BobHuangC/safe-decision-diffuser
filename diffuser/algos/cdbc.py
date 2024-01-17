@@ -32,6 +32,7 @@ def update_target_network(main_params, target_params, tau):
     )
 
 
+# compatible for both MLP and Transformer
 class CondDiffusionBC(Algo):
     def __init__(self, cfg, policy):
         self.config = cfg
@@ -42,19 +43,35 @@ class CondDiffusionBC(Algo):
 
         self._total_steps = 0
         self._train_states = {}
-
-        policy_params = self.policy.init(
+        if self.policy.architecture == "mlp":
+            policy_params = self.policy.init(
+                next_rng(),
+                next_rng(),
+                observations=jnp.zeros((10, self.observation_dim)),
+                actions=jnp.zeros((10, self.action_dim)),
+                observation_conditions={},
+                ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
+                env_ts=jnp.zeros((10,), dtype=jnp.int32),
+                returns_to_go=jnp.zeros((10, 1)),
+                cost_returns_to_go=jnp.zeros((10, 1)),
+                method=self.policy.loss,
+            )
+        elif self.policy.architecture == "transformer":
+            policy_params = self.policy.init(
             next_rng(),
             next_rng(),
             observations=jnp.zeros((10, self.observation_dim)),
             actions=jnp.zeros((10, self.action_dim)),
-            conditions={},
+            observation_conditions={},
+            action_conditions={},
             ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
             env_ts=jnp.zeros((10,), dtype=jnp.int32),
             returns_to_go=jnp.zeros((10, 1)),
             cost_returns_to_go=jnp.zeros((10, 1)),
             method=self.policy.loss,
         )
+        else:
+            raise NotImplementedError
 
         def get_lr(lr_decay=False):
             if lr_decay is True:
@@ -91,7 +108,8 @@ class CondDiffusionBC(Algo):
         observations,
         actions,
         dones,
-        conditions,
+        observation_conditions,
+        action_conditions,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
@@ -102,18 +120,35 @@ class CondDiffusionBC(Algo):
             split_rng, dones.shape, minval=0, maxval=self.diffusion.num_timesteps
         )
         rng, split_rng = jax.random.split(rng)
-        terms = self.policy.apply(
-            params["policy"],
-            split_rng,
-            observations,
-            actions,
-            conditions,
-            ts,
-            env_ts=env_ts,
-            returns_to_go=returns_to_go,
-            cost_returns_to_go=cost_returns_to_go,
-            method=self.policy.loss,
-        )
+        if self.policy.architecture == "mlp":
+            terms = self.policy.apply(
+                params["policy"],
+                split_rng,
+                observations,
+                actions,
+                observation_conditions,
+                ts,
+                env_ts=env_ts,
+                returns_to_go=returns_to_go,
+                cost_returns_to_go=cost_returns_to_go,
+                method=self.policy.loss,
+            )
+        elif self.policy.architecture == "transformer":
+            terms = self.policy.apply(
+                params["policy"],
+                split_rng,
+                observations,
+                actions,
+                observation_conditions,
+                action_conditions,
+                ts,
+                env_ts=env_ts,
+                returns_to_go=returns_to_go,
+                cost_returns_to_go=cost_returns_to_go,
+                method=self.policy.loss,
+            )
+        else:
+            raise NotImplementedError
 
         return terms, ts
 
@@ -122,7 +157,8 @@ class CondDiffusionBC(Algo):
             observations = batch["observations"]
             actions = batch["actions"]
             dones = batch["dones"]
-            conditions = batch["conditions"]
+            observation_conditions = batch["observation_conditions"]
+            action_conditions = batch["action_conditions"]
             env_ts = batch.get("env_ts", None)
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)
@@ -131,7 +167,8 @@ class CondDiffusionBC(Algo):
                 observations=observations,
                 actions=actions,
                 dones=dones,
-                conditions=conditions,
+                observation_conditions=observation_conditions,
+                action_conditions=action_conditions,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
                 cost_returns_to_go=cost_returns_to_go,

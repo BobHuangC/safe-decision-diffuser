@@ -4,7 +4,7 @@ import torch
 from diffuser.algos import DiffusionQL
 from diffuser.hps import hyperparameters
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
-from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value
+from diffuser.nets import Critic, DiffusionPolicy, GaussianPolicy, Value, DiffusionDTPolicy
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate

@@ -175,7 +175,7 @@ class DecisionDiffuser(Algo):
             else:
                 samples = batch["samples"]
 
-            conditions = batch["conditions"]
+            conditions = batch["observation_conditions"]
             env_ts = batch["env_ts"]
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)

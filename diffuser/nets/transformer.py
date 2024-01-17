@@ -8,14 +8,19 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# WITHOUT WARRANTIES OR observation_conditions OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from functools import partial
 import jax
 import distrax
+from typing import Tuple
 
 import flax.linen as nn
 import jax.numpy as jnp
+from diffuser.diffusion import GaussianDiffusion, ModelMeanType, _extract_into_tensor
+from utilities.jax_utils import extend_and_repeat
+
 
 from diffuser.nets.attention import BasicTransformerBlock, StylizationBlock
 from diffuser.nets.helpers import TimeEmbedding
@@ -132,7 +137,6 @@ class TransformerTemporalModel(nn.Module):
                 ]
             )
 
-        
 
         if self.returns_condition:
             assert returns_to_go is not None
@@ -174,3 +178,225 @@ class TransformerTemporalModel(nn.Module):
         else:
             hidden_states = hidden_states + residual
         return self.dropout_layer(hidden_states, deterministic=deterministic)
+
+
+
+
+# take in the sequence of combination of actions and states and output the action
+class DiffusionDTPolicy(nn.Module):
+    diffusion: GaussianDiffusion
+    observation_dim: int
+    action_dim: int
+    arch: Tuple = (256, 256, 256)
+    time_embed_size: int = 16
+    act: callable = mish
+    use_layer_norm: bool = False
+    use_dpm: bool = False
+    sample_method: str = "ddpm"
+    dpm_steps: int = 15
+    dpm_t_end: float = 0.001
+    env_ts_condition: bool = False
+    returns_condition: bool = False
+    cost_returns_condition: bool = False
+    condition_dropout: float = 0.25
+    max_traj_length: int = 1000
+    architecture: str = "transformer"
+
+
+    def setup(self):
+        # TODO : fix the shape of the input and others
+        self.base_net = TransformerTemporalModel(
+            in_channels=self.observation_dim,
+            n_heads=8,
+            d_head=6,
+            depth = 1,
+            dropout = 0.0,
+            only_cross_attention=False,
+            dtype=jnp.float32,
+            use_memory_efficient_attention=False,
+            split_head_dim=False,
+            time_embed_dim = None
+        )
+
+
+    def ddpm_sample(
+        self,
+        rng,
+        observations,
+        observation_conditions,
+        action_conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
+    ):
+        if repeat is not None:
+            observations = extend_and_repeat(observations, 1, repeat)
+
+        shape = observations.shape[:-1] + (self.action_dim,)
+
+        return self.diffusion.p_sample_loop(
+            rng_key=rng,
+            model_forward=partial(self.base_net, observations),
+            shape=shape,
+            observation_conditions=observation_conditions,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+            env_ts=env_ts,
+            clip_denoised=True,
+        )
+
+    def __call__(
+        self,
+        rng,
+        observations,
+        observation_conditions,
+        action_conditions,
+        env_ts=None,
+        deterministic=False,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        repeat=None,
+    ):
+        return getattr(self, f"{self.sample_method}_sample")(
+            rng,
+            observations,
+            observation_conditions,
+            action_conditions,
+            env_ts,
+            deterministic,
+            returns_to_go,
+            cost_returns_to_go,
+            repeat,
+        )
+
+    def loss(
+        self,
+        rng_key,
+        observations,
+        actions,
+        observation_conditions,
+        action_conditions,
+        ts,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+    ):
+        terms = self.diffusion.training_losses(
+            rng_key,
+            model_forward=partial(self.base_net, observations),
+            x_start=actions,
+            observation_conditions=observation_conditions,
+            t=ts,
+            env_ts=env_ts,
+            returns_to_go=returns_to_go,
+            cost_returns_to_go=cost_returns_to_go,
+        )
+        return terms
+
+    def max_action(self):
+        return self.diffusion.max_value
+
+
+
+
+
+
+
+
+
+# take in the sequence of states and output state, 
+# but use inverse dynamics to generate the action
+# class DiffusionDTPlanner(nn.Module):
+#     diffusion: GaussianDiffusion
+#     observation_dim: int
+#     action_dim: int
+#     arch: Tuple = (256, 256, 256)
+#     time_embed_size: int = 16
+#     act: callable = mish
+#     use_layer_norm: bool = False
+#     use_dpm: bool = False
+#     sample_method: str = "ddpm"
+#     dpm_steps: int = 15
+#     dpm_t_end: float = 0.001
+#     env_ts_condition: bool = False
+#     returns_condition: bool = False
+#     cost_returns_condition: bool = False
+#     condition_dropout: float = 0.25
+#     max_traj_length: int = 1000
+
+#     def setup(self):
+#         self.base_net = TransformerTemporalModel(
+#             in_channels=self.observation_dim,
+#             n_heads=8,
+#             d_head=6,
+#             depth = 1,
+#             dropout = 0.0,
+#             only_cross_attention=False,
+#             dtype=jnp.float32,
+#             use_memory_efficient_attention=False,
+#             split_head_dim=False,
+#             time_embed_dim = None
+#         )
+
+#     def ddpm_sample(
+#         self,
+#         rng,
+#         observation_conditions,
+#         env_ts,
+#         deterministic=False,
+#         returns_to_go=None,
+#         cost_returns_to_go=None,
+#     ):
+#         batch_size = list(observation_conditions.values())[0].shape[0]
+#         return self.diffusion.p_sample_loop_jit(
+#             rng_key=rng,
+#             model_forward=self.base_net,
+#             shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
+#             observation_conditions=observation_conditions,
+#             condition_dim=self.sample_dim - self.action_dim,
+#             returns_to_go=returns_to_go,
+#             cost_returns_to_go=cost_returns_to_go,
+#             env_ts=env_ts,
+#             clip_denoised=True,
+#         )
+
+#     def __call__(
+#         self,
+#         rng,
+#         observation_conditions,
+#         env_ts,
+#         deterministic=False,
+#         returns_to_go=None,
+#         cost_returns_to_go=None,
+#     ):
+#         return getattr(self, f"{self.sample_method}_sample")(
+#             rng, observation_conditions, env_ts, deterministic, returns_to_go, cost_returns_to_go
+#         )
+
+#     def loss(
+#         self,
+#         rng_key,
+#         samples,
+#         observation_conditions,
+#         ts,
+#         env_ts,
+#         masks,
+#         returns_to_go=None,
+#         cost_returns_to_go=None,
+#     ):
+#         terms = self.diffusion.training_losses(
+#             rng_key,
+#             model_forward=self.base_net,
+#             x_start=samples,
+#             observation_conditions=observation_conditions,
+#             condition_dim=self.sample_dim - self.action_dim,
+#             returns_to_go=returns_to_go,
+#             cost_returns_to_go=cost_returns_to_go,
+#             env_ts=env_ts,
+#             t=ts,
+#             masks=masks,
+#         )
+#         return terms
+

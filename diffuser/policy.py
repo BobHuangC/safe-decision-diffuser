@@ -32,12 +32,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         cost_returns_to_go,
         deterministic,
     ):
-        conditions = {}
+        observation_conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts,
             deterministic,
             returns_to_go=returns_to_go,
@@ -58,12 +58,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         num_samples,
     ):
         rng, key = jax.random.split(rng)
-        conditions = {}
+        observation_conditions = {}
         actions = self.policy.apply(
             params["policy"],
             key,
             observations,
-            conditions,
+            observation_conditions,
             env_ts,
             deterministic,
             returns_to_go=returns_to_go,
@@ -90,12 +90,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         num_samples,
     ):
         rng, key = jax.random.split(rng)
-        conditions = {}
+        observation_conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts,
             deterministic,
             returns_to_go=returns_to_go,
@@ -123,12 +123,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         num_samples,
     ):
         rng, key = jax.random.split(rng)
-        conditions = {}
+        observation_conditions = {}
         actions = self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts=env_ts,
             deterministic=deterministic,
             returns_to_go=returns_to_go,
@@ -155,12 +155,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         deterministic,
         num_samples,
     ):
-        conditions = {}
+        observation_conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
@@ -180,12 +180,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         deterministic,
         num_samples,
     ):
-        conditions = {}
+        observation_conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
@@ -204,12 +204,12 @@ class SamplerPolicy(object):  # used for cdbc and dql
         deterministic,
         num_samples,
     ):
-        conditions = {}
+        observation_conditions = {}
         return self.policy.apply(
             params["policy"],
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
@@ -264,11 +264,11 @@ class DiffuserPolicy(object):
         deterministic,
     ):  # deterministic is not used
         history_horizon = self.planner.history_horizon
-        conditions = {(0, history_horizon + 1): observations}
+        observation_conditions = {(0, history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
-            conditions=conditions,
+            observation_conditions=observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
@@ -304,11 +304,11 @@ class DiffuserPolicy(object):
         deterministic,
     ):  # deterministic is not used
         history_horizon = self.planner.history_horizon
-        conditions = {(0, history_horizon + 1): observations}
+        observation_conditions = {(0, history_horizon + 1): observations}
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
-            conditions=conditions,
+            observation_conditions=observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,

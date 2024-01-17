@@ -3,7 +3,7 @@ import torch
 from diffuser.algos import CondDiffusionBC
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
 from diffuser.hps import hyperparameters
-from diffuser.nets import DiffusionPolicy
+from diffuser.nets import DiffusionPolicy, DiffusionDTPolicy
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
@@ -60,20 +60,39 @@ class CondDiffusionBCTrainer(BaseTrainer):
             # max_value=self._max_action,
             sample_temperature=self._cfgs.algo_cfg.sample_temperature,
         )
-        policy = DiffusionPolicy(
-            diffusion=gd,
-            observation_dim=self._observation_dim,
-            action_dim=self._action_dim,
-            arch=to_arch(self._cfgs.policy_arch),
-            time_embed_size=self._cfgs.algo_cfg.time_embed_size,
-            use_layer_norm=self._cfgs.policy_layer_norm,
-            sample_method=self._cfgs.sample_method,
-            dpm_steps=self._cfgs.algo_cfg.dpm_steps,
-            dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
-            env_ts_condition=self._cfgs.env_ts_condition,
-            returns_condition=self._cfgs.returns_condition,
-            cost_returns_condition=self._cfgs.cost_returns_condition,
-            condition_dropout=self._cfgs.condition_dropout,
-        )
+        if self._cfgs.architecture == "mlp":
+            policy = DiffusionPolicy(
+                diffusion=gd,
+                observation_dim=self._observation_dim,
+                action_dim=self._action_dim,
+                arch=to_arch(self._cfgs.policy_arch),
+                time_embed_size=self._cfgs.algo_cfg.time_embed_size,
+                use_layer_norm=self._cfgs.policy_layer_norm,
+                sample_method=self._cfgs.sample_method,
+                dpm_steps=self._cfgs.algo_cfg.dpm_steps,
+                dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+                env_ts_condition=self._cfgs.env_ts_condition,
+                returns_condition=self._cfgs.returns_condition,
+                cost_returns_condition=self._cfgs.cost_returns_condition,
+                condition_dropout=self._cfgs.condition_dropout,
+            )
+        elif self._cfgs.architecture == "transformer":
+            policy = DiffusionDTPolicy(
+                diffusion=gd,
+                observation_dim=self._observation_dim,
+                action_dim=self._action_dim,
+                arch=to_arch(self._cfgs.policy_arch),
+                time_embed_size=self._cfgs.algo_cfg.time_embed_size,
+                use_layer_norm=self._cfgs.policy_layer_norm,
+                sample_method=self._cfgs.sample_method,
+                dpm_steps=self._cfgs.algo_cfg.dpm_steps,
+                dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+                env_ts_condition=self._cfgs.env_ts_condition,
+                returns_condition=self._cfgs.returns_condition,
+                cost_returns_condition=self._cfgs.cost_returns_condition,
+                condition_dropout=self._cfgs.condition_dropout,
+            )
+        else:
+            raise NotImplementedError
 
         return policy

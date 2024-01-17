@@ -150,6 +150,7 @@ class DiffusionPolicy(nn.Module):
     cost_returns_condition: bool = False
     condition_dropout: float = 0.25
     max_traj_length: int = 1000
+    architecture: str = "mlp"
 
     def setup(self):
         if self.env_ts_condition or self.returns_condition:
@@ -177,7 +178,7 @@ class DiffusionPolicy(nn.Module):
         self,
         rng,
         observations,
-        conditions,
+        observation_conditions,
         env_ts=None,
         deterministic=False,
         returns_to_go=None,
@@ -187,7 +188,7 @@ class DiffusionPolicy(nn.Module):
         return getattr(self, f"{self.sample_method}_sample")(
             rng,
             observations,
-            conditions,
+            observation_conditions,
             env_ts,
             deterministic,
             returns_to_go,
@@ -199,7 +200,7 @@ class DiffusionPolicy(nn.Module):
         self,
         rng,
         observations,
-        conditions,
+        observation_conditions,
         env_ts=None,
         deterministic=False,
         returns_to_go=None,
@@ -215,7 +216,7 @@ class DiffusionPolicy(nn.Module):
             rng_key=rng,
             model_forward=partial(self.base_net, observations),
             shape=shape,
-            conditions=conditions,
+            conditions=observation_conditions,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             env_ts=env_ts,
@@ -226,7 +227,7 @@ class DiffusionPolicy(nn.Module):
         self,
         rng,
         observations,
-        conditions,
+        observation_conditions,
         env_ts=None,
         deterministic=False,
         returns_to_go=None,
@@ -288,7 +289,7 @@ class DiffusionPolicy(nn.Module):
         self,
         rng,
         observations,
-        conditions,
+        observation_conditions,
         env_ts=None,
         deterministic=False,
         returns_to_go=None,
@@ -304,7 +305,7 @@ class DiffusionPolicy(nn.Module):
             rng_key=rng,
             model_forward=partial(self.base_net, observations),
             shape=shape,
-            conditions=conditions,
+            conditions=observation_conditions,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             env_ts=env_ts,
@@ -316,7 +317,7 @@ class DiffusionPolicy(nn.Module):
         rng_key,
         observations,
         actions,
-        conditions,
+        observation_conditions,
         ts,
         env_ts=None,
         returns_to_go=None,
@@ -326,7 +327,7 @@ class DiffusionPolicy(nn.Module):
             rng_key,
             model_forward=partial(self.base_net, observations),
             x_start=actions,
-            conditions=conditions,
+            conditions=observation_conditions,
             t=ts,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
