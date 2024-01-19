@@ -287,7 +287,7 @@ class DiffusionDTPolicy(nn.Module):
             rng_key,
             model_forward=partial(self.base_net, observations),
             x_start=actions,
-            observation_conditions=observation_conditions,
+            conditions=observation_conditions,
             t=ts,
             env_ts=env_ts,
             returns_to_go=returns_to_go,

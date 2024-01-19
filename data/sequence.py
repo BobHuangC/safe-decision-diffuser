@@ -146,7 +146,7 @@ class SequenceDataset(torch.utils.data.Dataset):
             masks[start - history_start : mask_end - history_start] = 1.0
 
         conditions = self.get_conditions(observations)
-        ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
+        ret_dict = dict(samples=observations, observation_conditions=conditions, masks=masks)
 
         if self.include_env_ts:
             # a little confusing here. Note that history_start is the original ts in the traj

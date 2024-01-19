@@ -268,7 +268,7 @@ class DiffuserPolicy(object):
         plan_samples = self.planner.apply(
             params["planner"],
             rng,
-            observation_conditions=observation_conditions,
+            conditions=observation_conditions,
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,

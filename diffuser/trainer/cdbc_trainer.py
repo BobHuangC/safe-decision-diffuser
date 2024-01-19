@@ -77,7 +77,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
                 condition_dropout=self._cfgs.condition_dropout,
             )
         elif self._cfgs.architecture == "transformer":
-            policy = DiffusionDTPolicy(
+            policy = DiffusionDTPolicy( 
                 diffusion=gd,
                 observation_dim=self._observation_dim,
                 action_dim=self._action_dim,
