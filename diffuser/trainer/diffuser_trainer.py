@@ -72,21 +72,24 @@ class DiffuserTrainer(BaseTrainer):
             plan_sample_dim = self._observation_dim + self._action_dim
             plan_action_dim = self._action_dim
 
-        planner = DiffusionPlanner(
-            diffusion=gd,
-            horizon=self._cfgs.horizon,
-            history_horizon=self._cfgs.history_horizon,
-            sample_dim=plan_sample_dim,
-            action_dim=plan_action_dim,
-            dim=self._cfgs.dim,
-            dim_mults=to_arch(self._cfgs.dim_mults),
-            returns_condition=self._cfgs.returns_condition,
-            cost_returns_condition=self._cfgs.cost_returns_condition,
-            condition_dropout=self._cfgs.condition_dropout,
-            kernel_size=self._cfgs.kernel_size,
-            sample_method=self._cfgs.sample_method,
-            dpm_steps=self._cfgs.algo_cfg.dpm_steps,
-            dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
-            max_traj_length=self._cfgs.max_traj_length,
-        )
+        if self._cfgs.architecture == "Unet":
+            planner = DiffusionPlanner(
+                diffusion=gd,
+                horizon=self._cfgs.horizon,
+                history_horizon=self._cfgs.history_horizon,
+                sample_dim=plan_sample_dim,
+                action_dim=plan_action_dim,
+                dim=self._cfgs.dim,
+                dim_mults=to_arch(self._cfgs.dim_mults),
+                returns_condition=self._cfgs.returns_condition,
+                cost_returns_condition=self._cfgs.cost_returns_condition,
+                condition_dropout=self._cfgs.condition_dropout,
+                kernel_size=self._cfgs.kernel_size,
+                sample_method=self._cfgs.sample_method,
+                dpm_steps=self._cfgs.algo_cfg.dpm_steps,
+                dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+                max_traj_length=self._cfgs.max_traj_length,
+            )
+        elif self._cfgs.architecture == "Transformer":
+            raise NotImplementedError
         return planner, inv_model
