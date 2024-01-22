@@ -31,9 +31,17 @@ class OnlineEvaluator(BaseEvaluator):
             metrics["average_return" + post] = np.mean(
                 [np.sum(t["rewards"]) for t in trajs]
             )
+            metrics["return_std" + post] = np.std(
+                [np.sum(t["rewards"]) for t in trajs]
+            )
             metrics["average_cost_return" + post] = cur_cost = np.mean(
                 [np.sum(t["costs"]) for t in trajs]
             )
+            metrics["cost_return_std" + post] = np.std(
+                [np.sum(t["costs"]) for t in trajs]
+            )
+            metrics["return_record"+post] = [np.sum(t["rewards"]) for t in trajs]
+            metrics["cost_return_record"+post] = [np.sum(t["costs"]) for t in trajs]
             metrics["average_traj_length" + post] = np.mean(
                 [len(t["rewards"]) for t in trajs]
             )
