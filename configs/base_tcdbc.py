@@ -8,7 +8,7 @@ def get_base_config():
     config.exp_name = config_dict.required_placeholder(str)
     config.log_dir_format = config_dict.required_placeholder(str)
 
-    config.trainer = "CondDiffusionBCTrainer"
+    config.trainer = "TargetCondDiffusionBCTrainer"
     config.type = "model-free"
 
     config.env = config_dict.required_placeholder(str)
@@ -41,7 +41,7 @@ def get_base_config():
     config.batch_size = 256
     config.discount = 1.0
     config.policy_arch = "256-256-256"
-    config.condition_guidance_w = 1.5
+    config.condition_guidance_w = 1.2
     config.condition_dropout = 0.25
 
     config.n_epochs = config_dict.required_placeholder(int)

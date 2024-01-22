@@ -65,6 +65,64 @@ class BaseTrainer:
                 break
         else:
             raise NotImplementedError
+        
+    def restore_agent(self, saved_data):
+        self._agent.restore_agent_states(saved_data)
+
+    def evaluate(self, saved_data):
+        self._setup()
+
+        print(self._agent.train_states == saved_data, " whether the restored data equals to the saved data")
+        f = open("saved_data.txt", "w")
+        f.write(str(saved_data))
+        f.close()
+        f = open("agent_train_states.txt", "w")
+        f.write(str(self._agent.train_states))
+        f.close()
+        self.restore_agent(saved_data)
+        print(self._agent.train_states == saved_data, " whether the restored data equals to the saved data")
+        print("successfully restore the agent states")
+
+
+        viskit_metrics = {}
+        for epoch in range(self._cfgs.n_epochs):
+            metrics = {"epoch": epoch}
+
+            with Timer() as eval_timer:
+                if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
+                    self._evaluator.update_params(self._agent.eval_params)
+                    eval_metrics = self._evaluator.evaluate(epoch)
+                    metrics.update(eval_metrics)
+
+                if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
+                    self._save_model(epoch)
+
+            with Timer() as train_timer:
+                for _ in tqdm.tqdm(range(self._cfgs.n_train_step_per_epoch)):
+                    batch = batch_to_jax(next(self._dataloader))
+                    metrics.update(prefix_metrics(self._agent.train(batch), "agent"))
+
+            metrics["train_time"] = train_timer()
+            metrics["eval_time"] = eval_timer()
+            metrics["epoch_time"] = train_timer() + eval_timer()
+            self._wandb_logger.log(metrics)
+            viskit_metrics.update(metrics)
+            logger.record_dict(viskit_metrics)
+            logger.dump_tabular(with_prefix=False, with_timestamp=False)
+
+        # save model
+        if (
+            self._cfgs.save_period > 0
+            and self._cfgs.n_epochs % self._cfgs.save_period == 0
+        ):
+            self._save_model(self._cfgs.n_epochs)
+
+        if (
+            self._cfgs.eval_period > 0
+            and self._cfgs.n_epochs % self._cfgs.eval_period == 0
+        ):
+            self._evaluator.update_params(self._agent.eval_params)
+            self._evaluator.evaluate(self._cfgs.n_epochs)
 
     def train(self):
         self._setup()

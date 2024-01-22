@@ -33,7 +33,7 @@ def update_target_network(main_params, target_params, tau):
 
 
 # compatible for both MLP and Transformer
-class CondDiffusionBC(Algo):
+class TargetCondDiffusionBC(Algo):
     def __init__(self, cfg, policy):
         self.config = cfg
         self.policy = policy
@@ -102,8 +102,6 @@ class CondDiffusionBC(Algo):
 
         self._model_keys = tuple(model_keys)
 
-    def restore_agent_states(self, saved_data):
-        self._train_states = saved_data
     def get_diff_terms(
         self,
         params,
