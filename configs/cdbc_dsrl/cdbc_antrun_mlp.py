@@ -13,7 +13,7 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
     
-    config.target_returns = "190.0,1.0"
+    config.target_returns = "390.0,1.0"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200
@@ -31,9 +31,9 @@ def get_config():
     config.aug_max_reward = 1000.0
     config.aug_min_reward = 1.0
 
-    config.condition_guidance_w = 1.75
+    config.condition_guidance_w = 2
 
-    config.n_epochs = 1
+    config.n_epochs = 4000
     config.n_train_step_per_epoch = 1000
 
     config.save_period = 50
