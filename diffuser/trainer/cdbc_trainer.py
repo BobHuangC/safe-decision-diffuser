@@ -17,16 +17,16 @@ class CondDiffusionBCTrainer(BaseTrainer):
         self._wandb_logger = self._setup_logger()
 
         # setup dataset and eval_sample
-        dataset, eval_sampler = self._setup_dataset()
+        self.dataset, self.eval_sampler = self._setup_dataset()
         target_returns = str_to_list(self._cfgs.target_returns)
         assert len(target_returns) == 2, target_returns
-        eval_sampler.set_target_returns(target_returns)
-        if hasattr(eval_sampler.env, "set_target_cost"):
-            eval_sampler.env.set_target_cost(target_returns[1])
-        data_sampler = torch.utils.data.RandomSampler(dataset)
+        self.eval_sampler.set_target_returns(target_returns)
+        if hasattr(self.eval_sampler.env, "set_target_cost"):
+            self.eval_sampler.env.set_target_cost(target_returns[1])
+        data_sampler = torch.utils.data.RandomSampler(self.dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
-                dataset,
+                self.dataset,
                 sampler=data_sampler,
                 batch_size=self._cfgs.batch_size,
                 collate_fn=numpy_collate,
@@ -44,7 +44,18 @@ class CondDiffusionBCTrainer(BaseTrainer):
 
         # setup sampler policy
         sampler_policy = SamplerPolicy(self._agent.policy)
-        self._evaluator = self._setup_evaluator(sampler_policy, eval_sampler, dataset)
+        self._evaluator = self._setup_evaluator(sampler_policy, self.eval_sampler, self.dataset)
+
+    def _reset_target_returns(self, new_target_returns):
+        target_returns = str_to_list(new_target_returns)
+        assert len(target_returns) == 2, target_returns
+        self.eval_sampler.set_target_returns(target_returns)
+        if hasattr(self.eval_sampler.env, "set_target_cost"):
+            self.eval_sampler.env.set_target_cost(target_returns[1])
+
+        # setup sampler policy
+        sampler_policy = SamplerPolicy(self._agent.policy)
+        self._evaluator = self._setup_evaluator(sampler_policy, self.eval_sampler, self.dataset)
 
     def _setup_policy(self):
         gd = GaussianDiffusion(
