@@ -16,6 +16,7 @@ eval_plus_data_record = {"epoch":[], "target_reward_return":[], "target_cost_ret
 
 # evaluate the model with the following target returns to evaluate the model properly
 target_reward_returns_list = [50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 600.0, 650.0, 700.0]
+target_reward_returns_list = [50.0, 100.0, 150.0, 200.0,]
 target_cost_returns_list = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
 
 target_returns_list = []
@@ -89,7 +90,7 @@ def main():
     df = pd.DataFrame(eval_plus_data_record)
 
     # 将DataFrame保存为.csv文件
-    df.to_csv(f'eval_plus_data/test-{str(args.log_dir).replace("/", "-")}.csv', index=False)
+    df.to_csv(f'eval_plus_data/test-{str(args.log_dir).replace("/", "-")}-{str(target_reward_returns_list)}.csv', index=False)
 
 if __name__ == "__main__":
     main()
