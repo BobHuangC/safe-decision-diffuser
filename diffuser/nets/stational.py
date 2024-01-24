@@ -81,13 +81,13 @@ class CondPolicyNet(nn.Module):
                 ]
             )(cost_returns_to_go)
             if use_dropout:
-                if self.returns_condition:
-                    cost_returns_embed = cost_returns_embed * mask
-                else:
-                    mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
-                    rng, sample_key = jax.random.split(rng)
-                    mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
-                    cost_returns_embed = cost_returns_embed * mask
+                # if self.returns_condition:
+                #     cost_returns_embed = cost_returns_embed * mask
+                # else:
+                mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
+                rng, sample_key = jax.random.split(rng)
+                mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
+                cost_returns_embed = cost_returns_embed * mask
 
             if force_dropout:
                 cost_returns_embed = cost_returns_embed * 0
