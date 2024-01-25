@@ -4,7 +4,7 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "{exp_name}-1-25-test/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
     )
 
     config.env = "OfflineAntRun-v0"
