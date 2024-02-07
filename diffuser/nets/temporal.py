@@ -72,7 +72,9 @@ class TemporalUnet(nn.Module):
         returns_to_go: jnp.ndarray = None,
         cost_returns_to_go: jnp.ndarray = None,
         use_dropout: bool = True,
-        force_dropout: bool = False,
+        # force_dropout: bool = False,
+        reward_returns_force_dropout: bool = False,
+        cost_returns_force_droupout: bool = False,
     ):
         act_fn = mish
 
@@ -117,7 +119,8 @@ class TemporalUnet(nn.Module):
                 )
                 returns_embed = returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if reward_returns_force_dropout:
                 returns_embed = returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
@@ -128,7 +131,8 @@ class TemporalUnet(nn.Module):
             if use_dropout:
                 cost_returns_embed = cost_returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 

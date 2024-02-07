@@ -4,7 +4,11 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
+        "test-{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
+    )
+    # TODO: design the logging for eval
+    config.eval_log_dir_format = (
+        "test-{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/eval"
     )
 
     config.env = "OfflineAntRun-v0"
@@ -13,7 +17,9 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
     
-    config.target_returns = "390.0,1.0"
+    # TODO: design new loss setting to learn
+    # ((700.0, 10), (750.0, 20), (800.0, 40))
+    config.target_returns = "666.0,6.6"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200
@@ -41,7 +47,11 @@ def get_config():
     # special variable for cdbc
     config.architecture: str = "mlp"
 
+    # evaluate_pro config
+    config.eval_target_reward_returns_list = "600.0, 650.0, 700.0"
+    config.eval_target_cost_returns_list = "0.0, 2.0, 5.0, 7.0, 10.0, 20.0, 25.0, 30.0"
+
+    # mode represents whether the config is used for training or evaluation
+    config.mode = "train" # or "eval"
+
     return config
-
-
-

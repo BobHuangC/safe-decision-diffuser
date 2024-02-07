@@ -36,7 +36,8 @@ class CondPolicyNet(nn.Module):
         returns_to_go: jnp.ndarray = None,
         cost_returns_to_go: jnp.ndarray = None,
         use_dropout: bool = True,
-        force_dropout: bool = False,
+        reward_returns_force_dropout: bool = False,
+        cost_returns_force_droupout: bool = False,
     ):
         emb = TimeEmbedding(self.time_embed_size, self.act)(t)
         if self.env_ts_condition or self.returns_condition or self.cost_returns_condition:
@@ -65,7 +66,8 @@ class CondPolicyNet(nn.Module):
                 )
                 returns_embed = returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if reward_returns_force_dropout:
                 returns_embed = returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
@@ -89,7 +91,7 @@ class CondPolicyNet(nn.Module):
                     mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
                     cost_returns_embed = cost_returns_embed * mask
 
-            if force_dropout:
+            if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 

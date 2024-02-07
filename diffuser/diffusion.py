@@ -543,7 +543,9 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    force_dropout=True,
+                    # force_dropout=True,
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
                     **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
@@ -609,7 +611,9 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    force_dropout=True,
+                    # force_dropout=True,
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
                     **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (

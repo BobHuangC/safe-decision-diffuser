@@ -29,6 +29,8 @@ def test_temporal_unet():
         jax.random.PRNGKey(0),
         jnp.ones((5, 32, 4)),
         jnp.ones((5,)),
-        force_dropout=True,
+        # force_dropout=True,
+        reward_returns_force_dropout=True,
+        cost_returns_force_droupout=True,
     )
     assert output1.shape == output2.shape == (5, 32, 4)

@@ -100,7 +100,9 @@ class TransformerTemporalModel(nn.Module):
         returns_to_go,
         cost_returns_to_go,
         use_dropout, 
-        force_dropout,
+        # force_dropout,
+        reward_returns_force_dropout,
+        cost_returns_force_droupout,
         context, 
         deterministic=True):
         batch, length, channels = hidden_states.shape
@@ -149,7 +151,8 @@ class TransformerTemporalModel(nn.Module):
                 )
                 returns_embed = returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if reward_returns_force_dropout:
                 returns_embed = returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
@@ -160,7 +163,8 @@ class TransformerTemporalModel(nn.Module):
             if use_dropout:
                 cost_returns_embed = cost_returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 
