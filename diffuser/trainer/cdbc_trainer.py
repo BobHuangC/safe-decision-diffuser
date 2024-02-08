@@ -19,7 +19,8 @@ class CondDiffusionBCTrainer(BaseTrainer):
         # setup dataset and eval_sample
         self.dataset, self.eval_sampler = self._setup_dataset()
         target_returns = str_to_list(self._cfgs.target_returns)
-        assert len(target_returns) == 2, target_returns
+        # assert len(target_returns) == 2, target_returns
+        assert len(target_returns) % 2== 0, target_returns 
         self.eval_sampler.set_target_returns(target_returns)
         if hasattr(self.eval_sampler.env, "set_target_cost"):
             self.eval_sampler.env.set_target_cost(target_returns[1])

@@ -4,11 +4,11 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "test-{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}"
     )
     # TODO: design the logging for eval
     config.eval_log_dir_format = (
-        "test-{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/eval"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/eval"
     )
 
     config.env = "OfflineAntRun-v0"
@@ -18,8 +18,7 @@ def get_config():
     config.env_ts_condition = True
     
     # TODO: design new loss setting to learn
-    # ((700.0, 10), (750.0, 20), (800.0, 40))
-    config.target_returns = "666.0,6.6"
+    config.target_returns = "700.0,10, 750.0,20, 800.0,40"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200

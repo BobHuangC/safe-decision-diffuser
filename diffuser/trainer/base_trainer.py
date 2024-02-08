@@ -37,6 +37,7 @@ from utilities.utils import (
 )
 from viskit.logging import logger, setup_logger
 
+import numpy as np
 
 class BaseTrainer:
     def __init__(self, config, use_absl: bool = True):
@@ -127,6 +128,11 @@ class BaseTrainer:
     def train(self):
         self._setup()
 
+        # for saving the best
+        # best_reward_return = -np.inf
+        # best_cost_retun = np.inf
+        # best_idx = 0
+
         viskit_metrics = {}
         for epoch in range(self._cfgs.n_epochs):
             metrics = {"epoch": epoch}
@@ -135,6 +141,9 @@ class BaseTrainer:
                 if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
                     self._evaluator.update_params(self._agent.eval_params)
                     eval_metrics = self._evaluator.evaluate(epoch)
+                    # print(eval_metrics, 'this is eval_metrics')
+                    # print(eval_metrics["average_return"])
+                    # print(eval_metrics["average_cost_return"])
                     metrics.update(eval_metrics)
 
                 if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
