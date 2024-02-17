@@ -38,7 +38,7 @@ def get_base_config():
     config.aug_max_num_per_bin = 1
 
     config.seed = 300
-    config.batch_size = 256
+    config.batch_size = 1024
     config.discount = 1.0
     config.policy_arch = "256-256-256"
     config.condition_guidance_w = 1.5
@@ -76,6 +76,9 @@ def get_base_config():
     config.algo_cfg.lr_decay_steps = 1000000
     config.algo_cfg.max_grad_norm = 0.0
     config.algo_cfg.weight_decay = 0.0
+
+    # Bo
+    config.algo_cfg.lr_decay_alpha = 0.0
 
     # for dpm-solver
     config.algo_cfg.dpm_steps = 15

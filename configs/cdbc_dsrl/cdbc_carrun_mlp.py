@@ -4,24 +4,24 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_16_4"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_17_1"
     )
     # TODO: design the logging for eval
     config.eval_log_dir_format = (
         "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/eval"
     )
 
-    config.env = "OfflineAntRun-v0"
+    config.env = "OfflineCarRun-v0"
     config.dataset = "dsrl"
     config.returns_condition = True
     config.cost_returns_condition = True
     config.env_ts_condition = True
     
     # TODO: design new loss setting to learn
-    config.target_returns = "700.0,10, 750.0,20, 800.0,40"
+    config.target_returns = "575.0,10, 575.0,20, 575.0,40"
     config.cost_limit = 10.0
 
-    config.max_traj_length = 200
+    config.max_traj_length = 300
     config.horizon = 1
 
     config.eval_period = 25
@@ -30,11 +30,11 @@ def get_config():
 
     # data aug configs
     config.aug_percent = 0.2
-    config.aug_deg = 3
-    config.aug_max_rew_decrease = 150.0
+    config.aug_deg = 0
+    config.aug_max_rew_decrease = 100
     config.aug_beta = 1.0
-    config.aug_max_reward = 1000.0
-    config.aug_min_reward = 1.0
+    config.aug_max_reward = 600.0
+    config.aug_min_reward = 1
 
     config.condition_guidance_w = 2
 
@@ -54,7 +54,7 @@ def get_config():
     config.mode = "train" # or "eval"
 
     # learning related
-    config.algo_cfg.lr = 1e-5
+    config.algo_cfg.lr = 1e-4
     config.algo_cfg.lr_decay = False
     config.algo_cfg.lr_decay_steps = 20
     config.algo_cfg.lr_decay_alpha = 0.05
