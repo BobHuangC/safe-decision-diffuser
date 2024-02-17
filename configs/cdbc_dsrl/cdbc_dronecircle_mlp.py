@@ -4,7 +4,7 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_17_1"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_17_2"
     )
     # TODO: design the logging for eval
     config.eval_log_dir_format = (
@@ -29,10 +29,8 @@ def get_config():
     config.num_eval_envs = 10
 
     # data aug configs
-    config.aug_percent = 0.2
     config.aug_deg = 1
     config.aug_max_rew_decrease = 100
-    config.aug_beta = 1.0
     config.aug_max_reward = 1000.0
     config.aug_min_reward = 1
 

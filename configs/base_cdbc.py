@@ -25,11 +25,11 @@ def get_base_config():
     config.target_returns = config_dict.required_placeholder(str)
 
     # data aug configs
-    config.aug_percent = 0.3
-    config.aug_deg = 2
+    config.aug_percent = 0.2
+    config.aug_deg = 4
     config.aug_max_rew_decrease = 100.0
     config.aug_beta = 1.0
-    config.aug_max_reward = 500.0
+    config.aug_max_reward = 600.0
     config.aug_min_reward = 1.0
 
     config.aug_pareto_optimal_only = False
