@@ -42,6 +42,8 @@ class OnlineEvaluator(BaseEvaluator):
 
             metrics["return_record" + post] = []
             metrics["cost_return_record" + post] = []
+            metrics["normalized_return_record" + post] = []
+            metrics["normalized_cost_return_record" + post] = []
 
             metrics["average_10_normalized_return" + post] = []
             metrics["best_normalized_return" + post] = []
@@ -103,6 +105,19 @@ class OnlineEvaluator(BaseEvaluator):
                         ],
                         axis=0,
                     )
+                    
+                    metrics["normalized_return_record" + post].append([i[0] for i in [
+                            self._eval_sampler.env.get_normalized_score(
+                                np.sum(t["rewards"]), np.sum(t["costs"])
+                            )
+                            for t in trajs
+                        ]])
+                    metrics["normalized_cost_return_record" + post].append([i[1] for i in [
+                            self._eval_sampler.env.get_normalized_score(
+                                np.sum(t["rewards"]), np.sum(t["costs"])
+                            )
+                            for t in trajs
+                        ]])
                 else:
                     cur_return = np.mean(
                         [
@@ -112,6 +127,12 @@ class OnlineEvaluator(BaseEvaluator):
                             for t in trajs
                         ],
                     )
+                    metrics["normalized_return_record" + post].append([
+                            self._eval_sampler.env.get_normalized_score(
+                                np.sum(t["rewards"])
+                            )
+                            for t in trajs
+                        ])
                     cur_cost_return = cur_cost
                 # metrics["average_normalized_return" + post] = cur_return
                 metrics["average_normalized_return" + post].append(cur_return)

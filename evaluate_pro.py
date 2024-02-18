@@ -12,11 +12,22 @@ from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
 # ant run
-log_dir = "logs/cdbc_dsrl/OfflineAntRun-v0/tgt_700.0,10, 750.0,20, 800.0,40-guidew_2.0/300/2_16_3"
+# log_dir = "logs/cdbc_dsrl/OfflineAntRun-v0/tgt_700.0,10, 750.0,20, 800.0,40-guidew_2.0/300/2_16_3"
+# epochs = [650, 700, 1200, 1550, 3150]
+
+# car circle
+
+# car run
+# log_dir = "logs/cdbc_dsrl/OfflineCarRun-v0/tgt_575.0,10, 575.0,20, 575.0,40-guidew_2.0/300/2_17_3"
+# epochs = [250, 2300, 2400, 2950, 3700]
+
+# drone circle
+# log_dir = "logs/cdbc_dsrl/OfflineDroneCircle-v0/tgt_700.0,10, 750.0,20, 800.0,40-guidew_2.0/300/2_17_2"
+# epochs = [2550, 3000, 3650, 3700, 3750, 3800, 3850, 3900, 3950, 4000]
 
 # drone run
-# log_dir = "logs/cdbc_dsrl/OfflineDroneRun-v0/tgt_400.0,10, 500.0,20, 600.0,40-guidew_2.0/300/2_17_1"
-epochs = [700]
+log_dir = "logs/cdbc_dsrl/OfflineDroneRun-v0/tgt_400.0,10, 500.0,20, 600.0,40-guidew_2.0/300/2_17_2"
+epochs = [650, 750, 1000, 1100, 1250, 1450, 1700, 2000, 2200]
 
 def main():
     parser = argparse.ArgumentParser()
@@ -65,7 +76,7 @@ def main():
     # eval_pro_data_record = {"epoch":[], "average_normalized_return":[], "average_normalized_cost_return":[], "target_reward_return":[], "target_cost_return":[], "average_reward_return":[], 
     #                         "average_cost_return":[], "reward_return":[], "cost_return":[], "target_returns":[]}
     eval_pro_data_record = {"epoch":[], "average_normalized_return":[], "average_normalized_cost_return":[], "average_reward_return":[], 
-                            "average_cost_return":[], "reward_return":[], "cost_return":[], "target_returns":[]}
+                            "average_cost_return":[], "normalized_reward_return":[], "normalized_cost_return":[], "reward_return":[], "cost_return":[], "target_returns":[]}
 
     # target_returns_list = []
     eval_target_returns = ""
@@ -124,11 +135,11 @@ def main():
         print(f"\033[92m Epoch {epoch}: {metrics} \033[00m\n")
         eval_pro_data_record["epoch"].append(epoch)
         eval_pro_data_record["target_returns"].append(eval_target_returns)
-        # eval_pro_data_record["target_reward_return"].append(tmp_target_returns.split(",")[0])
-        # eval_pro_data_record["target_cost_return"].append(tmp_target_returns.split(",")[1])
         eval_pro_data_record["average_normalized_return"].append(metrics["average_normalized_return"])
         eval_pro_data_record["average_normalized_cost_return"].append(metrics["average_normalized_cost_return"])
         eval_pro_data_record["average_reward_return"].append(metrics["average_return"])
+        eval_pro_data_record["normalized_reward_return"].append(metrics["normalized_return_record"])
+        eval_pro_data_record["normalized_cost_return"].append(metrics["normalized_cost_return_record"])
         eval_pro_data_record["average_cost_return"].append(metrics["average_cost_return"])
         eval_pro_data_record["reward_return"].append(metrics["return_record"])
         eval_pro_data_record["cost_return"].append(metrics["cost_return_record"])
