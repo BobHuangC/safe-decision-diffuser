@@ -108,7 +108,9 @@ class TrajSampler(object):
         # self._target_returns = target_returns
         self._target_returns = []
         for i in range(len(target_returns) // 2):
-            self._target_returns.append([target_returns[2 * i], target_returns[2 * i + 1]])
+            self._target_returns.append(
+                [target_returns[2 * i], target_returns[2 * i + 1]]
+            )
 
     def sample(
         self,
@@ -212,7 +214,9 @@ class TrajSampler(object):
                     for ind in env_ind_local:
                         trajs.append(
                             dict(
-                                observations=np.array(observations[ind], dtype=np.float32),
+                                observations=np.array(
+                                    observations[ind], dtype=np.float32
+                                ),
                                 actions=np.array(actions[ind], dtype=np.float32),
                                 rewards=np.array(rewards[ind], dtype=np.float32),
                                 next_observations=np.array(

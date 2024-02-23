@@ -29,13 +29,17 @@ def _query_chunk_attention(query, key, value, precision, key_chunk_size: int = 4
 
     @functools.partial(jax.checkpoint, prevent_cse=False)
     def summarize_chunk(query, key, value):
-        attn_weights = jnp.einsum("...qhd,...khd->...qhk", query, key, precision=precision)
+        attn_weights = jnp.einsum(
+            "...qhd,...khd->...qhk", query, key, precision=precision
+        )
 
         max_score = jnp.max(attn_weights, axis=-1, keepdims=True)
         max_score = jax.lax.stop_gradient(max_score)
         exp_weights = jnp.exp(attn_weights - max_score)
 
-        exp_values = jnp.einsum("...vhf,...qhv->...qhf", value, exp_weights, precision=precision)
+        exp_values = jnp.einsum(
+            "...vhf,...qhv->...qhf", value, exp_weights, precision=precision
+        )
         max_score = jnp.einsum("...qhk->...qh", max_score)
 
         return (exp_values, exp_weights.sum(axis=-1), max_score)
@@ -45,19 +49,23 @@ def _query_chunk_attention(query, key, value, precision, key_chunk_size: int = 4
         key_chunk = jax.lax.dynamic_slice(
             operand=key,
             start_indices=[0] * (key.ndim - 3) + [chunk_idx, 0, 0],  # [...,k,h,d]
-            slice_sizes=list(key.shape[:-3]) + [key_chunk_size, num_heads, k_features],  # [...,k,h,d]
+            slice_sizes=list(key.shape[:-3])
+            + [key_chunk_size, num_heads, k_features],  # [...,k,h,d]
         )
 
         # julienne value array
         value_chunk = jax.lax.dynamic_slice(
             operand=value,
             start_indices=[0] * (value.ndim - 3) + [chunk_idx, 0, 0],  # [...,v,h,d]
-            slice_sizes=list(value.shape[:-3]) + [key_chunk_size, num_heads, v_features],  # [...,v,h,d]
+            slice_sizes=list(value.shape[:-3])
+            + [key_chunk_size, num_heads, v_features],  # [...,v,h,d]
         )
 
         return summarize_chunk(query, key_chunk, value_chunk)
 
-    chunk_values, chunk_weights, chunk_max = jax.lax.map(f=chunk_scanner, xs=jnp.arange(0, num_kv, key_chunk_size))
+    chunk_values, chunk_weights, chunk_max = jax.lax.map(
+        f=chunk_scanner, xs=jnp.arange(0, num_kv, key_chunk_size)
+    )
 
     global_max = jnp.max(chunk_max, axis=0, keepdims=True)
     max_diffs = jnp.exp(chunk_max - global_max)
@@ -72,7 +80,12 @@ def _query_chunk_attention(query, key, value, precision, key_chunk_size: int = 4
 
 
 def jax_memory_efficient_attention(
-    query, key, value, precision=jax.lax.Precision.HIGHEST, query_chunk_size: int = 1024, key_chunk_size: int = 4096
+    query,
+    key,
+    value,
+    precision=jax.lax.Precision.HIGHEST,
+    query_chunk_size: int = 1024,
+    key_chunk_size: int = 4096,
 ):
     r"""
     Flax Memory-efficient multi-head dot product attention. https://arxiv.org/abs/2112.05682v2
@@ -99,18 +112,26 @@ def jax_memory_efficient_attention(
         query_chunk = jax.lax.dynamic_slice(
             operand=query,
             start_indices=([0] * (query.ndim - 3)) + [chunk_idx, 0, 0],  # [...,q,h,d]
-            slice_sizes=list(query.shape[:-3]) + [min(query_chunk_size, num_q), num_heads, q_features],  # [...,q,h,d]
+            slice_sizes=list(query.shape[:-3])
+            + [min(query_chunk_size, num_q), num_heads, q_features],  # [...,q,h,d]
         )
 
         return (
             chunk_idx + query_chunk_size,  # unused ignore it
             _query_chunk_attention(
-                query=query_chunk, key=key, value=value, precision=precision, key_chunk_size=key_chunk_size
+                query=query_chunk,
+                key=key,
+                value=value,
+                precision=precision,
+                key_chunk_size=key_chunk_size,
             ),
         )
 
     _, res = jax.lax.scan(
-        f=chunk_scanner, init=0, xs=None, length=math.ceil(num_q / query_chunk_size)  # start counter  # stop counter
+        f=chunk_scanner,
+        init=0,
+        xs=None,
+        length=math.ceil(num_q / query_chunk_size),  # start counter  # stop counter
     )
 
     return jnp.concatenate(res, axis=-3)  # fuse the chunked result back
@@ -174,7 +195,9 @@ class Attention(nn.Module):
         tensor = tensor.reshape(batch_size // head_size, seq_len, dim * head_size)
         return tensor
 
-    def __call__(self, hidden_states, context=None, attention_mask=None, deterministic=True):
+    def __call__(
+        self, hidden_states, context=None, attention_mask=None, deterministic=True
+    ):
         context = hidden_states if context is None else context
 
         query_proj = self.query(hidden_states)
@@ -210,27 +233,43 @@ class Attention(nn.Module):
                 query_chunk_size = int(flatten_latent_dim)
 
             hidden_states = jax_memory_efficient_attention(
-                query_states, key_states, value_states, query_chunk_size=query_chunk_size, key_chunk_size=4096 * 4
+                query_states,
+                key_states,
+                value_states,
+                query_chunk_size=query_chunk_size,
+                key_chunk_size=4096 * 4,
             )
 
             hidden_states = hidden_states.transpose(1, 0, 2)
         else:
             # compute attentions
             if self.split_head_dim:
-                attention_scores = jnp.einsum("b t n h, b f n h -> b n f t", key_states, query_states)
+                attention_scores = jnp.einsum(
+                    "b t n h, b f n h -> b n f t", key_states, query_states
+                )
             else:
-                attention_scores = jnp.einsum("b i d, b j d->b i j", query_states, key_states)
+                attention_scores = jnp.einsum(
+                    "b i d, b j d->b i j", query_states, key_states
+                )
 
             attention_scores = attention_scores * self.scale
-            attention_probs = nn.softmax(attention_scores, axis=-1 if self.split_head_dim else 2)
+            attention_probs = nn.softmax(
+                attention_scores, axis=-1 if self.split_head_dim else 2
+            )
 
             # attend to values
             if self.split_head_dim:
-                hidden_states = jnp.einsum("b n f t, b t n h -> b f n h", attention_probs, value_states)
+                hidden_states = jnp.einsum(
+                    "b n f t, b t n h -> b f n h", attention_probs, value_states
+                )
                 b = hidden_states.shape[0]
-                hidden_states = jnp.reshape(hidden_states, (b, -1, self.heads * self.dim_head))
+                hidden_states = jnp.reshape(
+                    hidden_states, (b, -1, self.heads * self.dim_head)
+                )
             else:
-                hidden_states = jnp.einsum("b i j, b j d -> b i d", attention_probs, value_states)
+                hidden_states = jnp.einsum(
+                    "b i j, b j d -> b i d", attention_probs, value_states
+                )
                 hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
 
         hidden_states = self.proj_attn(hidden_states)
@@ -246,13 +285,11 @@ class StylizationBlock(nn.Module):
     def __call__(self, h, emb):
         emb_out = nn.Dense(2 * self.latent_dim)(nn.activation.silu(emb))
         emb_out = jnp.expand_dims(emb_out, axis=1)
-        scale, shift = emb_out[..., : self.latent_dim], emb_out[..., self.latent_dim:]
+        scale, shift = emb_out[..., : self.latent_dim], emb_out[..., self.latent_dim :]
         h = nn.LayerNorm()(h) * (1 + scale) + shift
         # TODO(zbzhu): zero initilize this Dense layer
         h = nn.Dense(self.latent_dim)(
-            nn.Dropout(rate=self.dropout)(
-                nn.activation.silu(h)
-            ),
+            nn.Dropout(rate=self.dropout)(nn.activation.silu(h)),
             kernel_init=nn.initializers.zeros,
             bias_init=nn.initializers.zeros,
         )
@@ -321,28 +358,44 @@ class BasicTransformerBlock(nn.Module):
         self.norm3 = nn.LayerNorm(epsilon=1e-5, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
         if self.time_embed_dim is not None:
-            self.stylization_block1 = StylizationBlock(self.dim, self.time_embed_dim, self.dropout)
-            self.stylization_block2 = StylizationBlock(self.dim, self.time_embed_dim, self.dropout)
-            self.stylization_block3 = StylizationBlock(self.dim, self.time_embed_dim, self.dropout)
+            self.stylization_block1 = StylizationBlock(
+                self.dim, self.time_embed_dim, self.dropout
+            )
+            self.stylization_block2 = StylizationBlock(
+                self.dim, self.time_embed_dim, self.dropout
+            )
+            self.stylization_block3 = StylizationBlock(
+                self.dim, self.time_embed_dim, self.dropout
+            )
 
     def __call__(self, hidden_states, time_embed, context, deterministic=True):
         # self attention
         residual = hidden_states
         if self.only_cross_attention:
             assert context is not None
-            hidden_states = self.attn1(self.norm1(hidden_states), context, deterministic=deterministic)
+            hidden_states = self.attn1(
+                self.norm1(hidden_states), context, deterministic=deterministic
+            )
         else:
-            hidden_states = self.attn1(self.norm1(hidden_states), deterministic=deterministic)
+            hidden_states = self.attn1(
+                self.norm1(hidden_states), deterministic=deterministic
+            )
         if self.time_embed_dim is not None:
-            hidden_states = self.stylization_block1(hidden_states, time_embed) + residual
+            hidden_states = (
+                self.stylization_block1(hidden_states, time_embed) + residual
+            )
         else:
             hidden_states = hidden_states + residual
 
         # cross attention if context is not None
         residual = hidden_states
-        hidden_states = self.attn2(self.norm2(hidden_states), context, deterministic=deterministic)
+        hidden_states = self.attn2(
+            self.norm2(hidden_states), context, deterministic=deterministic
+        )
         if self.time_embed_dim is not None:
-            hidden_states = self.stylization_block2(hidden_states, time_embed) + residual
+            hidden_states = (
+                self.stylization_block2(hidden_states, time_embed) + residual
+            )
         else:
             hidden_states = hidden_states + residual
 
@@ -350,7 +403,9 @@ class BasicTransformerBlock(nn.Module):
         residual = hidden_states
         hidden_states = self.ff(self.norm3(hidden_states), deterministic=deterministic)
         if self.time_embed_dim is not None:
-            hidden_states = self.stylization_block3(hidden_states, time_embed) + residual
+            hidden_states = (
+                self.stylization_block3(hidden_states, time_embed) + residual
+            )
         else:
             hidden_states = hidden_states + residual
 
@@ -417,4 +472,6 @@ class GEGLU(nn.Module):
     def __call__(self, hidden_states, deterministic=True):
         hidden_states = self.proj(hidden_states)
         hidden_linear, hidden_gelu = jnp.split(hidden_states, 2, axis=2)
-        return self.dropout_layer(hidden_linear * nn.gelu(hidden_gelu), deterministic=deterministic)
+        return self.dropout_layer(
+            hidden_linear * nn.gelu(hidden_gelu), deterministic=deterministic
+        )

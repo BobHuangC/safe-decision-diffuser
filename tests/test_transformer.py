@@ -14,13 +14,11 @@ def test_transformer_1d():
         d_head=32,
         depth=2,
     )
-    params = model.init(
-        jax.random.PRNGKey(0), x, None
-    )
+    params = model.init(jax.random.PRNGKey(0), x, None)
     output = model.apply(params, x, None)
 
     print(output.shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_transformer_1d()

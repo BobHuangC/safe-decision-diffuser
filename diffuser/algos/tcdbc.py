@@ -58,18 +58,18 @@ class TargetCondDiffusionBC(Algo):
             )
         elif self.policy.architecture == "transformer":
             policy_params = self.policy.init(
-            next_rng(),
-            next_rng(),
-            observations=jnp.zeros((10, self.observation_dim)),
-            actions=jnp.zeros((10, self.action_dim)),
-            observation_conditions={},
-            action_conditions={},
-            ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
-            env_ts=jnp.zeros((10,), dtype=jnp.int32),
-            returns_to_go=jnp.zeros((10, 1)),
-            cost_returns_to_go=jnp.zeros((10, 1)),
-            method=self.policy.loss,
-        )
+                next_rng(),
+                next_rng(),
+                observations=jnp.zeros((10, self.observation_dim)),
+                actions=jnp.zeros((10, self.action_dim)),
+                observation_conditions={},
+                action_conditions={},
+                ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
+                env_ts=jnp.zeros((10,), dtype=jnp.int32),
+                returns_to_go=jnp.zeros((10, 1)),
+                cost_returns_to_go=jnp.zeros((10, 1)),
+                method=self.policy.loss,
+            )
         else:
             raise NotImplementedError
 

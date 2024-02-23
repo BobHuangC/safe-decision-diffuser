@@ -84,6 +84,6 @@ def get_base_config():
     config.algo_cfg.dpm_steps = 15
     config.algo_cfg.dpm_t_end = 0.001
 
-    config.mode = "train" # or "eval"
+    config.mode = "train"  # or "eval"
 
     return config

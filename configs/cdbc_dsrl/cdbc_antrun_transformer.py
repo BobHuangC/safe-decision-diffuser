@@ -1,5 +1,6 @@
 from configs.base_cdbc import get_base_config
 
+
 def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
@@ -12,7 +13,7 @@ def get_config():
     config.returns_condition = False
     config.cost_returns_condition = True
     config.env_ts_condition = True
-    
+
     config.target_returns = "700.0,10.0"
     config.cost_limit = 10.0
 
@@ -40,6 +41,3 @@ def get_config():
     config.architecture: str = "transformer"
 
     return config
-
-
-

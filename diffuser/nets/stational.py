@@ -40,7 +40,11 @@ class CondPolicyNet(nn.Module):
         cost_returns_force_droupout: bool = False,
     ):
         emb = TimeEmbedding(self.time_embed_size, self.act)(t)
-        if self.env_ts_condition or self.returns_condition or self.cost_returns_condition:
+        if (
+            self.env_ts_condition
+            or self.returns_condition
+            or self.cost_returns_condition
+        ):
             emb = jnp.expand_dims(emb, 1)
 
         if self.env_ts_condition:
@@ -88,14 +92,20 @@ class CondPolicyNet(nn.Module):
                 else:
                     mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
                     rng, sample_key = jax.random.split(rng)
-                    mask = mask_dist.sample(seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1))
+                    mask = mask_dist.sample(
+                        seed=sample_key, sample_shape=(cost_returns_embed.shape[0], 1)
+                    )
                     cost_returns_embed = cost_returns_embed * mask
 
             if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 
-        if self.env_ts_condition or self.returns_condition or self.cost_returns_condition:
+        if (
+            self.env_ts_condition
+            or self.returns_condition
+            or self.cost_returns_condition
+        ):
             emb = nn.LayerNorm()(emb)
             emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
 
