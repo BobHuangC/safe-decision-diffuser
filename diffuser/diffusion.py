@@ -514,11 +514,7 @@ class GaussianDiffusion:
 
         rng_key, sample_key = jax.random.split(rng_key)
         x = self.sample_temperature * jax.random.normal(sample_key, shape)
-        # print(x, ' this is x')
-        # print(conditions, ' this is conditions')
         x = apply_conditioning(x, conditions, condition_dim)
-        # print(x, ' this is x after apply conditioning')
-        # exit(0)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
@@ -535,6 +531,7 @@ class GaussianDiffusion:
                 assert cost_returns_to_go is not None
                 model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
+            if self.returns_condition or self.cost_returns_condition:
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )

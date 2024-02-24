@@ -89,8 +89,7 @@ class WandBLogger(object):
     def get_default_config(updates=None):
         config = ConfigDict()
         config.team = "safediff"
-        config.online = False
-        config.project = "CDBC"
+        config.online = True
         config.output_dir = "logs"
         config.random_delay = 0.0
         config.log_dir = config_dict.placeholder(str)
@@ -127,8 +126,9 @@ class WandBLogger(object):
             entity=self.config.team,
             reinit=True,
             config=self._variant,
-            project=self.config.project,
+            project=self.config.log_dir.split("/")[1],
             dir=self.config.output_dir,
+            name=self.config.log_dir,
             anonymous=self.config.anonymous,
             notes=self.config.notes,
             settings=wandb.Settings(
