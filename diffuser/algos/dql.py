@@ -184,7 +184,9 @@ class DiffusionQL(Algo):
 
         return value_loss_fn
 
-    def get_diff_terms(self, params, observations, actions, dones, observation_conditions, rng):
+    def get_diff_terms(
+        self, params, observations, actions, dones, observation_conditions, rng
+    ):
         rng, split_rng = jax.random.split(rng)
         ts = jax.random.randint(
             split_rng, dones.shape, minval=0, maxval=self.diffusion.num_timesteps

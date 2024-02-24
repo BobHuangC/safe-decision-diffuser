@@ -39,6 +39,7 @@ from viskit.logging import logger, setup_logger
 
 import numpy as np
 
+
 class BaseTrainer:
     def __init__(self, config, use_absl: bool = True):
         if use_absl:
@@ -66,14 +67,17 @@ class BaseTrainer:
                 break
         else:
             raise NotImplementedError
-        
+
     def restore_agent(self, saved_data):
         self._agent.restore_agent_states(saved_data)
 
     def evaluate(self, saved_data):
         self._setup()
 
-        print(self._agent.train_states == saved_data, " whether the restored data equals to the saved data")
+        print(
+            self._agent.train_states == saved_data,
+            " whether the restored data equals to the saved data",
+        )
         f = open("saved_data.txt", "w")
         f.write(str(saved_data))
         f.close()
@@ -81,9 +85,11 @@ class BaseTrainer:
         f.write(str(self._agent.train_states))
         f.close()
         self.restore_agent(saved_data)
-        print(self._agent.train_states == saved_data, " whether the restored data equals to the saved data")
+        print(
+            self._agent.train_states == saved_data,
+            " whether the restored data equals to the saved data",
+        )
         print("successfully restore the agent states")
-
 
         viskit_metrics = {}
         for epoch in range(self._cfgs.n_epochs):

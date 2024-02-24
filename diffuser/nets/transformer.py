@@ -26,6 +26,7 @@ from diffuser.nets.attention import BasicTransformerBlock, StylizationBlock
 from diffuser.nets.helpers import TimeEmbedding
 from .helpers import mish
 
+
 class TransformerTemporalModel(nn.Module):
     r"""
     A Spatial Transformer layer with Gated Linear Unit (GLU) activation function as described in:
@@ -90,26 +91,29 @@ class TransformerTemporalModel(nn.Module):
         self.proj_out = nn.Dense(self.in_channels, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
         if self.time_embed_dim is not None:
-            self.stylization_block = StylizationBlock(self.in_channels, self.time_embed_dim, self.dropout)
+            self.stylization_block = StylizationBlock(
+                self.in_channels, self.time_embed_dim, self.dropout
+            )
 
     def __call__(
-        self, 
-        hidden_states, 
-        timesteps, 
-        env_ts, 
+        self,
+        hidden_states,
+        timesteps,
+        env_ts,
         returns_to_go,
         cost_returns_to_go,
-        use_dropout, 
+        use_dropout,
         # force_dropout,
         reward_returns_force_dropout,
         cost_returns_force_droupout,
-        context, 
-        deterministic=True):
+        context,
+        deterministic=True,
+    ):
         batch, length, channels = hidden_states.shape
         residual = hidden_states
         hidden_states = self.proj_in(self.norm(hidden_states))
         time_embed = self.time_encoder(timesteps)
-        
+
         env_ts_emb = nn.Embed(self.max_traj_length, self.dim)(env_ts)
         emb = jnp.stack([time_embed, env_ts_emb], axis=1)
 
@@ -137,7 +141,6 @@ class TransformerTemporalModel(nn.Module):
                     nn.Dense(self.dim),
                 ]
             )
-
 
         if self.returns_condition:
             assert returns_to_go is not None
@@ -170,9 +173,10 @@ class TransformerTemporalModel(nn.Module):
         emb = nn.LayerNorm()(emb)
         emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
 
-
         for transformer_block in self.transformer_blocks:
-            hidden_states = transformer_block(hidden_states, emb, context, deterministic=deterministic)
+            hidden_states = transformer_block(
+                hidden_states, emb, context, deterministic=deterministic
+            )
 
         hidden_states = self.proj_out(hidden_states)
 
@@ -181,8 +185,6 @@ class TransformerTemporalModel(nn.Module):
         else:
             hidden_states = hidden_states + residual
         return self.dropout_layer(hidden_states, deterministic=deterministic)
-
-
 
 
 # take in the sequence of combination of actions and states and output the action
@@ -205,22 +207,20 @@ class DiffusionDTPolicy(nn.Module):
     max_traj_length: int = 1000
     architecture: str = "transformer"
 
-
     def setup(self):
         # TODO : fix the shape of the input and others
         self.base_net = TransformerTemporalModel(
             in_channels=self.observation_dim,
             n_heads=8,
             d_head=6,
-            depth = 1,
-            dropout = 0.0,
+            depth=1,
+            dropout=0.0,
             only_cross_attention=False,
             dtype=jnp.float32,
             use_memory_efficient_attention=False,
             split_head_dim=False,
-            time_embed_dim = None
+            time_embed_dim=None,
         )
-
 
     def ddpm_sample(
         self,
@@ -302,14 +302,7 @@ class DiffusionDTPolicy(nn.Module):
         return self.diffusion.max_value
 
 
-
-
-
-
-
-
-
-# take in the sequence of states and output state, 
+# take in the sequence of states and output state,
 # but use inverse dynamics to generate the action
 # class DiffusionDTPlanner(nn.Module):
 #     diffusion: GaussianDiffusion
@@ -402,4 +395,3 @@ class DiffusionDTPolicy(nn.Module):
 #             masks=masks,
 #         )
 #         return terms
-

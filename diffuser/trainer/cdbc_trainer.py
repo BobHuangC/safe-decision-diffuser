@@ -20,7 +20,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
         self.dataset, self.eval_sampler = self._setup_dataset()
         target_returns = str_to_list(self._cfgs.target_returns)
         # assert len(target_returns) == 2, target_returns
-        assert len(target_returns) % 2== 0, target_returns 
+        assert len(target_returns) % 2 == 0, target_returns
         self.eval_sampler.set_target_returns(target_returns)
         if hasattr(self.eval_sampler.env, "set_target_cost"):
             self.eval_sampler.env.set_target_cost(target_returns[1])
@@ -45,7 +45,9 @@ class CondDiffusionBCTrainer(BaseTrainer):
 
         # setup sampler policy
         sampler_policy = SamplerPolicy(self._agent.policy)
-        self._evaluator = self._setup_evaluator(sampler_policy, self.eval_sampler, self.dataset)
+        self._evaluator = self._setup_evaluator(
+            sampler_policy, self.eval_sampler, self.dataset
+        )
 
     def _reset_target_returns(self, new_target_returns):
         target_returns = str_to_list(new_target_returns)
@@ -56,7 +58,9 @@ class CondDiffusionBCTrainer(BaseTrainer):
 
         # setup sampler policy
         sampler_policy = SamplerPolicy(self._agent.policy)
-        self._evaluator = self._setup_evaluator(sampler_policy, self.eval_sampler, self.dataset)
+        self._evaluator = self._setup_evaluator(
+            sampler_policy, self.eval_sampler, self.dataset
+        )
 
     def _setup_policy(self):
         gd = GaussianDiffusion(
@@ -89,7 +93,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
                 condition_dropout=self._cfgs.condition_dropout,
             )
         elif self._cfgs.architecture == "transformer":
-            policy = DiffusionDTPolicy( 
+            policy = DiffusionDTPolicy(
                 diffusion=gd,
                 observation_dim=self._observation_dim,
                 action_dim=self._action_dim,

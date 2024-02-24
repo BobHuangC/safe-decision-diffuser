@@ -47,22 +47,25 @@ class OnlineEvaluator(BaseEvaluator):
                     [np.sum(t["rewards"]) for t in trajs]
                 )
 
-                metrics[f"t{target_idx}-average_cost_return" + post] = cur_cost = np.mean(
-                    [np.sum(t["costs"]) for t in trajs]
-                )
+                metrics[
+                    f"t{target_idx}-average_cost_return" + post
+                ] = cur_cost = np.mean([np.sum(t["costs"]) for t in trajs])
 
                 metrics[f"t{target_idx}-cost_return_std" + post] = np.std(
                     [np.sum(t["costs"]) for t in trajs]
                 )
 
-                metrics[f"t{target_idx}-return_record" + post] = [np.sum(t["rewards"]) for t in trajs]
+                metrics[f"t{target_idx}-return_record" + post] = [
+                    np.sum(t["rewards"]) for t in trajs
+                ]
 
-                metrics[f"t{target_idx}-cost_return_record" + post] = [np.sum(t["costs"]) for t in trajs]
+                metrics[f"t{target_idx}-cost_return_record" + post] = [
+                    np.sum(t["costs"]) for t in trajs
+                ]
 
                 metrics[f"t{target_idx}-average_traj_length" + post] = np.mean(
                     [len(t["rewards"]) for t in trajs]
                 )
-
 
                 # TODO: the following to be rewritten(2024.2.21.16:53)
                 if hasattr(self._eval_sampler.env, "set_target_cost"):
@@ -75,21 +78,26 @@ class OnlineEvaluator(BaseEvaluator):
                         ],
                         axis=0,
                     )
-                    
 
-                    metrics[f"t{target_idx}-normalized_return_record" + post] = [i[0] for i in [
+                    metrics[f"t{target_idx}-normalized_return_record" + post] = [
+                        i[0]
+                        for i in [
                             self._eval_sampler.env.get_normalized_score(
                                 np.sum(t["rewards"]), np.sum(t["costs"])
                             )
                             for t in trajs
-                        ]]
+                        ]
+                    ]
 
-                    metrics[f"t{target_idx}-normalized_cost_return_record" + post] = [i[1] for i in [
+                    metrics[f"t{target_idx}-normalized_cost_return_record" + post] = [
+                        i[1]
+                        for i in [
                             self._eval_sampler.env.get_normalized_score(
                                 np.sum(t["rewards"]), np.sum(t["costs"])
                             )
                             for t in trajs
-                        ]]
+                        ]
+                    ]
                 else:
                     cur_return = np.mean(
                         [
@@ -101,16 +109,18 @@ class OnlineEvaluator(BaseEvaluator):
                     )
 
                     metrics[f"t{target_idx}-normalized_return_record" + post] = [
-                            self._eval_sampler.env.get_normalized_score(
-                                np.sum(t["rewards"])
-                            )
-                            for t in trajs
-                        ]
+                        self._eval_sampler.env.get_normalized_score(
+                            np.sum(t["rewards"])
+                        )
+                        for t in trajs
+                    ]
                     cur_cost_return = cur_cost
 
                 metrics[f"t{target_idx}-average_normalized_return" + post] = cur_return
 
-                metrics[f"t{target_idx}-average_normalized_cost_return" + post] = cur_cost_return
+                metrics[
+                    f"t{target_idx}-average_normalized_cost_return" + post
+                ] = cur_cost_return
 
                 self._recent_returns[method].append(cur_return)
                 self._recent_cost_returns[method].append(cur_cost)
@@ -119,13 +129,15 @@ class OnlineEvaluator(BaseEvaluator):
                     self._recent_returns[method]
                 )
 
-                metrics[f"t{target_idx}-best_normalized_return" + post] = self._best_returns[method] = max(
+                metrics[
+                    f"t{target_idx}-best_normalized_return" + post
+                ] = self._best_returns[method] = max(
                     self._best_returns[method], cur_return
                 )
 
-                metrics[f"t{target_idx}-average_10_normalized_cost_return" + post] = np.mean(
-                    self._recent_cost_returns[method]
-                )
+                metrics[
+                    f"t{target_idx}-average_10_normalized_cost_return" + post
+                ] = np.mean(self._recent_cost_returns[method])
 
         self.dump_metrics(metrics, epoch, suffix="_online")
         return metrics
