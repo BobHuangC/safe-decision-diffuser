@@ -88,9 +88,9 @@ class WandBLogger(object):
     @staticmethod
     def get_default_config(updates=None):
         config = ConfigDict()
-        config.team = "jax_diffrl"
+        config.team = "safediff"
         config.online = False
-        config.project = "DiffusionRL"
+        config.project = "CDBC"
         config.output_dir = "logs"
         config.random_delay = 0.0
         config.log_dir = config_dict.placeholder(str)

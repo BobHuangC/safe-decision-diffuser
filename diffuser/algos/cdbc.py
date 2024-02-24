@@ -76,7 +76,7 @@ class CondDiffusionBC(Algo):
         def get_lr(lr_decay=False):
             if lr_decay is True:
                 return optax.cosine_decay_schedule(
-                    self.config.lr, decay_steps=self.config.lr_decay_steps
+                    self.config.lr, decay_steps=self.config.lr_decay_steps, alpha=self.config.lr_decay_alpha
                 )
             else:
                 return self.config.lr

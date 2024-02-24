@@ -4,7 +4,7 @@ def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
     config.log_dir_format = (
-        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_17_2"
+        "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_20_1"
     )
     # TODO: design the logging for eval
     config.eval_log_dir_format = (
@@ -18,7 +18,7 @@ def get_config():
     config.env_ts_condition = True
     
     # TODO: design new loss setting to learn
-    config.target_returns = "575.0,10, 575.0,20, 575.0,40"
+    config.target_returns = "575.0, 0, 575.0,10, 575.0,20, 575.0,40"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200
@@ -29,6 +29,7 @@ def get_config():
     config.num_eval_envs = 10
 
     # data aug configs
+    config.aug_percent = 0.0
     config.aug_deg = 0
     config.aug_max_rew_decrease = 100
     config.aug_max_reward = 600.0
@@ -36,10 +37,10 @@ def get_config():
 
     config.condition_guidance_w = 2
 
-    config.n_epochs = 4000
+    config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
 
-    config.save_period = 50
+    config.save_period = 25
 
     # special variable for cdbc
     config.architecture: str = "mlp"
