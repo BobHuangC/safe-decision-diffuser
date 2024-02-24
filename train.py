@@ -9,6 +9,7 @@ from utilities.utils import define_flags_with_default
 
 
 def main():
+    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"]="false"
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("-g", type=int, default=0)

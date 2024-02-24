@@ -128,7 +128,6 @@ class TransformerTemporalModel(nn.Module):
             mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
         if self.cost_returns_condition:
-            assert self.returns_condition is True
             cost_returns_mlp = nn.Sequential(
                 [
                     nn.Dense(self.dim),

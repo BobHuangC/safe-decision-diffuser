@@ -31,9 +31,13 @@ class OnlineEvaluator(BaseEvaluator):
             post = "" if len(self._act_methods) == 1 else "_" + method
 
             for target_idx in range(target_nums):
+                metrics[f"t{target_idx}-average_return" + post] = None
+                metrics[f"t{target_idx}-return_std" + post] = None
+                metrics[f"t{target_idx}-average_cost_return" + post] = None
+                metrics[f"t{target_idx}-cost_return_std" + post] = None
+
+            for target_idx in range(target_nums):
                 trajs = ret_trajs[target_idx]
-                metrics[f"t{target_idx}-average_return" + post] = []
-                metrics[f"t{target_idx}-return_std" + post] = []
 
                 metrics[f"t{target_idx}-average_return" + post] = np.mean(
                     [np.sum(t["rewards"]) for t in trajs]

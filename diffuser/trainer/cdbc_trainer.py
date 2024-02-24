@@ -49,7 +49,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
 
     def _reset_target_returns(self, new_target_returns):
         target_returns = str_to_list(new_target_returns)
-        assert len(target_returns) == 2, target_returns
+        assert len(target_returns) % 2== 0, target_returns 
         self.eval_sampler.set_target_returns(target_returns)
         if hasattr(self.eval_sampler.env, "set_target_cost"):
             self.eval_sampler.env.set_target_cost(target_returns[1])

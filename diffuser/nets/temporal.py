@@ -129,6 +129,10 @@ class TemporalUnet(nn.Module):
             cost_returns = cost_returns_to_go.reshape(-1, 1)
             cost_returns_embed = cost_returns_mlp(cost_returns)
             if use_dropout:
+                rng, sample_key = jax.random.split(rng)
+                mask = mask_dist.sample(
+                    seed=sample_key, sample_shape=(returns_embed.shape[0], 1)
+                )
                 cost_returns_embed = cost_returns_embed * mask
 
             # if force_dropout:
