@@ -8,7 +8,7 @@ def get_base_config():
     config.exp_name = config_dict.required_placeholder(str)
     config.log_dir_format = config_dict.required_placeholder(str)
 
-    config.trainer = "TargetCondDiffusionBCTrainer"
+    config.trainer = "TransformerCondDiffusionBCTrainer"
     config.type = "model-free"
 
     config.env = config_dict.required_placeholder(str)
@@ -25,11 +25,11 @@ def get_base_config():
     config.target_returns = config_dict.required_placeholder(str)
 
     # data aug configs
-    config.aug_percent = 0.3
-    config.aug_deg = 2
+    config.aug_percent = 0.2
+    config.aug_deg = 4
     config.aug_max_rew_decrease = 100.0
     config.aug_beta = 1.0
-    config.aug_max_reward = 500.0
+    config.aug_max_reward = 600.0
     config.aug_min_reward = 1.0
 
     config.aug_pareto_optimal_only = False
@@ -38,10 +38,10 @@ def get_base_config():
     config.aug_max_num_per_bin = 1
 
     config.seed = 300
-    config.batch_size = 256
+    config.batch_size = 1024
     config.discount = 1.0
     config.policy_arch = "256-256-256"
-    config.condition_guidance_w = 1.2
+    config.condition_guidance_w = 1.5
     config.condition_dropout = 0.25
 
     config.n_epochs = config_dict.required_placeholder(int)
@@ -69,6 +69,16 @@ def get_base_config():
     config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "linear"
     config.algo_cfg.time_embed_size = 16
+    config.algo_cfg.time_embed_dim = 16
+
+    config.discount = 0.99
+    config.tau = 0.005
+    config.policy_tgt_freq = 5
+    config.sample_temperature = 0.5
+    config.num_timesteps = 100
+    config.schedule_name = "linear"
+    config.time_embed_size = 16
+    config.time_embed_dim = 16
 
     # learning related
     config.algo_cfg.lr = 3e-4
@@ -76,9 +86,22 @@ def get_base_config():
     config.algo_cfg.lr_decay_steps = 1000000
     config.algo_cfg.max_grad_norm = 0.0
     config.algo_cfg.weight_decay = 0.0
+    config.algo_cfg.lr_decay_alpha = 0.0
 
     # for dpm-solver
     config.algo_cfg.dpm_steps = 15
     config.algo_cfg.dpm_t_end = 0.001
+
+    config.dpm_steps = 15
+    config.dpm_t_end = 0.001
+
+    config.lr = 3e-4
+    config.lr_decay = False
+    config.lr_decay_steps = 1000000
+    config.max_grad_norm = 0.0
+    config.weight_decay = 0.0
+    config.lr_decay_alpha = 0.0
+
+    config.mode = "train"  # or "eval"
 
     return config

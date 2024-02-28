@@ -76,8 +76,6 @@ def get_base_config():
     config.algo_cfg.lr_decay_steps = 1000000
     config.algo_cfg.max_grad_norm = 0.0
     config.algo_cfg.weight_decay = 0.0
-
-    # Bo
     config.algo_cfg.lr_decay_alpha = 0.0
 
     # for dpm-solver

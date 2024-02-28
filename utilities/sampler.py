@@ -185,10 +185,10 @@ class TrajSampler(object):
                     env_ts[ready_env_ids] += 1
                 if self._target_returns is not None:
                     returns_to_go[ready_env_ids] = np.max(
-                        returns_to_go[ready_env_ids] - reward, axis = 0
+                        returns_to_go[ready_env_ids] - reward, axis=0
                     )
                     cost_returns_to_go[ready_env_ids] = np.max(
-                        cost_returns_to_go[ready_env_ids] - cost, axis = 0
+                        cost_returns_to_go[ready_env_ids] - cost, axis=0
                     )
                     # this special config to ensure that the cost_returns_to_go will not be negative
                     # cost_returns_to_go[ready_env_ids] = max(

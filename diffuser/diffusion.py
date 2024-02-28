@@ -513,7 +513,9 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
+        # x: (..., self.action_dim)
         x = self.sample_temperature * jax.random.normal(sample_key, shape)
+        # x: (..., self.action_dim)
         x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
@@ -540,7 +542,6 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    # force_dropout=True,
                     reward_returns_force_dropout=True,
                     cost_returns_force_droupout=True,
                     **model_kwargs,

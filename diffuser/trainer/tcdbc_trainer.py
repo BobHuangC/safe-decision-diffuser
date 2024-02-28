@@ -1,16 +1,16 @@
 import torch
 
-from diffuser.algos import CondDiffusionBC
+from diffuser.algos import TransformerCondDiffusionBC
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
 from diffuser.hps import hyperparameters
-from diffuser.nets import DiffusionPolicy
+from diffuser.nets import DiffusionPolicy, DiffusionDTPolicy2
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
 from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
-class CondDiffusionBCTrainer(BaseTrainer):
+class TransformerCondDiffusionBCTrainer(BaseTrainer):
     def _setup(self):
         set_random_seed(self._cfgs.seed)
         # setup logger
@@ -41,7 +41,7 @@ class CondDiffusionBCTrainer(BaseTrainer):
 
         # setup agent
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
-        self._agent = CondDiffusionBC(self._cfgs.algo_cfg, self._policy)
+        self._agent = TransformerCondDiffusionBC(self._cfgs.algo_cfg, self._policy)
 
         # setup sampler policy
         sampler_policy = SamplerPolicy(self._agent.policy)
@@ -92,7 +92,26 @@ class CondDiffusionBCTrainer(BaseTrainer):
                 cost_returns_condition=self._cfgs.cost_returns_condition,
                 condition_dropout=self._cfgs.condition_dropout,
             )
-        elif self._cfgs.architecture == "transformer":
+        elif self._cfgs.architecture == "transformer1":
+            policy = DiffusionDTPolicy2(
+                diffusion=gd,
+                observation_dim=self._observation_dim,
+                action_dim=self._action_dim,
+                arch=to_arch(self._cfgs.policy_arch),
+                time_embed_size=self._cfgs.algo_cfg.time_embed_size,
+                use_layer_norm=self._cfgs.policy_layer_norm,
+                sample_method=self._cfgs.sample_method,
+                dpm_steps=self._cfgs.algo_cfg.dpm_steps,
+                dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+                env_ts_condition=self._cfgs.env_ts_condition,
+                returns_condition=self._cfgs.returns_condition,
+                cost_returns_condition=self._cfgs.cost_returns_condition,
+                condition_dropout=self._cfgs.condition_dropout,
+            )
+        elif self._cfgs.architecture == "transformer2":
+            raise NotImplementedError
+            # policy = DiffusionDTPolicy2()
+        else:
             raise NotImplementedError
 
         return policy

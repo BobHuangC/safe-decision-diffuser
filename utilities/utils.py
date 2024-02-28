@@ -88,7 +88,7 @@ class WandBLogger(object):
     @staticmethod
     def get_default_config(updates=None):
         config = ConfigDict()
-        config.team = "safediff"
+        # config.team = "safediff"
         config.online = True
         config.output_dir = "logs"
         config.random_delay = 0.0
@@ -123,7 +123,7 @@ class WandBLogger(object):
             time.sleep(np.random.uniform(0, self.config.random_delay))
 
         self.run = wandb.init(
-            entity=self.config.team,
+            # entity=self.config.team,
             reinit=True,
             config=self._variant,
             project=self.config.log_dir.split("/")[1],

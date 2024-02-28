@@ -4,9 +4,9 @@ from configs.base_cdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/2_16_4"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_25_test"
     # TODO: design the logging for eval
-    config.eval_log_dir_format = "{exp_name}/{env}/tgt_{target_returns}-guidew_{condition_guidance_w}/{seed}/eval"
+    config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineAntRun-v0"
     config.dataset = "dsrl"
@@ -14,7 +14,6 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
 
-    # TODO: design new loss setting to learn
     config.target_returns = "650.0, 0, 700.0,10, 750.0,20, 800.0,40"
     config.cost_limit = 10.0
 
@@ -44,8 +43,12 @@ def get_config():
     config.architecture: str = "mlp"
 
     # evaluate_pro config
-    config.eval_target_reward_returns_list = "500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0"
-    config.eval_target_cost_returns_list = "0.0, 5.0, 10.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0"
+    config.eval_target_reward_returns_list = (
+        "500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0"
+    )
+    config.eval_target_cost_returns_list = (
+        "0.0, 5.0, 10.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0"
+    )
 
     # mode represents whether the config is used for training or evaluation
     config.mode = "train"  # or "eval"
@@ -56,7 +59,6 @@ def get_config():
     config.algo_cfg.lr_decay_steps = 100
     config.algo_cfg.lr_decay_alpha = 0.01
 
-
-    config.algo_cfg.sample_temperature = 0.2
+    # config.algo_cfg.sample_temperature = 0.2
 
     return config

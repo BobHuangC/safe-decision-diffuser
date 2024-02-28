@@ -282,17 +282,22 @@ class StylizationBlock(nn.Module):
     dropout: bool
 
     @nn.compact
-    def __call__(self, h, emb):
+    def __call__(self, h, emb, deterministic=True):
         emb_out = nn.Dense(2 * self.latent_dim)(nn.activation.silu(emb))
         emb_out = jnp.expand_dims(emb_out, axis=1)
         scale, shift = emb_out[..., : self.latent_dim], emb_out[..., self.latent_dim :]
         h = nn.LayerNorm()(h) * (1 + scale) + shift
         # TODO(zbzhu): zero initilize this Dense layer
-        h = nn.Dense(self.latent_dim)(
-            nn.Dropout(rate=self.dropout)(nn.activation.silu(h)),
+        h = nn.Dense(
+            self.latent_dim,
             kernel_init=nn.initializers.zeros,
             bias_init=nn.initializers.zeros,
+        )(
+            nn.Dropout(rate=self.dropout, deterministic=deterministic)(
+                nn.activation.silu(h),
+            ),
         )
+        return h
 
 
 class BasicTransformerBlock(nn.Module):

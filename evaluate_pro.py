@@ -37,7 +37,7 @@ epochs = [650, 700, 1200, 1550, 3150]
 
 
 def main():
-    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"]="false"
+    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     parser = argparse.ArgumentParser()
     # parser.add_argument("log_dir", type=str)
     parser.add_argument("-g", type=int, default=0)
@@ -121,10 +121,9 @@ def main():
         print(f"\033[92m Epoch {epoch}: {metrics} \033[00m\n")
         eval_pro_data_record["epoch"].append(epoch)
         eval_pro_data_record["target_returns"].append(eval_target_returns)
-      
+
         gc.collect()
 
-    
     import pandas as pd
 
     df = pd.DataFrame(eval_pro_data_record)

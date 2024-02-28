@@ -9,7 +9,7 @@ from diffuser.nets import (
     DiffusionPolicy,
     GaussianPolicy,
     Value,
-    DiffusionDTPolicy,
+    DiffusionDTPolicy2,
 )
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer

@@ -107,7 +107,6 @@ class CondPolicyNet(nn.Module):
             emb = emb.reshape(-1, emb.shape[1] * emb.shape[2])
 
         x = jnp.concatenate([state, action, emb], axis=-1)
-
         for feat in self.arch:
             x = nn.Dense(feat)(x)
             if self.use_layer_norm:
@@ -162,7 +161,11 @@ class DiffusionPolicy(nn.Module):
     architecture: str = "mlp"
 
     def setup(self):
-        if self.env_ts_condition or self.returns_condition:
+        if (
+            self.env_ts_condition
+            or self.returns_condition
+            or self.cost_returns_condition
+        ):
             self.base_net = CondPolicyNet(
                 output_dim=self.action_dim,
                 arch=self.arch,

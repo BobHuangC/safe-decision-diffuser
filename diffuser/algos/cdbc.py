@@ -61,9 +61,8 @@ class CondDiffusionBC(Algo):
                 next_rng(),
                 next_rng(),
                 observations=jnp.zeros((10, self.observation_dim)),
-                actions=jnp.zeros((10, self.action_dim)),
+                # actions=jnp.zeros((10, self.action_dim)),
                 observation_conditions={},
-                action_conditions={},
                 ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
                 env_ts=jnp.zeros((10,), dtype=jnp.int32),
                 returns_to_go=jnp.zeros((10, 1)),
@@ -76,7 +75,9 @@ class CondDiffusionBC(Algo):
         def get_lr(lr_decay=False):
             if lr_decay is True:
                 return optax.cosine_decay_schedule(
-                    self.config.lr, decay_steps=self.config.lr_decay_steps, alpha=self.config.lr_decay_alpha
+                    self.config.lr,
+                    decay_steps=self.config.lr_decay_steps,
+                    alpha=self.config.lr_decay_alpha,
                 )
             else:
                 return self.config.lr
@@ -112,7 +113,6 @@ class CondDiffusionBC(Algo):
         actions,
         dones,
         observation_conditions,
-        action_conditions,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
@@ -143,7 +143,6 @@ class CondDiffusionBC(Algo):
                 observations,
                 actions,
                 observation_conditions,
-                action_conditions,
                 ts,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
@@ -161,7 +160,6 @@ class CondDiffusionBC(Algo):
             actions = batch["actions"]
             dones = batch["dones"]
             observation_conditions = batch["observation_conditions"]
-            action_conditions = batch["action_conditions"]
             env_ts = batch.get("env_ts", None)
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)
@@ -171,7 +169,6 @@ class CondDiffusionBC(Algo):
                 actions=actions,
                 dones=dones,
                 observation_conditions=observation_conditions,
-                action_conditions=action_conditions,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
                 cost_returns_to_go=cost_returns_to_go,

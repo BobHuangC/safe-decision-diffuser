@@ -33,7 +33,7 @@ def update_target_network(main_params, target_params, tau):
 
 
 # compatible for both MLP and Transformer
-class TargetCondDiffusionBC(Algo):
+class TransformerCondDiffusionBC(Algo):
     def __init__(self, cfg, policy):
         self.config = cfg
         self.policy = policy
@@ -43,27 +43,14 @@ class TargetCondDiffusionBC(Algo):
 
         self._total_steps = 0
         self._train_states = {}
-        if self.policy.architecture == "mlp":
+        # architecture transformer1 corresponds to the TransformerCondPolicyNet1
+        if self.policy.architecture == "transformer1":
             policy_params = self.policy.init(
                 next_rng(),
                 next_rng(),
                 observations=jnp.zeros((10, self.observation_dim)),
                 actions=jnp.zeros((10, self.action_dim)),
                 observation_conditions={},
-                ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
-                env_ts=jnp.zeros((10,), dtype=jnp.int32),
-                returns_to_go=jnp.zeros((10, 1)),
-                cost_returns_to_go=jnp.zeros((10, 1)),
-                method=self.policy.loss,
-            )
-        elif self.policy.architecture == "transformer":
-            policy_params = self.policy.init(
-                next_rng(),
-                next_rng(),
-                observations=jnp.zeros((10, self.observation_dim)),
-                actions=jnp.zeros((10, self.action_dim)),
-                observation_conditions={},
-                action_conditions={},
                 ts=jnp.zeros((10,), dtype=jnp.int32),  # ts
                 env_ts=jnp.zeros((10,), dtype=jnp.int32),
                 returns_to_go=jnp.zeros((10, 1)),
@@ -71,6 +58,7 @@ class TargetCondDiffusionBC(Algo):
                 method=self.policy.loss,
             )
         else:
+            # TODO: add MLP acrchitecture here to simplify the code
             raise NotImplementedError
 
         def get_lr(lr_decay=False):
@@ -109,7 +97,6 @@ class TargetCondDiffusionBC(Algo):
         actions,
         dones,
         observation_conditions,
-        action_conditions,
         env_ts,
         returns_to_go,
         cost_returns_to_go,
@@ -133,14 +120,13 @@ class TargetCondDiffusionBC(Algo):
                 cost_returns_to_go=cost_returns_to_go,
                 method=self.policy.loss,
             )
-        elif self.policy.architecture == "transformer":
+        elif self.policy.architecture == "transformer1":
             terms = self.policy.apply(
                 params["policy"],
                 split_rng,
                 observations,
                 actions,
                 observation_conditions,
-                action_conditions,
                 ts,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
@@ -158,7 +144,6 @@ class TargetCondDiffusionBC(Algo):
             actions = batch["actions"]
             dones = batch["dones"]
             observation_conditions = batch["observation_conditions"]
-            action_conditions = batch["action_conditions"]
             env_ts = batch.get("env_ts", None)
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)
@@ -168,7 +153,6 @@ class TargetCondDiffusionBC(Algo):
                 actions=actions,
                 dones=dones,
                 observation_conditions=observation_conditions,
-                action_conditions=action_conditions,
                 env_ts=env_ts,
                 returns_to_go=returns_to_go,
                 cost_returns_to_go=cost_returns_to_go,
