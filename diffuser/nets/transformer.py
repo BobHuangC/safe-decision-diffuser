@@ -117,11 +117,9 @@ class TransformerTemporalModel(nn.Module):
         return self.dropout_layer(hidden_states, deterministic=deterministic)
 
 
-class TransformerCondPolicyNet2(nn.Module):
+class TransformerCondPolicyNet(nn.Module):
     r"""
     Parameters:
-        in_channels (:obj:`int`):
-            Input number of channels
         n_heads (:obj:`int`):
             Number of heads
         d_head (:obj:`int`):
@@ -141,10 +139,9 @@ class TransformerCondPolicyNet2(nn.Module):
             enabling this flag should speed up the computation for Stable Diffusion 2.x and Stable Diffusion XL.
     """
 
-    in_channels: int
+    action_dim: int
     n_heads: int
     d_head: int
-    action_dim: int
     depth: int = 1
     dropout: float = 0.0
     only_cross_attention: bool = False
@@ -181,11 +178,11 @@ class TransformerCondPolicyNet2(nn.Module):
             for _ in range(self.depth)
         ]
 
-        self.proj_out = nn.Dense(self.in_channels, dtype=self.dtype)
+        self.proj_out = nn.Dense(self.time_embed_dim, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
         if self.time_embed_dim is not None:
             self.stylization_block = StylizationBlock(
-                self.in_channels, self.time_embed_dim, self.dropout
+                self.time_embed_dim, self.time_embed_dim, self.dropout
             )
 
     @nn.compact
@@ -294,12 +291,11 @@ class TransformerCondPolicyNet2(nn.Module):
         return hidden_states
 
 
-# Corresponding to TransformerCondPolicyNet2
-class DiffusionDTPolicy2(nn.Module):
+# Corresponding to TransformerCondPolicyNet
+class DiffusionDTPolicy(nn.Module):
     diffusion: GaussianDiffusion
     observation_dim: int
     action_dim: int
-    arch: Tuple = (256, 256, 256)
     time_embed_size: int = 16
     act: callable = mish
     use_layer_norm: bool = False
@@ -311,17 +307,19 @@ class DiffusionDTPolicy2(nn.Module):
     returns_condition: bool = False
     cost_returns_condition: bool = False
     condition_dropout: float = 0.25
+    transformer_n_heads: int = 4
+    transformer_d_heads: int = 4
+    transformer_depth: int = 1
     max_traj_length: int = 1000
-    architecture: str = "transformer1"
+    architecture: str = "transformer"
 
     def setup(self):
-        self.base_net = TransformerCondPolicyNet2(
-            in_channels=16,  # specified for 2-28 test
-            n_heads=4,
-            d_head=4,
+        self.base_net = TransformerCondPolicyNet(
             action_dim=self.action_dim,
-            depth=1,
-            dropout=0.0,
+            n_heads=self.transformer_n_heads,
+            d_head=self.transformer_d_heads,
+            depth=self.transformer_depth,
+            dropout=0.1,
             only_cross_attention=False,
             dtype=jnp.float32,
             use_memory_efficient_attention=False,
@@ -404,98 +402,3 @@ class DiffusionDTPolicy2(nn.Module):
 
     def max_action(self):
         return self.diffusion.max_value
-
-
-# take in the sequence of states and output state,
-# but use inverse dynamics to generate the action
-# class DiffusionDTPlanner(nn.Module):
-#     diffusion: GaussianDiffusion
-#     observation_dim: int
-#     action_dim: int
-#     arch: Tuple = (256, 256, 256)
-#     time_embed_size: int = 16
-#     act: callable = mish
-#     use_layer_norm: bool = False
-#     use_dpm: bool = False
-#     sample_method: str = "ddpm"
-#     dpm_steps: int = 15
-#     dpm_t_end: float = 0.001
-#     env_ts_condition: bool = False
-#     returns_condition: bool = False
-#     cost_returns_condition: bool = False
-#     condition_dropout: float = 0.25
-#     max_traj_length: int = 1000
-
-#     def setup(self):
-#         self.base_net = TransformerTemporalModel(
-#             in_channels=self.observation_dim,
-#             n_heads=8,
-#             d_head=6,
-#             depth = 1,
-#             dropout = 0.0,
-#             only_cross_attention=False,
-#             dtype=jnp.float32,
-#             use_memory_efficient_attention=False,
-#             split_head_dim=False,
-#             time_embed_dim = None
-#         )
-
-#     def ddpm_sample(
-#         self,
-#         rng,
-#         observation_conditions,
-#         env_ts,
-#         deterministic=False,
-#         returns_to_go=None,
-#         cost_returns_to_go=None,
-#     ):
-#         batch_size = list(observation_conditions.values())[0].shape[0]
-#         return self.diffusion.p_sample_loop_jit(
-#             rng_key=rng,
-#             model_forward=self.base_net,
-#             shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
-#             observation_conditions=observation_conditions,
-#             condition_dim=self.sample_dim - self.action_dim,
-#             returns_to_go=returns_to_go,
-#             cost_returns_to_go=cost_returns_to_go,
-#             env_ts=env_ts,
-#             clip_denoised=True,
-#         )
-
-#     def __call__(
-#         self,
-#         rng,
-#         observation_conditions,
-#         env_ts,
-#         deterministic=False,
-#         returns_to_go=None,
-#         cost_returns_to_go=None,
-#     ):
-#         return getattr(self, f"{self.sample_method}_sample")(
-#             rng, observation_conditions, env_ts, deterministic, returns_to_go, cost_returns_to_go
-#         )
-
-#     def loss(
-#         self,
-#         rng_key,
-#         samples,
-#         observation_conditions,
-#         ts,
-#         env_ts,
-#         masks,
-#         returns_to_go=None,
-#         cost_returns_to_go=None,
-#     ):
-#         terms = self.diffusion.training_losses(
-#             rng_key,
-#             model_forward=self.base_net,
-#             x_start=samples,
-#             observation_conditions=observation_conditions,
-#             condition_dim=self.sample_dim - self.action_dim,
-#             returns_to_go=returns_to_go,
-#             cost_returns_to_go=cost_returns_to_go,
-#             env_ts=env_ts,
-#             t=ts,
-#             masks=masks,
-#         )
-#         return terms

@@ -68,17 +68,15 @@ def get_base_config():
     config.algo_cfg.sample_temperature = 0.5
     config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "linear"
-    config.algo_cfg.time_embed_size = 16
+
     config.algo_cfg.time_embed_dim = 16
 
-    config.discount = 0.99
-    config.tau = 0.005
-    config.policy_tgt_freq = 5
-    config.sample_temperature = 0.5
-    config.num_timesteps = 100
-    config.schedule_name = "linear"
-    config.time_embed_size = 16
-    config.time_embed_dim = 16
+    # Transformer Network Parameters
+    config.architecture = "transformer"
+    config.algo_cfg.time_embed_size = 16
+    config.algo_cfg.transformer_n_heads = 4
+    config.algo_cfg.transformer_d_heads = 4
+    config.algo_cfg.transformer_depth = 1
 
     # learning related
     config.algo_cfg.lr = 3e-4
@@ -91,16 +89,6 @@ def get_base_config():
     # for dpm-solver
     config.algo_cfg.dpm_steps = 15
     config.algo_cfg.dpm_t_end = 0.001
-
-    config.dpm_steps = 15
-    config.dpm_t_end = 0.001
-
-    config.lr = 3e-4
-    config.lr_decay = False
-    config.lr_decay_steps = 1000000
-    config.max_grad_norm = 0.0
-    config.weight_decay = 0.0
-    config.lr_decay_alpha = 0.0
 
     config.mode = "train"  # or "eval"
 

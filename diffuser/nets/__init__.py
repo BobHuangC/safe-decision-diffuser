@@ -3,7 +3,7 @@ from .stational import Critic, DiffusionPolicy, InverseDynamic, Value
 from .temporal import DiffusionPlanner
 from .transformer import (
     TransformerTemporalModel,
-    DiffusionDTPolicy2,
+    DiffusionDTPolicy,
 )  # DiffusionDTPlanner
 
 __all__ = [
@@ -14,6 +14,6 @@ __all__ = [
     "DiffusionPlanner",
     "InverseDynamic",
     "TransformerTemporalModel",
-    "DiffusionDTPolicy2",
+    "DiffusionDTPolicy",
     # "DiffusionDTPlanner",
 ]

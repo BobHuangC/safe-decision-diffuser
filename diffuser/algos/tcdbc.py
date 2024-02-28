@@ -43,8 +43,8 @@ class TransformerCondDiffusionBC(Algo):
 
         self._total_steps = 0
         self._train_states = {}
-        # architecture transformer1 corresponds to the TransformerCondPolicyNet1
-        if self.policy.architecture == "transformer1":
+        # architecture transformer corresponds to the TransformerCondPolicyNet1
+        if self.policy.architecture == "transformer":
             policy_params = self.policy.init(
                 next_rng(),
                 next_rng(),
@@ -120,7 +120,7 @@ class TransformerCondDiffusionBC(Algo):
                 cost_returns_to_go=cost_returns_to_go,
                 method=self.policy.loss,
             )
-        elif self.policy.architecture == "transformer1":
+        elif self.policy.architecture == "transformer":
             terms = self.policy.apply(
                 params["policy"],
                 split_rng,

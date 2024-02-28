@@ -3,7 +3,7 @@ import torch
 from diffuser.algos import TransformerCondDiffusionBC
 from diffuser.diffusion import GaussianDiffusion, LossType, ModelMeanType, ModelVarType
 from diffuser.hps import hyperparameters
-from diffuser.nets import DiffusionPolicy, DiffusionDTPolicy2
+from diffuser.nets import DiffusionPolicy, DiffusionDTPolicy
 from diffuser.policy import SamplerPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
@@ -92,12 +92,11 @@ class TransformerCondDiffusionBCTrainer(BaseTrainer):
                 cost_returns_condition=self._cfgs.cost_returns_condition,
                 condition_dropout=self._cfgs.condition_dropout,
             )
-        elif self._cfgs.architecture == "transformer1":
-            policy = DiffusionDTPolicy2(
+        elif self._cfgs.architecture == "transformer":
+            policy = DiffusionDTPolicy(
                 diffusion=gd,
                 observation_dim=self._observation_dim,
                 action_dim=self._action_dim,
-                arch=to_arch(self._cfgs.policy_arch),
                 time_embed_size=self._cfgs.algo_cfg.time_embed_size,
                 use_layer_norm=self._cfgs.policy_layer_norm,
                 sample_method=self._cfgs.sample_method,
@@ -107,10 +106,10 @@ class TransformerCondDiffusionBCTrainer(BaseTrainer):
                 returns_condition=self._cfgs.returns_condition,
                 cost_returns_condition=self._cfgs.cost_returns_condition,
                 condition_dropout=self._cfgs.condition_dropout,
+                transformer_n_heads=self._cfgs.algo_cfg.transformer_n_heads,
+                transformer_d_heads=self._cfgs.algo_cfg.transformer_d_heads,
+                transformer_depth=self._cfgs.algo_cfg.transformer_depth,
             )
-        elif self._cfgs.architecture == "transformer2":
-            raise NotImplementedError
-            # policy = DiffusionDTPolicy2()
         else:
             raise NotImplementedError
 

@@ -4,8 +4,8 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_28_test1"
-    # TODO: design the logging for eval
+    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_28_6"
+    # config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/test"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineAntRun-v0"
@@ -32,13 +32,15 @@ def get_config():
     config.aug_max_reward = 1000.0
     config.aug_min_reward = 1.0
 
+    config.batch_size = 256
+
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
 
     config.save_period = 25
 
     # special variable for cdbc
-    config.architecture: str = "transformer1"
+    config.architecture: str = "transformer"
 
     # evaluate_pro config
     config.eval_target_reward_returns_list = (
@@ -51,10 +53,14 @@ def get_config():
     # mode represents whether the config is used for training or evaluation
     config.mode = "train"  # or "eval"
 
+    config.algo_cfg.transformer_n_heads = 6
+    config.algo_cfg.transformer_d_heads = 8
+    config.algo_cfg.transformer_depth = 3
+
     # learning related
-    config.algo_cfg.lr = 1e-4
-    config.algo_cfg.lr_decay = False
-    config.algo_cfg.lr_decay_steps = 100
+    config.algo_cfg.lr = 1e-3
+    config.algo_cfg.lr_decay = True
+    config.algo_cfg.lr_decay_steps = 300
     config.algo_cfg.lr_decay_alpha = 0.01
 
     config.algo_cfg.dpm_steps = 15
