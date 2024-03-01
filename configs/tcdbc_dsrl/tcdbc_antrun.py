@@ -4,7 +4,7 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_28_6"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/3_1_5"
     # config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/test"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
@@ -61,7 +61,7 @@ def get_config():
     config.algo_cfg.lr = 1e-3
     config.algo_cfg.lr_decay = True
     config.algo_cfg.lr_decay_steps = 300
-    config.algo_cfg.lr_decay_alpha = 0.01
+    config.algo_cfg.lr_decay_alpha = 0.05
 
     config.algo_cfg.dpm_steps = 15
 

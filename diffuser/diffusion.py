@@ -558,6 +558,7 @@ class GaussianDiffusion:
             out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
             x = out["sample"]
             x = apply_conditioning(x, conditions, condition_dim)
+        # print('line 565 in diffusion.py for p_sample_loop finish')
         return x
 
     def p_sample_loop_jit(

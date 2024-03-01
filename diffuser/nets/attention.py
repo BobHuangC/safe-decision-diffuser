@@ -362,18 +362,61 @@ class BasicTransformerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(epsilon=1e-5, dtype=self.dtype)
         self.norm3 = nn.LayerNorm(epsilon=1e-5, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
-        if self.time_embed_dim is not None:
-            self.stylization_block1 = StylizationBlock(
-                self.dim, self.time_embed_dim, self.dropout
-            )
-            self.stylization_block2 = StylizationBlock(
-                self.dim, self.time_embed_dim, self.dropout
-            )
-            self.stylization_block3 = StylizationBlock(
-                self.dim, self.time_embed_dim, self.dropout
-            )
+        # if self.time_embed_dim is not None:
+        #     self.stylization_block1 = StylizationBlock(
+        #         self.dim, self.time_embed_dim, self.dropout
+        #     )
+        #     self.stylization_block2 = StylizationBlock(
+        #         self.dim, self.time_embed_dim, self.dropout
+        #     )
+        #     self.stylization_block3 = StylizationBlock(
+        #         self.dim, self.time_embed_dim, self.dropout
+        #     )
 
-    def __call__(self, hidden_states, time_embed, context, deterministic=True):
+    # def __call__(self, hidden_states, time_embed, context, deterministic=True):
+    #     # self attention
+    #     residual = hidden_states
+    #     if self.only_cross_attention:
+    #         assert context is not None
+    #         hidden_states = self.attn1(
+    #             self.norm1(hidden_states), context, deterministic=deterministic
+    #         )
+    #     else:
+    #         hidden_states = self.attn1(
+    #             self.norm1(hidden_states), deterministic=deterministic
+    #         )
+    #     if self.time_embed_dim is not None:
+    #         hidden_states = (
+    #             self.stylization_block1(hidden_states, time_embed) + residual
+    #         )
+    #     else:
+    #         hidden_states = hidden_states + residual
+
+    #     # cross attention if context is not None
+    #     residual = hidden_states
+    #     hidden_states = self.attn2(
+    #         self.norm2(hidden_states), context, deterministic=deterministic
+    #     )
+    #     if self.time_embed_dim is not None:
+    #         hidden_states = (
+    #             self.stylization_block2(hidden_states, time_embed) + residual
+    #         )
+    #     else:
+    #         hidden_states = hidden_states + residual
+
+    #     # feed forward
+    #     residual = hidden_states
+    #     hidden_states = self.ff(self.norm3(hidden_states), deterministic=deterministic)
+    #     if self.time_embed_dim is not None:
+    #         hidden_states = (
+    #             self.stylization_block3(hidden_states, time_embed) + residual
+    #         )
+    #     else:
+    #         hidden_states = hidden_states + residual
+
+    #     return self.dropout_layer(hidden_states, deterministic=deterministic)
+            
+    def __call__(self, hidden_states, context, deterministic=True):
         # self attention
         residual = hidden_states
         if self.only_cross_attention:
@@ -385,34 +428,34 @@ class BasicTransformerBlock(nn.Module):
             hidden_states = self.attn1(
                 self.norm1(hidden_states), deterministic=deterministic
             )
-        if self.time_embed_dim is not None:
-            hidden_states = (
-                self.stylization_block1(hidden_states, time_embed) + residual
-            )
-        else:
-            hidden_states = hidden_states + residual
+        # if self.time_embed_dim is not None:
+        #     hidden_states = (
+        #         self.stylization_block1(hidden_states, time_embed) + residual
+        #     )
+        # else:
+        hidden_states = hidden_states + residual
 
         # cross attention if context is not None
         residual = hidden_states
         hidden_states = self.attn2(
             self.norm2(hidden_states), context, deterministic=deterministic
         )
-        if self.time_embed_dim is not None:
-            hidden_states = (
-                self.stylization_block2(hidden_states, time_embed) + residual
-            )
-        else:
-            hidden_states = hidden_states + residual
+        # if self.time_embed_dim is not None:
+        #     hidden_states = (
+        #         self.stylization_block2(hidden_states, time_embed) + residual
+        #     )
+        # else:
+        hidden_states = hidden_states + residual
 
         # feed forward
         residual = hidden_states
         hidden_states = self.ff(self.norm3(hidden_states), deterministic=deterministic)
-        if self.time_embed_dim is not None:
-            hidden_states = (
-                self.stylization_block3(hidden_states, time_embed) + residual
-            )
-        else:
-            hidden_states = hidden_states + residual
+        # if self.time_embed_dim is not None:
+        #     hidden_states = (
+        #         self.stylization_block3(hidden_states, time_embed) + residual
+        #     )
+        # else:
+        hidden_states = hidden_states + residual
 
         return self.dropout_layer(hidden_states, deterministic=deterministic)
 

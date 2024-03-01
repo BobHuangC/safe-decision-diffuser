@@ -81,7 +81,9 @@ class BaseTrainer:
             with Timer() as eval_timer:
                 if self._cfgs.eval_period > 0 and epoch % self._cfgs.eval_period == 0:
                     self._evaluator.update_params(self._agent.eval_params)
+                    # print('line 87 in base_trainer.py')
                     eval_metrics = self._evaluator.evaluate(epoch)
+                    # print('line 89 in base_trainer.py')
                     metrics.update(eval_metrics)
 
                 if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:

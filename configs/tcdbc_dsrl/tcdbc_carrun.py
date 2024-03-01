@@ -4,8 +4,8 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    # config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_28_4"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/test"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_28_1"
+    # config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/test"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineCarRun-v0"

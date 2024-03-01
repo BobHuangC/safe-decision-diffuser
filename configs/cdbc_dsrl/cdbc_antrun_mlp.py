@@ -4,7 +4,7 @@ from configs.base_cdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "cdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/2_25_test"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}/{seed}/test"
     # TODO: design the logging for eval
     config.eval_log_dir_format = "{log_dir_format}/eval"
 

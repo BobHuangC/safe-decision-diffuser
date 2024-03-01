@@ -25,7 +25,9 @@ class OnlineEvaluator(BaseEvaluator):
     def evaluate(self, epoch: int) -> Dict[str, Any]:
         metrics = {}
         for method in self._act_methods:
+            print('line 28 in online_evaluator.py')
             ret_trajs = self._sample_trajs(method)
+            print('line 30 in online_evaluator.py')
             target_nums = len(ret_trajs)
             # post: the flag representing the method
             post = "" if len(self._act_methods) == 1 else "_" + method
@@ -144,9 +146,11 @@ class OnlineEvaluator(BaseEvaluator):
 
     def _sample_trajs(self, act_method: str):
         self._policy.act_method = act_method
+        print('line 149 in online_evaluator.py')
         trajs = self._eval_sampler.sample(
             self._policy,
             self._cfgs.eval_n_trajs,
             deterministic=True,
         )
+        print('line 155 in online_evaluator.py')
         return trajs
