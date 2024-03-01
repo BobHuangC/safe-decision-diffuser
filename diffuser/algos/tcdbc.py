@@ -57,9 +57,8 @@ class TransformerCondDiffusionBC(Algo):
                 cost_returns_to_go=jnp.zeros((10, 1)),
                 method=self.policy.loss,
             )
-            print("line 69 in tcdbc.py for TransformerCondDiffusionBC init finish")
         else:
-            # TODO: add MLP acrchitecture here to simplify the code
+            # TODO(Bob HuangC): add MLP acrchitecture here to simplify the code
             raise NotImplementedError
 
         def get_lr(lr_decay=False):

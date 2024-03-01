@@ -18,7 +18,6 @@ class TransformerCondDiffusionBCTrainer(BaseTrainer):
 
         # setup dataset and eval_sample
         self.dataset, self.eval_sampler = self._setup_dataset()
-        print("setup dataset and eval_sampler in line 21")
         target_returns = str_to_list(self._cfgs.target_returns)
         # assert len(target_returns) == 2, target_returns
         assert len(target_returns) % 2 == 0, target_returns
@@ -26,7 +25,6 @@ class TransformerCondDiffusionBCTrainer(BaseTrainer):
         if hasattr(self.eval_sampler.env, "set_target_cost"):
             self.eval_sampler.env.set_target_cost(target_returns[1])
         data_sampler = torch.utils.data.RandomSampler(self.dataset)
-        print("data_sampler in line 28")
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
                 self.dataset,
@@ -37,21 +35,17 @@ class TransformerCondDiffusionBCTrainer(BaseTrainer):
                 num_workers=8,
             )
         )
-        print("dataloader in line 40")
         # setup policy
         self._policy = self._setup_policy()
-        print("policy in line 43")
 
         # setup agent
         self._cfgs.algo_cfg.max_grad_norm = hyperparameters[self._cfgs.env]["gn"]
         self._agent = TransformerCondDiffusionBC(self._cfgs.algo_cfg, self._policy)
-        print("agent in line 48")
         # setup sampler policy
         sampler_policy = SamplerPolicy(self._agent.policy)
         self._evaluator = self._setup_evaluator(
             sampler_policy, self.eval_sampler, self.dataset
         )
-        print("evaluator in line 54")
 
     def _reset_target_returns(self, new_target_returns):
         target_returns = str_to_list(new_target_returns)
