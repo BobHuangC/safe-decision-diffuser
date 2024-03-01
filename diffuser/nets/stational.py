@@ -224,9 +224,10 @@ class DiffusionPolicy(nn.Module):
 
         shape = observations.shape[:-1] + (self.action_dim,)
 
-        return self.diffusion.p_sample_loop(
+        return self.diffusion.p_sample_loop_jit_with_observation(
             rng_key=rng,
-            model_forward=partial(self.base_net, observations),
+            model_forward=self.base_net,
+            observations=observations,
             shape=shape,
             conditions=observation_conditions,
             returns_to_go=returns_to_go,

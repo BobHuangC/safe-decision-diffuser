@@ -415,7 +415,7 @@ class BasicTransformerBlock(nn.Module):
     #         hidden_states = hidden_states + residual
 
     #     return self.dropout_layer(hidden_states, deterministic=deterministic)
-            
+
     def __call__(self, hidden_states, context, deterministic=True):
         # self attention
         residual = hidden_states

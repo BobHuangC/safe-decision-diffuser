@@ -146,7 +146,7 @@ class TransformerCondPolicyNet(nn.Module):
     dropout: float = 0.0
     only_cross_attention: bool = False
     dtype: jnp.dtype = jnp.float32
-    use_memory_efficient_attention: bool = False
+    use_memory_efficient_attention: bool = True
     split_head_dim: bool = False
     time_embed_dim: int = 16
     max_traj_length: int = 1000
@@ -201,7 +201,6 @@ class TransformerCondPolicyNet(nn.Module):
             self.stylization_block = StylizationBlock(
                 self.time_embed_dim, self.time_embed_dim, self.dropout
             )
-        # print('line 209 in transformer.py')
 
     @nn.compact
     def __call__(
@@ -226,7 +225,6 @@ class TransformerCondPolicyNet(nn.Module):
         if self.returns_condition:
             mask_dist = distrax.Bernoulli(probs=1 - self.condition_dropout)
 
-
         env_ts_emb = nn.Embed(self.max_traj_length, self.time_embed_dim)(env_ts)
 
         time_embed = self.time_encoder(timesteps) + env_ts_emb
@@ -235,8 +233,7 @@ class TransformerCondPolicyNet(nn.Module):
         if self.returns_condition:
             assert returns_to_go is not None
             returns_to_go = returns_to_go.reshape(-1, 1)
-            returns_embed = self.returns_MLP(returns_to_go)
-            returns_embed = jnp.expand_dims(returns_embed, 1) + env_ts_emb
+            returns_embed = self.returns_MLP(returns_to_go) + env_ts_emb
             if use_dropout:
                 rng, sample_key = jax.random.split(rng)
                 mask = mask_dist.sample(
@@ -246,30 +243,28 @@ class TransformerCondPolicyNet(nn.Module):
 
             if reward_returns_force_dropout:
                 returns_embed = returns_embed * 0
-            emb = jnp.concatenate([emb, returns_embed], axis=1)
+            emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
         if self.cost_returns_condition:
             assert cost_returns_to_go is not None
             cost_returns = cost_returns_to_go.reshape(-1, 1)
-            cost_returns_embed = self.cost_returns_MLP(cost_returns)
-            cost_returns_embed = jnp.expand_dims(cost_returns_embed, 1) + env_ts_emb
+            cost_returns_embed = self.cost_returns_MLP(cost_returns) + env_ts_emb
             if use_dropout:
                 cost_returns_embed = cost_returns_embed * mask
 
             if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
-            emb = jnp.concatenate([emb, cost_returns_embed], axis=1)
+            emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 
         obs_MLP = nn.Dense(self.time_embed_dim)
         obs_emb = obs_MLP(observations)
-        obs_emb = jnp.expand_dims(obs_emb, 1) + env_ts_emb
+        obs_emb = jnp.expand_dims(obs_emb + env_ts_emb, 1)
         emb = jnp.concatenate([emb, obs_emb], axis=1)
 
         act_MLP = nn.Dense(self.time_embed_dim)
         act_emb = act_MLP(hidden_states)
-        act_emb = jnp.expand_dims(act_emb, 1) + env_ts_emb
+        act_emb = jnp.expand_dims(act_emb + env_ts_emb, 1)
         emb = jnp.concatenate([emb, act_emb], axis=1)
-        # emb = jnp.concatenate([emb, jnp.expand_dims(act_emb, 1)], axis=1)
         emb = nn.LayerNorm(epsilon=1e-5)(emb)
 
         # Then pass the emb into the TransformerBlock
@@ -279,13 +274,8 @@ class TransformerCondPolicyNet(nn.Module):
         time_embed = self.time_encoder(timesteps)
 
         for transformer_block in self.transformer_blocks:
-            emb = transformer_block(
-                emb, context, deterministic=deterministic
-            )
+            emb = transformer_block(emb, context, deterministic=deterministic)
         emb = self.proj_out(emb)
-        # if self.time_embed_dim is not None:
-        #     emb = self.stylization_block(emb, time_embed) + residual
-        # else:
         emb = emb + residual
 
         emb = self.dropout_layer(emb, deterministic=deterministic)
@@ -293,7 +283,6 @@ class TransformerCondPolicyNet(nn.Module):
 
         hidden_states = emb[:, -1, :]
         hidden_states = nn.Dense(self.action_dim)(hidden_states)
-        # print("line 309 in transformer.py")
         return hidden_states
 
 
@@ -332,7 +321,6 @@ class DiffusionDTPolicy(nn.Module):
             split_head_dim=False,
             time_embed_dim=self.time_embed_size,
         )
-        # print('line 348 in transformer.py for DiffusionDTPolicy set up success')
 
     def ddpm_sample(
         self,
@@ -350,9 +338,10 @@ class DiffusionDTPolicy(nn.Module):
 
         # shape: (..., action_dim)
         shape = observations.shape[:-1] + (self.action_dim,)
-        sample = self.diffusion.p_sample_loop(
+        return self.diffusion.p_sample_loop_jit_with_observation(
             rng_key=rng,
-            model_forward=partial(self.base_net, observations),
+            model_forward=self.base_net,
+            observations=observations,
             shape=shape,
             conditions=observation_conditions,
             returns_to_go=returns_to_go,
@@ -360,8 +349,6 @@ class DiffusionDTPolicy(nn.Module):
             env_ts=env_ts,
             clip_denoised=True,
         )
-        # print('line 377 in transformer.py for ddpm_sample finish')
-        return sample
 
     def __call__(
         self,
@@ -374,8 +361,7 @@ class DiffusionDTPolicy(nn.Module):
         cost_returns_to_go=None,
         repeat=None,
     ):
-        # print('line 392 in transformer.py')
-        sample = getattr(self, f"{self.sample_method}_sample")(
+        return getattr(self, f"{self.sample_method}_sample")(
             rng,
             observations,
             observation_conditions,
@@ -385,18 +371,6 @@ class DiffusionDTPolicy(nn.Module):
             cost_returns_to_go,
             repeat,
         )
-        # print('line 403 in transformer.py')
-        return sample
-        # return getattr(self, f"{self.sample_method}_sample")(
-        #     rng,
-        #     observations,
-        #     observation_conditions,
-        #     env_ts,
-        #     deterministic,
-        #     returns_to_go,
-        #     cost_returns_to_go,
-        #     repeat,
-        # )
 
     def loss(
         self,

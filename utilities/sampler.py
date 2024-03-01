@@ -119,7 +119,6 @@ class TrajSampler(object):
         deterministic: bool = False,
         env_render_fn: str = "render",
     ):
-        print('line 125 in sampler.py')
         # trajs: len(target_returns) * n_trajs traj
         # each traj is sampled guided by one of the target_returns
         ret_trajs = []
@@ -132,10 +131,8 @@ class TrajSampler(object):
                 cost_returns_to_go = np.ones(len(ready_env_ids)) * tmp_target_returns[1]
             if self.use_env_ts:
                 env_ts = np.zeros(len(ready_env_ids), dtype=np.int32)
-            print('line 138 in sampler.py')
             observation, _ = self.envs.reset(ready_env_ids)
             observation = self._normalizer.normalize(observation, "observations")
-            print('line 141 in sampler.py')
 
             if self.history_horizon > 0:
                 obs_queue = deque(maxlen=self.history_horizon + 1)
@@ -152,7 +149,6 @@ class TrajSampler(object):
 
             trajs = []
             n_finished_trajs = 0
-            # print('line 157 in sampler.py')
             while True:
                 policy_kwargs = {}
                 if self._target_returns is not None:
@@ -170,11 +166,9 @@ class TrajSampler(object):
                     full_observation = np.stack(list(obs_queue), axis=1)
                 else:
                     full_observation = np.expand_dims(observation, axis=1)
-                # print('line 173 in sampler.py')
                 action = policy(
                     full_observation, deterministic=deterministic, **policy_kwargs
                 )
-                # print('line 177 in sampler.py')
                 action = self._normalizer.unnormalize(action, "actions")
 
                 next_observation, reward, terminated, truncated, info = self.envs.step(

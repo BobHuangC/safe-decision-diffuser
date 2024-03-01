@@ -561,7 +561,7 @@ class GaussianDiffusion:
         # print('line 565 in diffusion.py for p_sample_loop finish')
         return x
 
-    def p_sample_loop_jit(
+    def p_sample_loop_jit_no_observation(
         self,
         rng_key,
         model_forward,
@@ -610,7 +610,6 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    # force_dropout=True,
                     reward_returns_force_dropout=True,
                     cost_returns_force_droupout=True,
                     **model_kwargs,
@@ -620,6 +619,89 @@ class GaussianDiffusion:
                 )
             else:
                 model_output = mdl(None, x, self._scale_timesteps(t), **model_kwargs)
+
+            rng_key, sample_key = jax.random.split(rng_key)
+            out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
+            x = out["sample"]
+            x = apply_conditioning(x, conditions, condition_dim)
+
+            return i + 1, rng_key, x
+
+        def loop_stop_fn(mdl, c):
+            i, _, _ = c
+            return i < self.num_timesteps
+
+        _, _, x = flax.linen.while_loop(
+            loop_stop_fn, body_fn, model_forward, (0, rng_key, x)
+        )
+
+        return x
+
+    def p_sample_loop_jit_with_observation(
+        self,
+        rng_key,
+        model_forward,
+        observations,
+        shape,
+        conditions,
+        condition_dim=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
+        clip_denoised=True,
+        cond_fn=None,
+    ):
+        """
+        A loop-jitted version of p_sample_loop().
+        Used for base net which inputs observations(cdbc-MLP, cdbc-Transformer)
+        """
+
+        rng_key, sample_key = jax.random.split(rng_key)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
+        x = apply_conditioning(x, conditions, condition_dim)
+
+        indices = np.arange(self.num_timesteps)[::-1]
+
+        def body_fn(mdl, val):
+            i, rng_key, x = val
+            t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
+
+            model_kwargs = {}
+            if self.env_ts_condition:
+                assert env_ts is not None
+                model_kwargs["env_ts"] = env_ts
+            if self.returns_condition:
+                assert returns_to_go is not None
+                model_kwargs["returns_to_go"] = returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+
+                model_output_cond = mdl(
+                    observations,
+                    None,
+                    x,
+                    self._scale_timesteps(t),
+                    use_dropout=False,
+                    **model_kwargs,
+                )
+                rng_key, sample_key = jax.random.split(rng_key)
+                model_output_uncond = mdl(
+                    observations,
+                    sample_key,
+                    x,
+                    self._scale_timesteps(t),
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
+                    **model_kwargs,
+                )
+                model_output = model_output_uncond + self.condition_guidance_w * (
+                    model_output_cond - model_output_uncond
+                )
+            else:
+                model_output = mdl(
+                    observations, None, x, self._scale_timesteps(t), **model_kwargs
+                )
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)

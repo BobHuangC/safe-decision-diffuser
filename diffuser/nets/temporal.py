@@ -242,7 +242,7 @@ class DiffusionPlanner(nn.Module):
         cost_returns_to_go=None,
     ):
         batch_size = list(conditions.values())[0].shape[0]
-        return self.diffusion.p_sample_loop_jit(
+        return self.diffusion.p_sample_loop_jit_no_observation(
             rng_key=rng,
             model_forward=self.base_net,
             shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
