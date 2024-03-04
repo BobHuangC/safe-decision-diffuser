@@ -845,6 +845,7 @@ class GaussianDiffusion:
         condition_dim=None,
         returns_to_go=None,
         cost_returns_to_go=None,
+        deterministic=False,
     ):
         """
         Compute training losses for a single timestep.
@@ -868,6 +869,8 @@ class GaussianDiffusion:
             model_kwargs["returns_to_go"] = returns_to_go
         if self.cost_returns_condition:
             model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+        if deterministic:
+            model_kwargs["deterministic"] = deterministic
 
         rng_key, sample_key = jax.random.split(rng_key)
         model_output = model_forward(

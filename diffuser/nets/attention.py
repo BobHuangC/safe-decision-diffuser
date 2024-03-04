@@ -196,7 +196,7 @@ class Attention(nn.Module):
         return tensor
 
     def __call__(
-        self, hidden_states, context=None, attention_mask=None, deterministic=True
+        self, rng, hidden_states, context=None, attention_mask=None, deterministic=True
     ):
         context = hidden_states if context is None else context
 
@@ -273,7 +273,11 @@ class Attention(nn.Module):
                 hidden_states = self.reshape_batch_dim_to_heads(hidden_states)
 
         hidden_states = self.proj_attn(hidden_states)
-        return self.dropout_layer(hidden_states, deterministic=deterministic)
+        if deterministic:
+            return self.dropout_layer(hidden_states, deterministic=deterministic)
+        else:
+            rng, sample_key = jax.random.split(rng)
+            return self.dropout_layer(hidden_states, deterministic=deterministic, rng=sample_key)
 
 
 class StylizationBlock(nn.Module):
@@ -362,33 +366,60 @@ class BasicTransformerBlock(nn.Module):
         self.norm3 = nn.LayerNorm(epsilon=1e-5, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
 
-    def __call__(self, hidden_states, context, deterministic=True):
+    def __call__(self, rng, hidden_states, context, deterministic=True):
         # self attention
         residual = hidden_states
         if self.only_cross_attention:
             assert context is not None
-            hidden_states = self.attn1(
-                self.norm1(hidden_states), context, deterministic=deterministic
-            )
+            if deterministic:
+                hidden_states = self.attn1(
+                    None, self.norm1(hidden_states), context, deterministic=deterministic
+                )
+            else:
+                rng, sample_key = jax.random.split(rng)
+                hidden_states = self.attn1(
+                    sample_key, self.norm1(hidden_states), context, deterministic=deterministic
+                )
         else:
-            hidden_states = self.attn1(
-                self.norm1(hidden_states), deterministic=deterministic
-            )
+            if deterministic:
+                hidden_states = self.attn1(
+                    None, self.norm1(hidden_states), deterministic=deterministic
+                )
+            else:
+                rng, sample_key = jax.random.split(rng)
+                hidden_states = self.attn1(
+                    sample_key, self.norm1(hidden_states), deterministic=deterministic
+                )
         hidden_states = hidden_states + residual
 
         # cross attention if context is not None
         residual = hidden_states
-        hidden_states = self.attn2(
-            self.norm2(hidden_states), context, deterministic=deterministic
-        )
+        if deterministic:
+            hidden_states = self.attn2(
+                None, self.norm2(hidden_states), context, deterministic=deterministic
+            )
+        else:
+            rng, sample_key = jax.random.split(rng)
+            hidden_states = self.attn2(
+                sample_key, self.norm2(hidden_states), context, deterministic=deterministic
+            )
         hidden_states = hidden_states + residual
 
         # feed forward
         residual = hidden_states
-        hidden_states = self.ff(self.norm3(hidden_states), deterministic=deterministic)
+        if deterministic:
+            hidden_states = self.ff(None, self.norm3(hidden_states), deterministic=deterministic)
+        else:
+            rng, sample_key = jax.random.split(rng)
+            hidden_states = self.ff(
+                sample_key, self.norm3(hidden_states), deterministic=deterministic
+            )
         hidden_states = hidden_states + residual
-
-        return self.dropout_layer(hidden_states, deterministic=deterministic)
+        if deterministic:
+            return self.dropout_layer(hidden_states, deterministic=deterministic)
+        else:
+            rng, sample_key = jax.random.split(rng)
+            return self.dropout_layer(hidden_states, deterministic=deterministic, rng=sample_key)
 
 
 class FeedForward(nn.Module):
@@ -419,8 +450,12 @@ class FeedForward(nn.Module):
         self.net_0 = GEGLU(self.dim, self.dropout, self.dtype)
         self.net_2 = nn.Dense(self.dim, dtype=self.dtype)
 
-    def __call__(self, hidden_states, deterministic=True):
-        hidden_states = self.net_0(hidden_states, deterministic=deterministic)
+    def __call__(self, rng, hidden_states, deterministic=True):
+        if deterministic:
+            hidden_states = self.net_0(None, hidden_states, deterministic=deterministic)
+        else:
+            rng, sample_key = jax.random.split(rng)
+            hidden_states = self.net_0(sample_key, hidden_states, deterministic=deterministic)
         hidden_states = self.net_2(hidden_states)
         return hidden_states
 
@@ -448,9 +483,16 @@ class GEGLU(nn.Module):
         self.proj = nn.Dense(inner_dim * 2, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
 
-    def __call__(self, hidden_states, deterministic=True):
+    def __call__(self, rng, hidden_states, deterministic=True):
         hidden_states = self.proj(hidden_states)
         hidden_linear, hidden_gelu = jnp.split(hidden_states, 2, axis=2)
-        return self.dropout_layer(
-            hidden_linear * nn.gelu(hidden_gelu), deterministic=deterministic
-        )
+        if deterministic:
+            return self.dropout_layer(
+                hidden_linear * nn.gelu(hidden_gelu), deterministic=deterministic
+            )
+        else:
+            rng, sample_key = jax.random.split(rng)
+            return self.dropout_layer(
+                hidden_linear * nn.gelu(hidden_gelu), deterministic=deterministic, rng=sample_key
+            )
+

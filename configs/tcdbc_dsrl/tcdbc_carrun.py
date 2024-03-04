@@ -14,7 +14,7 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
 
-    config.target_returns = "650.0,0, 700.0,10, 750.0,20, 800.0,40"
+    config.target_returns = "575.0,10, 575.0,20, 575.0,40"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200
@@ -25,12 +25,10 @@ def get_config():
     config.num_eval_envs = 10
 
     # data aug configs
-    config.aug_percent = 0.2
-    config.aug_deg = 3
-    config.aug_max_rew_decrease = 150.0
-    config.aug_beta = 1.0
-    config.aug_max_reward = 1000.0
-    config.aug_min_reward = 1.0
+    config.aug_deg = 0
+    config.aug_max_rew_decrease = 100
+    config.aug_max_reward = 600.0
+    config.aug_min_reward = 1
 
     config.batch_size = 256
 

@@ -84,6 +84,7 @@ class TransformerCondPolicyNet(nn.Module):
 
         self.proj_out = nn.Dense(self.embedding_dim, dtype=self.dtype)
         self.dropout_layer = nn.Dropout(rate=self.dropout)
+        self.input_dropout = nn.Dropout(rate=self.dropout)
 
     @nn.compact
     def __call__(
@@ -148,16 +149,23 @@ class TransformerCondPolicyNet(nn.Module):
 
         input_embed = jnp.stack(input_embed, axis=1)
         input_embed = nn.LayerNorm(epsilon=1e-5)(input_embed)
-        input_embed = nn.Dropout(rate=self.dropout, deterministic=deterministic)(
-            input_embed
-        )
+        if deterministic:
+            input_embed = self.input_dropout(input_embed, deterministic=deterministic)
+        else:
+            rng, sample_key = jax.random.split(rng)
+            input_embed = self.input_dropout(input_embed, deterministic=deterministic, rng = sample_key)
+
 
         # Then pass the emb into the TransformerBlock
         residual = input_embed
         embed = self.proj_in(input_embed)
 
         for transformer_block in self.transformer_blocks:
-            embed = transformer_block(embed, context, deterministic=deterministic)
+            if deterministic:
+                embed = transformer_block(None, embed, context, deterministic=deterministic)
+            else:
+                rng, sample_key = jax.random.split(rng)
+                embed = transformer_block(sample_key, embed, context, deterministic=deterministic)
         output_embed = self.proj_out(embed)
         output_embed = output_embed + residual
         # output_embed = nn.LayerNorm(epsilon=1e-5)(output_embed)
@@ -355,6 +363,7 @@ class DiffusionTransformerPolicy(nn.Module):
         env_ts=None,
         returns_to_go=None,
         cost_returns_to_go=None,
+        deterministic=False,
     ):
         terms = self.diffusion.training_losses(
             rng_key,
@@ -365,6 +374,7 @@ class DiffusionTransformerPolicy(nn.Module):
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
+            deterministic=deterministic,
         )
         return terms
 

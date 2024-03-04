@@ -56,6 +56,7 @@ class TransformerCondDiffusionBC(Algo):
                 returns_to_go=jnp.zeros((10, 1)),
                 cost_returns_to_go=jnp.zeros((10, 1)),
                 method=self.policy.loss,
+                deterministic=True,
             )
         else:
             # TODO(Bob HuangC): add MLP acrchitecture here to simplify the code
