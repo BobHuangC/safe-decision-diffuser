@@ -157,12 +157,16 @@ class TrajSampler(object):
                         policy_kwargs["returns_to_go"] = self._normalizer.normalize(
                             returns_to_go[ready_env_ids], "returns"
                         )
-                        policy_kwargs["cost_returns_to_go"] = self._normalizer.normalize(
+                        policy_kwargs[
+                            "cost_returns_to_go"
+                        ] = self._normalizer.normalize(
                             cost_returns_to_go[ready_env_ids], "cost_returns"
                         )
                     else:
                         policy_kwargs["returns_to_go"] = returns_to_go[ready_env_ids]
-                        policy_kwargs["cost_returns_to_go"] = cost_returns_to_go[ready_env_ids]
+                        policy_kwargs["cost_returns_to_go"] = cost_returns_to_go[
+                            ready_env_ids
+                        ]
                 if self.use_env_ts:
                     policy_kwargs["env_ts"] = env_ts[ready_env_ids]
 

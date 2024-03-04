@@ -250,12 +250,20 @@ class QLearningDataset(SequenceDataset):
             ret_dict["env_ts"] = start
         if self.include_returns:
             if self.normalize_returns:
-                ret_dict["returns_to_go"] = self._data.normed_returns[path_ind, start:end].squeeze(0)
+                ret_dict["returns_to_go"] = self._data.normed_returns[
+                    path_ind, start:end
+                ].squeeze(0)
             else:
-                ret_dict["returns_to_go"] = self._data.returns[path_ind, start:end].squeeze(0)
+                ret_dict["returns_to_go"] = self._data.returns[
+                    path_ind, start:end
+                ].squeeze(0)
         if self.include_cost_returns:
             if self.normalize_returns:
-                ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[path_ind, start].squeeze(0)
+                ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
+                    path_ind, start
+                ].squeeze(0)
             else:
-                ret_dict["cost_returns_to_go"] = self._data.cost_returns[path_ind, start].squeeze(0)
+                ret_dict["cost_returns_to_go"] = self._data.cost_returns[
+                    path_ind, start
+                ].squeeze(0)
         return ret_dict

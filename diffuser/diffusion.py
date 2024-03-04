@@ -575,6 +575,7 @@ class GaussianDiffusion:
         cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
+        deterministic=None,
     ):
         """
         A loop-jitted version of p_sample_loop().
@@ -596,6 +597,8 @@ class GaussianDiffusion:
             model_kwargs = {}
             if observations is not None:
                 mdl = partial(mdl, observations)
+            if deterministic is not None:
+                model_kwargs["deterministic"] = deterministic
             if self.env_ts_condition:
                 assert env_ts is not None
                 model_kwargs["env_ts"] = env_ts

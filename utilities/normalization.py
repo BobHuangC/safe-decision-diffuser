@@ -36,7 +36,9 @@ class DatasetNormalizer:
                 if normalizer is not LimitsNormalizer:
                     try:
                         self.normalizers[key] = LimitsNormalizer(val)
-                        print(f"[ utils/normalization ] Fallback {key} | {normalizer} -> LimitsNormalizer")
+                        print(
+                            f"[ utils/normalization ] Fallback {key} | {normalizer} -> LimitsNormalizer"
+                        )
                         continue
                     except Exception:
                         pass

@@ -188,6 +188,7 @@ class SamplerPolicy(object):  # used for cdbc and dql
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
+            deterministic=deterministic,
             method=self.policy.ddim_sample,
         )
 
@@ -212,6 +213,7 @@ class SamplerPolicy(object):  # used for cdbc and dql
             env_ts=env_ts,
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
+            deterministic=deterministic,
             method=self.policy.ddpm_sample,
         )
 

@@ -108,12 +108,12 @@ class OnlineEvaluator(BaseEvaluator):
                         ],
                     )
 
-                #     metrics[f"t{target_idx}-normalized_return_record" + post] = [
-                #         self._eval_sampler.env.get_normalized_score(
-                #             np.sum(t["rewards"])
-                #         )
-                #         for t in trajs
-                #     ]
+                    #     metrics[f"t{target_idx}-normalized_return_record" + post] = [
+                    #         self._eval_sampler.env.get_normalized_score(
+                    #             np.sum(t["rewards"])
+                    #         )
+                    #         for t in trajs
+                    #     ]
                     cur_cost_return = cur_cost
 
                 metrics[f"t{target_idx}-average_normalized_return" + post] = cur_return

@@ -15,7 +15,7 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
     config.condition_guidance_w = 1.2
-    config.condition_dropout = 0.2
+    config.condition_dropout = 0.25
 
     config.target_returns = "700.0,10,750,20,800,40"
     config.cost_limit = 10.0
@@ -45,8 +45,8 @@ def get_config():
     config.architecture = "transformer"
     config.algo_cfg.transformer_n_heads = 4
     config.algo_cfg.transformer_depth = 1
-    config.algo_cfg.transformer_dropout = 0.0
-    config.algo_cfg.transformer_embedding_dim = 128
+    config.algo_cfg.transformer_dropout = 0.2
+    config.algo_cfg.transformer_embedding_dim = 256
 
     # learning related
     config.algo_cfg.lr = 1e-4

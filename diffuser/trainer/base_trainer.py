@@ -223,7 +223,9 @@ class BaseTrainer:
             normalize_returns=self._cfgs.normalize_returns,
             use_inv_dynamic=getattr(self._cfgs, "use_inv_dynamic", False),
         )
-        eval_sampler.set_normalizer(dataset.normalizer, normalize_returns=self._cfgs.normalize_returns)
+        eval_sampler.set_normalizer(
+            dataset.normalizer, normalize_returns=self._cfgs.normalize_returns
+        )
 
         self._observation_dim = eval_sampler.env.observation_space.shape[0]
         self._action_dim = eval_sampler.env.action_space.shape[0]

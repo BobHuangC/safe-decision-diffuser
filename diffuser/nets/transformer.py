@@ -99,7 +99,7 @@ class TransformerCondPolicyNet(nn.Module):
         reward_returns_force_dropout: bool = False,
         cost_returns_force_droupout: bool = False,
         context: jnp.ndarray = None,
-        deterministic: bool = True,
+        deterministic: bool = False,
     ):
         # first to construct the embedding
         # the embedding constructed as time_embed | env_ts_emb | returns_emb | cost_returns_emb | obs_emb | act_emb
@@ -126,7 +126,9 @@ class TransformerCondPolicyNet(nn.Module):
 
         if self.cost_returns_condition:
             assert cost_returns_to_go is not None
-            cost_returns_embed = nn.Dense(self.embedding_dim)(cost_returns_to_go.reshape(-1, 1))
+            cost_returns_embed = nn.Dense(self.embedding_dim)(
+                cost_returns_to_go.reshape(-1, 1)
+            )
             if use_dropout:
                 if not self.returns_condition:
                     rng, sample_key = jax.random.split(rng)
@@ -146,7 +148,9 @@ class TransformerCondPolicyNet(nn.Module):
 
         input_embed = jnp.stack(input_embed, axis=1)
         input_embed = nn.LayerNorm(epsilon=1e-5)(input_embed)
-        input_embed = nn.Dropout(rate=self.dropout, deterministic=deterministic)(input_embed)
+        input_embed = nn.Dropout(rate=self.dropout, deterministic=deterministic)(
+            input_embed
+        )
 
         # Then pass the emb into the TransformerBlock
         residual = input_embed
@@ -316,6 +320,7 @@ class DiffusionTransformerPolicy(nn.Module):
             cost_returns_to_go=cost_returns_to_go,
             env_ts=env_ts,
             clip_denoised=True,
+            deterministic=deterministic,
         )
 
     def __call__(
