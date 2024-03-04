@@ -224,9 +224,9 @@ class DiffusionPolicy(nn.Module):
 
         shape = observations.shape[:-1] + (self.action_dim,)
 
-        return self.diffusion.p_sample_loop_jit_with_observation(
+        return self.diffusion.p_sample_loop(
             rng_key=rng,
-            model_forward=self.base_net,
+            model_forward=partial(self.base_net, observations),
             observations=observations,
             shape=shape,
             conditions=observation_conditions,
@@ -257,10 +257,8 @@ class DiffusionPolicy(nn.Module):
             schedule="discrete", alphas_cumprod=self.diffusion.alphas_cumprod
         )
 
-        def wrap_model(model_fn):
-            def wrapped_model_fn(
-                x, t, env_ts=None, returns_to_go=None, cost_returns_to_go=None
-            ):
+        def wrap_model(model_fn, env_ts, returns_to_go, cost_returns_to_go):
+            def wrapped_model_fn(x, t):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
                 out = model_fn(
@@ -290,6 +288,7 @@ class DiffusionPolicy(nn.Module):
 
         dpm_sampler = DPM_Solver(
             model_fn=wrap_model(partial(self.base_net, observations)),
+            observation_conditions=observation_conditions,
             noise_schedule=ns,
             predict_x0=self.diffusion.model_mean_type is ModelMeanType.START_X,
         )

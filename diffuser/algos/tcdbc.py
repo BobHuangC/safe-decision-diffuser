@@ -171,8 +171,6 @@ class TransformerCondDiffusionBC(Algo):
         diff_loss_fn = self.get_diff_loss(batch)
 
         def policy_loss_fn(params, tgt_params, rng):
-            observations = batch["observations"]
-
             rng, split_rng = jax.random.split(rng)
             diff_loss, _, _ = diff_loss_fn(params, split_rng)
 

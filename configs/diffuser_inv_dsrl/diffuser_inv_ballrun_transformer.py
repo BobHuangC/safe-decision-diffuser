@@ -34,6 +34,6 @@ def get_config():
 
     config.save_period = 0
 
-    config.architecture: str = "Unet"
+    config.architecture = "Transformer"
 
     return config

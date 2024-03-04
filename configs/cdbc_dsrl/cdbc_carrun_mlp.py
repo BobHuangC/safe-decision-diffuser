@@ -40,7 +40,7 @@ def get_config():
     config.save_period = 25
 
     # special variable for cdbc
-    config.architecture: str = "mlp"
+    config.architecture = "mlp"
 
     # evaluate_pro config
     config.eval_target_reward_returns_list = "600.0, 650.0, 700.0"

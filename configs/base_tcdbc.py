@@ -37,10 +37,9 @@ def get_base_config():
     config.aug_cost_bins = 60
     config.aug_max_num_per_bin = 1
 
-    config.seed = 300
+    config.seed = 100
     config.batch_size = 1024
     config.discount = 1.0
-    config.policy_arch = "256-256-256"
     config.condition_guidance_w = 1.5
     config.condition_dropout = 0.25
 
@@ -69,14 +68,12 @@ def get_base_config():
     config.algo_cfg.num_timesteps = 100
     config.algo_cfg.schedule_name = "linear"
 
-    config.algo_cfg.time_embed_dim = 16
-
     # Transformer Network Parameters
     config.architecture = "transformer"
-    config.algo_cfg.time_embed_size = 16
     config.algo_cfg.transformer_n_heads = 4
-    config.algo_cfg.transformer_d_heads = 4
     config.algo_cfg.transformer_depth = 1
+    config.algo_cfg.transformer_dropout = 0.0
+    config.algo_cfg.transformer_embedding_dim = 128
 
     # learning related
     config.algo_cfg.lr = 3e-4

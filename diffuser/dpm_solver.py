@@ -342,7 +342,7 @@ def model_wrapper(
 
     def noise_pred_fn(x, t_continuous, cond=None):
         if t_continuous.reshape((-1,)).shape[0] == 1:
-            t_continuous = t_continuous.tile((x.shape[0]))
+            t_continuous = jnp.tile(t_continuous, (x.shape[0]))
         t_input = get_model_input_time(t_continuous)
         if cond is None:
             output = model(x, t_input, **model_kwargs)
@@ -383,7 +383,7 @@ def model_wrapper(
         The noise predicition model function that is used for DPM-Solver.
         """
         if t_continuous.reshape((-1,)).shape[0] == 1:
-            t_continuous = t_continuous.tile((x.shape[0]))
+            t_continuous = jnp.tile(t_continuous, (x.shape[0]))
         if guidance_type == "uncond":
             return noise_pred_fn(x, t_continuous)
         elif guidance_type == "classifier":
@@ -1375,12 +1375,12 @@ class DPM_Solver:
                 skip_type=skip_type, t_T=t_T, t_0=t_0, N=steps
             )
             assert timesteps.shape[0] - 1 == steps
-            vec_t = timesteps[0].tile((x.shape[0]))
+            vec_t = jnp.tile(timesteps[0], (x.shape[0]))
             model_prev_list = [self.model_fn(x, vec_t)]
             t_prev_list = [vec_t]
             # Init the first `order` values by lower order multistep DPM-Solver.
             for init_order in range(1, order):
-                vec_t = timesteps[init_order].tile(x.shape[0])
+                vec_t = jnp.tile(timesteps[init_order], (x.shape[0]))
                 x = self.multistep_dpm_solver_update(
                     x,
                     model_prev_list,
@@ -1396,7 +1396,7 @@ class DPM_Solver:
 
             def multistep_loop_fn(step, val):
                 x, ts_prev, models_prev = val
-                vec_t = timesteps[step].tile(x.shape[0])
+                vec_t = jnp.tile(timesteps[step], (x.shape[0]))
                 x = self.multistep_dpm_solver_update(
                     x, models_prev, ts_prev, vec_t, order, solver_type=solver_type
                 )
@@ -1488,7 +1488,7 @@ def interpolate_fn(x, xp, yp):
     """
     N, K = x.shape[0], xp.shape[1]
     all_x = jnp.concatenate(
-        [jnp.expand_dims(x, 2), jnp.expand_dims(xp, 0).tile((N, 1, 1))], axis=2
+        [jnp.expand_dims(x, 2), jnp.tile(jnp.expand_dims(xp, 0), (N, 1, 1))], axis=2
     )
     x_indices = jnp.argsort(all_x, axis=2)
     sorted_all_x = jnp.take_along_axis(all_x, x_indices, axis=2)
@@ -1521,7 +1521,7 @@ def interpolate_fn(x, xp, yp):
             cand_start_idx,
         ),
     )
-    y_positions_expanded = jnp.expand_dims(yp, 0).tile((N, 1, 1))
+    y_positions_expanded = jnp.tile(jnp.expand_dims(yp, 0), (N, 1, 1))
     start_y = jnp.take_along_axis(
         y_positions_expanded, jnp.expand_dims(start_idx2, 2), axis=2
     ).squeeze(2)

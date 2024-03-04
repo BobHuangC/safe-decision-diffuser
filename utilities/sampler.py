@@ -182,16 +182,12 @@ class TrajSampler(object):
                 if self.use_env_ts:
                     env_ts[ready_env_ids] += 1
                 if self._target_returns is not None:
-                    returns_to_go[ready_env_ids] = np.max(
-                        returns_to_go[ready_env_ids] - reward, axis=0
+                    returns_to_go[ready_env_ids] = np.clip(
+                        returns_to_go[ready_env_ids] - reward, a_min=0, a_max=None
                     )
-                    cost_returns_to_go[ready_env_ids] = np.max(
-                        cost_returns_to_go[ready_env_ids] - cost, axis=0
+                    cost_returns_to_go[ready_env_ids] = np.clip(
+                        cost_returns_to_go[ready_env_ids] - cost, a_min=0, a_max=None
                     )
-                    # this special config to ensure that the cost_returns_to_go will not be negative
-                    # cost_returns_to_go[ready_env_ids] = max(
-                    #     cost_returns_to_go[0], 0
-                    # )
 
                 done = np.logical_or(terminated, truncated)
                 if self._render:

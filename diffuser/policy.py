@@ -165,7 +165,6 @@ class SamplerPolicy(object):  # used for cdbc and dql
             returns_to_go=returns_to_go,
             cost_returns_to_go=cost_returns_to_go,
             method=self.policy.dpm_sample,
-            repeat=num_samples,
         )
 
     @partial(jax.jit, static_argnames=("self", "deterministic", "num_samples"))

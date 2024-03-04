@@ -14,7 +14,7 @@ def get_config():
     config.cost_returns_condition = True
     config.env_ts_condition = True
 
-    config.target_returns = "650.0, 0, 700.0,10, 750.0,20, 800.0,40"
+    config.target_returns = "650.0,0, 700.0,10, 750.0,20, 800.0,40"
     config.cost_limit = 10.0
 
     config.max_traj_length = 200
