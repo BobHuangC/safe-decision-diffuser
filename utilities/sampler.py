@@ -98,9 +98,11 @@ class TrajSampler(object):
         self._render = render
         self._normalizer = None
         self._target_returns = None
+        self.max_action = self._env.action_space.high[0]
 
-    def set_normalizer(self, normalizer):
+    def set_normalizer(self, normalizer, normalize_returns):
         self._normalizer = normalizer
+        self.normalize_returns = normalize_returns
 
     # target_returns: 2n * 1 list
     # self._target_returns: n * 2 list
@@ -122,13 +124,12 @@ class TrajSampler(object):
         # trajs: len(target_returns) * n_trajs traj
         # each traj is sampled guided by one of the target_returns
         ret_trajs = []
-        for _ in range(len(self._target_returns)):
-            tmp_target_returns = self._target_returns[_]
+        for cur_target_returns in self._target_returns:
             assert n_trajs > 0
             ready_env_ids = np.arange(min(self._num_envs, n_trajs))
             if self._target_returns is not None:
-                returns_to_go = np.ones(len(ready_env_ids)) * tmp_target_returns[0]
-                cost_returns_to_go = np.ones(len(ready_env_ids)) * tmp_target_returns[1]
+                returns_to_go = np.ones(len(ready_env_ids)) * cur_target_returns[0]
+                cost_returns_to_go = np.ones(len(ready_env_ids)) * cur_target_returns[1]
             if self.use_env_ts:
                 env_ts = np.zeros(len(ready_env_ids), dtype=np.int32)
             observation, _ = self.envs.reset(ready_env_ids)
@@ -152,12 +153,16 @@ class TrajSampler(object):
             while True:
                 policy_kwargs = {}
                 if self._target_returns is not None:
-                    policy_kwargs["returns_to_go"] = self._normalizer.normalize(
-                        returns_to_go[ready_env_ids], "returns"
-                    )
-                    policy_kwargs["cost_returns_to_go"] = self._normalizer.normalize(
-                        cost_returns_to_go[ready_env_ids], "cost_returns"
-                    )
+                    if self.normalize_returns:
+                        policy_kwargs["returns_to_go"] = self._normalizer.normalize(
+                            returns_to_go[ready_env_ids], "returns"
+                        )
+                        policy_kwargs["cost_returns_to_go"] = self._normalizer.normalize(
+                            cost_returns_to_go[ready_env_ids], "cost_returns"
+                        )
+                    else:
+                        policy_kwargs["returns_to_go"] = returns_to_go[ready_env_ids]
+                        policy_kwargs["cost_returns_to_go"] = cost_returns_to_go[ready_env_ids]
                 if self.use_env_ts:
                     policy_kwargs["env_ts"] = env_ts[ready_env_ids]
 
@@ -170,6 +175,7 @@ class TrajSampler(object):
                     full_observation, deterministic=deterministic, **policy_kwargs
                 )
                 action = self._normalizer.unnormalize(action, "actions")
+                action = np.clip(action, -self.max_action, self.max_action)
 
                 next_observation, reward, terminated, truncated, info = self.envs.step(
                     action, ready_env_ids
@@ -233,8 +239,8 @@ class TrajSampler(object):
                         costs[ind] = []
 
                     if self._target_returns is not None:
-                        returns_to_go[env_ind_global] = tmp_target_returns[0]
-                        cost_returns_to_go[env_ind_global] = tmp_target_returns[1]
+                        returns_to_go[env_ind_global] = cur_target_returns[0]
+                        cost_returns_to_go[env_ind_global] = cur_target_returns[1]
                     if self.use_env_ts:
                         env_ts[env_ind_global] = 0
 

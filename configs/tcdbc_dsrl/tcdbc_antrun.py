@@ -4,11 +4,13 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}/{seed}"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}-{normalizer}-normret_{normalize_returns}/{seed}"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineAntRun-v0"
     config.dataset = "dsrl"
+    config.normalizer = "CDFNormalizer"
+    config.normalize_returns = True
     config.returns_condition = True
     config.cost_returns_condition = True
     config.env_ts_condition = True
@@ -45,17 +47,6 @@ def get_config():
     config.algo_cfg.transformer_depth = 1
     config.algo_cfg.transformer_dropout = 0.0
     config.algo_cfg.transformer_embedding_dim = 128
-
-    # evaluate_pro config
-    config.eval_target_reward_returns_list = (
-        "500.0, 550.0, 600.0, 650.0, 700.0, 750.0, 800.0"
-    )
-    config.eval_target_cost_returns_list = (
-        "0.0, 5.0, 10.0, 20.0, 25.0, 30.0, 40.0, 50.0, 60.0, 70.0"
-    )
-
-    # mode represents whether the config is used for training or evaluation
-    config.mode = "train"  # or "eval"
 
     # learning related
     config.algo_cfg.lr = 1e-4
