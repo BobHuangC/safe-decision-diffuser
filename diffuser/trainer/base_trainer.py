@@ -82,7 +82,7 @@ class BaseTrainer:
                     eval_metrics = self._evaluator.evaluate(epoch)
                     metrics.update(eval_metrics)
 
-                if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
+                if (self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0) or (epoch == self._cfgs.n_epochs - 1):
                     self._save_model(epoch)
 
             with Timer() as train_timer:

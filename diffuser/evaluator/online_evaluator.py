@@ -55,13 +55,6 @@ class OnlineEvaluator(BaseEvaluator):
                     [np.sum(t["costs"]) for t in trajs]
                 )
 
-                # metrics[f"t{target_idx}-return_record" + post] = [
-                #     np.sum(t["rewards"]) for t in trajs
-                # ]
-
-                # metrics[f"t{target_idx}-cost_return_record" + post] = [
-                #     np.sum(t["costs"]) for t in trajs
-                # ]
 
                 metrics[f"t{target_idx}-average_traj_length" + post] = np.mean(
                     [len(t["rewards"]) for t in trajs]
@@ -78,26 +71,6 @@ class OnlineEvaluator(BaseEvaluator):
                         ],
                         axis=0,
                     )
-
-                    # metrics[f"t{target_idx}-normalized_return_record" + post] = [
-                    #     i[0]
-                    #     for i in [
-                    #         self._eval_sampler.env.get_normalized_score(
-                    #             np.sum(t["rewards"]), np.sum(t["costs"])
-                    #         )
-                    #         for t in trajs
-                    #     ]
-                    # ]
-
-                    # metrics[f"t{target_idx}-normalized_cost_return_record" + post] = [
-                    #     i[1]
-                    #     for i in [
-                    #         self._eval_sampler.env.get_normalized_score(
-                    #             np.sum(t["rewards"]), np.sum(t["costs"])
-                    #         )
-                    #         for t in trajs
-                    #     ]
-                    # ]
                 else:
                     cur_return = np.mean(
                         [
@@ -108,12 +81,6 @@ class OnlineEvaluator(BaseEvaluator):
                         ],
                     )
 
-                    #     metrics[f"t{target_idx}-normalized_return_record" + post] = [
-                    #         self._eval_sampler.env.get_normalized_score(
-                    #             np.sum(t["rewards"])
-                    #         )
-                    #         for t in trajs
-                    #     ]
                     cur_cost_return = cur_cost
 
                 metrics[f"t{target_idx}-average_normalized_return" + post] = cur_return
