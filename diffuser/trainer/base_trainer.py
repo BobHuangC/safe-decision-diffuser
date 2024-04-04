@@ -69,8 +69,18 @@ class BaseTrainer:
     def restore_agent(self, saved_data):
         self._agent.restore_agent_states(saved_data)
 
-    def train(self):
+    # train function
+    # if the restored_ckpt_path is not None, restore the model from the checkpoint and retrain
+    # otherwise, train the model from scratch
+    def train(self, restored_ckpt_path=None):
         self._setup()
+
+        if restored_ckpt_path is not None:
+            import orbax
+            orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+            target = {"agent_states": self._agent.train_states}
+            restored = orbax_checkpointer.restore(restored_ckpt_path, item=target)
+            self.restore_agent(restored['agent_states'])
 
         viskit_metrics = {}
         for epoch in range(self._cfgs.n_epochs):

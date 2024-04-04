@@ -92,19 +92,19 @@ class OnlineEvaluator(BaseEvaluator):
                 self._recent_returns[method].append(cur_return)
                 self._recent_cost_returns[method].append(cur_cost)
 
-                metrics[f"t{target_idx}-average_10_normalized_return" + post] = np.mean(
-                    self._recent_returns[method]
-                )
+                # metrics[f"t{target_idx}-average_10_normalized_return" + post] = np.mean(
+                #     self._recent_returns[method]
+                # )
 
-                metrics[
-                    f"t{target_idx}-best_normalized_return" + post
-                ] = self._best_returns[method] = max(
-                    self._best_returns[method], cur_return
-                )
+                # metrics[
+                #     f"t{target_idx}-best_normalized_return" + post
+                # ] = self._best_returns[method] = max(
+                #     self._best_returns[method], cur_return
+                # )
 
-                metrics[
-                    f"t{target_idx}-average_10_normalized_cost_return" + post
-                ] = np.mean(self._recent_cost_returns[method])
+                # metrics[
+                #     f"t{target_idx}-average_10_normalized_cost_return" + post
+                # ] = np.mean(self._recent_cost_returns[method])
 
         self.dump_metrics(metrics, epoch, suffix="_online")
         return metrics

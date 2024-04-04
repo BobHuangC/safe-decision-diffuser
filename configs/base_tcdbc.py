@@ -65,7 +65,7 @@ def get_base_config():
     config.algo_cfg.tau = 0.005
     config.algo_cfg.policy_tgt_freq = 5
     config.algo_cfg.sample_temperature = 0.5
-    config.algo_cfg.num_timesteps = 100
+    config.algo_cfg.num_timesteps = 200
     config.algo_cfg.schedule_name = "linear"
 
     # Transformer Network Parameters
@@ -80,12 +80,16 @@ def get_base_config():
     config.algo_cfg.lr_decay = False
     config.algo_cfg.lr_decay_steps = 1000000
     config.algo_cfg.max_grad_norm = 0.0
-    config.algo_cfg.weight_decay = 0.0
+    config.algo_cfg.weight_decay = 1e-4
     config.algo_cfg.lr_decay_alpha = 0.0
 
     # for dpm-solver
     config.algo_cfg.dpm_steps = 15
     config.algo_cfg.dpm_t_end = 0.001
+    # for ema decay
+    config.algo_cfg.ema_decay = 0.995
+    config.algo_cfg.step_start_ema = 400
+    config.algo_cfg.update_ema_every = 10
 
     config.mode = "train"  # or "eval"
 

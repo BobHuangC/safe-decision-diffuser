@@ -23,7 +23,7 @@ def main():
         os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     elif args.preallocate > 0:
         os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(args.preallocate)
-    os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
+    # os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 
     from utilities.utils import import_file
 

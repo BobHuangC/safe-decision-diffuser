@@ -20,7 +20,7 @@ import jax.numpy as jnp
 import optax
 
 from diffuser.diffusion import GaussianDiffusion
-from utilities.flax_utils import TrainState
+from utilities.flax_utils import TrainState, apply_ema_decay, copy_params_to_ema
 from utilities.jax_utils import next_rng, value_and_multi_grad
 
 from .base_algo import Algo
@@ -75,13 +75,16 @@ class TransformerCondDiffusionBC(Algo):
                 opt = optax.chain(
                     optax.clip_by_global_norm(self.config.max_grad_norm),
                     optax.adamw(get_lr(lr_decay), weight_decay=weight_decay),
+                    # optax.adamw(get_lr(lr_decay)),
                 )
             else:
+                # opt = optax.adam(get_lr(lr_decay))
                 opt = optax.adamw(get_lr(), weight_decay=weight_decay)
             return opt
 
         self._train_states["policy"] = TrainState.create(
             params=policy_params,
+            params_ema = policy_params,
             tx=get_optimizer(self.config.lr_decay, weight_decay=0.0),
             apply_fn=None,
         )
@@ -90,6 +93,9 @@ class TransformerCondDiffusionBC(Algo):
         model_keys = ["policy"]
 
         self._model_keys = tuple(model_keys)
+
+    def restore_agent_states(self, saved_data):
+        self._train_states = saved_data
 
     def get_diff_terms(
         self,
@@ -211,7 +217,19 @@ class TransformerCondDiffusionBC(Algo):
         self._train_states, self._tgt_params, metrics = self._train_step(
             self._train_states, self._tgt_params, next_rng(), batch, policy_tgt_update
         )
+        if self._total_steps % self.config.update_ema_every == 0:
+            self.step_ema()
         return metrics
+
+    def step_ema(self):
+        if self._total_steps < self.config.step_start_ema:
+            self._train_states["policy"] = copy_params_to_ema(
+                self._train_states["policy"]
+            )
+        else:
+            self._train_states["policy"] = apply_ema_decay(
+                self._train_states["policy"], self.config.ema_decay
+            )
 
     @property
     def model_keys(self):
