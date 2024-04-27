@@ -4,7 +4,7 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}-{normalizer}-normret_{normalize_returns}/{seed}/2024-3-15-1"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}-{normalizer}-normret_{normalize_returns}/{seed}/2024-4-6-2"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineBallCircle-v0"
@@ -39,7 +39,7 @@ def get_config():
     config.n_epochs = 2000
     config.n_train_step_per_epoch = 1000
 
-    config.save_period = 500
+    config.save_period = 10
 
     config.architecture = "transformer"
     config.algo_cfg.transformer_n_heads = 4
@@ -49,8 +49,15 @@ def get_config():
 
     # learning related
     config.algo_cfg.lr = 1e-4
-    config.algo_cfg.lr_decay = True
-    config.algo_cfg.lr_decay_steps = 300
+    config.algo_cfg.lr_decay = False
+    config.algo_cfg.lr_decay_steps = 200
     config.algo_cfg.lr_decay_alpha = 0.01
+
+    config.algo_cfg.weight_decay = 1e-4
+
+    # for ema decay
+    config.algo_cfg.ema_decay = 0.999
+    config.algo_cfg.step_start_ema = 400
+    config.algo_cfg.update_ema_every = 10
 
     return config

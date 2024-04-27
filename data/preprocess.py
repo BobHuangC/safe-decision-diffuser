@@ -382,6 +382,13 @@ def pareto_augmentation(
             step[-2] += target_reward_returns - associated_traj[0][-2]
         aug_trajs.append(associated_traj)
 
+    # (2024-4-12)testing for data augmentation 
+
+    # full_trajs = trajs + aug_trajs
+    # pareto_draw(full_trajs, aug_trajs, filtered_trajs, (cost_returns_pareto , reward_returns_pareto), 'BallRun', deg)
+    # exit(0)
+    # (2024-4-12)testing for data augmentation 
+
     print(
         f"original data: {len(trajs)}, augment data: {len(aug_trajs)}, total: {len(trajs)+len(aug_trajs)}"
     )
@@ -430,3 +437,56 @@ def select_optimal_trajectory(
 
     traj2 = [trajs[i] for i in indices]
     return traj2
+
+
+## 2024-4-12
+
+# def pareto_draw(full_trajs, aug_trajs, filtered_trajs, pareto_frontier, env_name, aug_deg):
+    
+#     full_trajs_reward_returns = []
+#     full_trajs_cost_returns = []
+#     for i in range(len(full_trajs)):
+#         full_trajs_reward_returns.append(full_trajs[i][0][-2])
+#         full_trajs_cost_returns.append(full_trajs[i][0][-1])
+
+
+
+
+#     aug_trajs_reward_returns = []
+#     aug_trajs_cost_returns = []
+#     for i in range(len(aug_trajs)):
+#         aug_trajs_reward_returns.append(aug_trajs[i][0][-2])
+#         aug_trajs_cost_returns.append(aug_trajs[i][0][-1])  
+
+
+
+#     filterd_trajs_reward_returns = []
+#     filterd_trajs_cost_returns = []
+#     for i in range(len(filtered_trajs)):
+#         filterd_trajs_reward_returns.append(filtered_trajs[i][0][-2])
+#         filterd_trajs_cost_returns.append(filtered_trajs[i][0][-1])
+
+
+
+#     pareto_trajs_reward_returns = pareto_frontier[1]
+#     pareto_trajs_cost_returns = pareto_frontier[0]
+
+
+#     import matplotlib.pyplot as plt
+
+#     # plt.scatter(full_trajs_cost_returns, full_trajs_reward_returns, c='blue', label='Full Trajectories', s = 10)
+#     plt.scatter(aug_trajs_cost_returns, aug_trajs_reward_returns, c='orange', label='Augmented Trajectories', s = 10)
+#     plt.scatter(filterd_trajs_cost_returns, filterd_trajs_reward_returns, c='red', label='Filtered Trajectories', s = 10)
+#     plt.scatter(pareto_trajs_cost_returns, pareto_trajs_reward_returns, c='green', label='Pareto Frontier', s = 30)
+
+#     # if aug_aug_percent == 0.0:
+#     #     plt.scatter(full_trajs_cost_returns, full_trajs_reward_returns, c='blue', label='Full Trajectories', s = 10)
+
+#     plt.xlabel('Cost Returns')
+#     plt.ylabel('Reward Returns')
+#     plt.title(f'{env_name}' + 'Cost Returns vs Reward Returns'+ f' {aug_deg}')
+#     plt.legend()
+#     plt.savefig(f"demo/{env_name}"+'reward_vs_cost_returns.png')
+#     plt.clf()
+
+## 2024-4-12

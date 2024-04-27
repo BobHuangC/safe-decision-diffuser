@@ -26,7 +26,13 @@ By default we use `ddpm` solver. To use `dpm`, set `--sample_method=dpm` and `-a
 This codebase can also log to [W&B online visualization platform](https://wandb.ai/site). To log to W&B, you first need to set your W&B API key environment variable.
 Alternatively, you could simply run `wandb login`.
 
+## Current Results on OSRL datasets
+
+### CDBC(transformer)
+
+
+
 ## Credits
 The project structure borrows from the [Jax CQL implementation](https://github.com/young-geng/JaxCQL).
 
-We also refer to [the diffusion model implementation from OpenAI](https://github.com/openai/guided-diffusion/tree/main/guided_diffusion) and the [official diffusion Q learning implementation](https://github.com/Zhendong-Wang/Diffusion-Policies-for-Offline-RL/).
+We also refer to [the diffusion model implementation from OpenAI](https://github.com/openai/guided-diffusion/tree/main/guided_diffusion), [official CDT implementation](https://github.com/liuzuxin/OSRL) and the [official diffusion Q learning implementation](https://github.com/Zhendong-Wang/Diffusion-Policies-for-Offline-RL/).

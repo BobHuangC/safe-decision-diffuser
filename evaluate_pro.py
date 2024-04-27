@@ -13,8 +13,8 @@ from utilities.utils import set_random_seed, str_to_list, to_arch
 import csv
 
 # ant run
-log_dir = "logs/cdbc_dsrl/OfflineAntRun-v0/tgt_700.0,10, 750.0,20, 800.0,40-guidew_2.0/300/2_16_3"
-epochs = [650, 700, 1200, 1550, 3150]
+log_dir = "logs/tcdbc_dsrl/OfflineBallRun-v0/transformer-gw_1.2-cdp_0.2-CDFNormalizer-normret_True/300/2024-3-10-1"
+epochs = [1850]
 
 # ant run1
 # log_dir = "logs/test-cdbc_dsrl/OfflineAntRun-v0/tgt_650.0, 0, 700.0,10, 750.0,20, 800.0,40-guidew_2.0/300/2_23_1"
@@ -74,7 +74,7 @@ def main():
 
     # 1, 3, 5, 7
     # config.condition_guidance_w = 1.7
-    config.target_returns = "200.0, 0.0"
+    config.target_returns = "450.0, 10.0, 450, 20.0, 650.0, 40.0"
 
     # the original is 0.5
     # config.algo_cfg.sample_temperature = 0.9
@@ -89,14 +89,15 @@ def main():
         "target_returns": [],
     }
 
-    eval_target_returns = ""
-    target_reward_returns_list = str_to_list(config.eval_target_reward_returns_list)
-    target_cost_returns_list = str_to_list(config.eval_target_cost_returns_list)
+    # eval_target_returns = ""
+    # target_reward_returns_list = str_to_list(config.eval_target_reward_returns_list)
+    # target_cost_returns_list = str_to_list(config.eval_target_cost_returns_list)
 
-    for reward in target_reward_returns_list:
-        for cost in target_cost_returns_list:
-            eval_target_returns += f"{reward}, {cost},"
-    eval_target_returns = eval_target_returns[:-1]
+    # for reward in target_reward_returns_list:
+    #     for cost in target_cost_returns_list:
+    #         eval_target_returns += f"{reward}, {cost},"
+    # eval_target_returns = eval_target_returns[:-1]
+    eval_target_returns = "450.0, 10.0, 450, 20.0, 650.0, 40.0"
 
     evaluator._reset_target_returns(eval_target_returns)
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
@@ -129,7 +130,7 @@ def main():
     df = pd.DataFrame(eval_pro_data_record)
     os.makedirs(name=args.log_dir + "/eval", exist_ok=True)
     df.to_csv(
-        f"{args.log_dir}/eval/tcr-{config.eval_target_cost_returns_list}--trr-{config.eval_target_reward_returns_list}.csv",
+        f"{args.log_dir}/eval/{eval_target_returns}.csv",
         index=False,
     )
 

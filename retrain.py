@@ -11,10 +11,10 @@ from utilities.utils import dot_key_dict_to_nested_dicts
 
 # CarCircle
 # the checkpoint for test(already backup)
-log_dir = "logs/tcdbc_dsrl/OfflineCarCircle-v0/transformer-gw_1.2-cdp_0.2-CDFNormalizer-normret_True/100/2024-3-15-1"
-epoch = 1999
+log_dir = "logs/tcdbc_dsrl/OfflineBallRun-v0/transformer-gw_1.2-cdp_0.2-CDFNormalizer-normret_True/300/2024-3-10-1"
+epoch = 1850
 
-retrain_flag = "4-5-1"
+retrain_flag = "4-12-1"
 
 
 def main():
@@ -53,6 +53,14 @@ def main():
     config.restored_epoch = epoch
 
     config.log_dir_format = config.log_dir_format + "/retrain/" + str(retrain_flag)
+    config.target_returns = "450.0, 10.0, 450, 20.0, 650.0, 40.0"
+    config.algo_cfg.lr = 0
+    
+    
+    
+    # ema setting
+    config.algo_cfg.tau = 0.005
+    config.algo_cfg.policy_tgt_freq = 40
 
 
 
