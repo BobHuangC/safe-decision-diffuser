@@ -25,7 +25,7 @@ class DatasetNormalizer:
             dataset["actions"].shape[-1] if "actions" in dataset.keys() else 0
         )
 
-        if type(normalizer) == str:
+        if type(normalizer) is str:
             normalizer = eval(normalizer)
 
         self.normalizers = {}
@@ -33,6 +33,15 @@ class DatasetNormalizer:
             try:
                 self.normalizers[key] = normalizer(val)
             except Exception:
+                if normalizer is not LimitsNormalizer:
+                    try:
+                        self.normalizers[key] = LimitsNormalizer(val)
+                        print(
+                            f"[ utils/normalization ] Fallback {key} | {normalizer} -> LimitsNormalizer"
+                        )
+                        continue
+                    except Exception:
+                        pass
                 print(f"[ utils/normalization ] Skipping {key} | {normalizer}")
 
     def __repr__(self):

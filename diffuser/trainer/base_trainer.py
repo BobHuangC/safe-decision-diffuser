@@ -66,8 +66,21 @@ class BaseTrainer:
         else:
             raise NotImplementedError
 
-    def train(self):
+    def restore_agent(self, saved_data):
+        self._agent.restore_agent_states(saved_data)
+
+    # train function
+    # if the restored_ckpt_path is not None, restore the model from the checkpoint and retrain
+    # otherwise, train the model from scratch
+    def train(self, restored_ckpt_path=None):
         self._setup()
+
+        if restored_ckpt_path is not None:
+            import orbax
+            orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+            target = {"agent_states": self._agent.train_states}
+            restored = orbax_checkpointer.restore(restored_ckpt_path, item=target)
+            self.restore_agent(restored['agent_states'])
 
         viskit_metrics = {}
         for epoch in range(self._cfgs.n_epochs):
@@ -79,7 +92,7 @@ class BaseTrainer:
                     eval_metrics = self._evaluator.evaluate(epoch)
                     metrics.update(eval_metrics)
 
-                if self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0:
+                if (self._cfgs.save_period > 0 and epoch % self._cfgs.save_period == 0) or (epoch == self._cfgs.n_epochs - 1):
                     self._save_model(epoch)
 
             with Timer() as train_timer:
@@ -211,14 +224,18 @@ class BaseTrainer:
         )(
             dataset,
             horizon=self._cfgs.horizon,
-            history_horizon=self._cfgs.history_horizon,
+            history_horizon=getattr(self._cfgs, "history_horizon", 0),
             max_traj_length=self._cfgs.max_traj_length,
+            include_env_ts=self._cfgs.env_ts_condition,
             include_returns=self._cfgs.returns_condition,
             include_cost_returns=self._cfgs.cost_returns_condition,
             normalizer=self._cfgs.normalizer,
+            normalize_returns=self._cfgs.normalize_returns,
             use_inv_dynamic=getattr(self._cfgs, "use_inv_dynamic", False),
         )
-        eval_sampler.set_normalizer(dataset.normalizer)
+        eval_sampler.set_normalizer(
+            dataset.normalizer, normalize_returns=self._cfgs.normalize_returns
+        )
 
         self._observation_dim = eval_sampler.env.observation_space.shape[0]
         self._action_dim = eval_sampler.env.action_space.shape[0]

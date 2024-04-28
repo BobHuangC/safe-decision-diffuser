@@ -88,9 +88,9 @@ class WandBLogger(object):
     @staticmethod
     def get_default_config(updates=None):
         config = ConfigDict()
-        config.team = "jax_diffrl"
-        config.online = False
-        config.project = "DiffusionRL"
+        # config.team = "safediff"
+        config.online = True
+        # config.online = False
         config.output_dir = "logs"
         config.random_delay = 0.0
         config.log_dir = config_dict.placeholder(str)
@@ -124,11 +124,11 @@ class WandBLogger(object):
             time.sleep(np.random.uniform(0, self.config.random_delay))
 
         self.run = wandb.init(
-            entity=self.config.team,
             reinit=True,
             config=self._variant,
-            project=self.config.project,
+            project=self.config.log_dir.split("/")[1],
             dir=self.config.output_dir,
+            name=self.config.log_dir,
             anonymous=self.config.anonymous,
             notes=self.config.notes,
             settings=wandb.Settings(
@@ -235,3 +235,28 @@ def import_file(path, module_name):
 class DotFormatter(string.Formatter):
     def get_field(self, field_name, args, kwargs):
         return (self.get_value(field_name, args, kwargs), field_name)
+
+
+# one way to choose the best epoch
+# use the epoch with the minimum policy gradient norm as the best epoch
+def epoch_selection(log_csv_path, save_epoch):
+    import pandas as pd
+
+    # Read the progress.csv file
+    df = pd.read_csv(log_csv_path)
+    candidate_epochs = df["epoch"].unique()
+    candidate_epochs = [i for i in candidate_epochs if i % save_epoch == 0]
+    candidate_epochs.pop(len(candidate_epochs) - 1)
+    candidate_metric = []
+    for epoch in candidate_epochs:
+        _grad_value = df.iloc[epoch]["agent/policy_grad_norm"]
+        for _ in range(1, save_epoch):
+            _grad_value += df.iloc[epoch + _]["agent/policy_grad_norm"]
+            _grad_value += df.iloc[epoch - _]["agent/policy_grad_norm"]
+        _grad_value /= 1 + 2 * (save_epoch - 1)
+
+        candidate_metric.append(float(_grad_value))
+
+    candidate_final = min(candidate_metric)
+    candidate_epoch = candidate_epochs[candidate_metric.index(candidate_final)]
+    return candidate_epoch

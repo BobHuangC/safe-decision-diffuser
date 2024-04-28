@@ -13,6 +13,7 @@ def get_config():
     config.target_returns = "700.0,10.0"
     config.cost_limit = 10.0
 
+    config.batch_size = 512
     config.max_traj_length = 300
     config.horizon = 12
     config.history_horizon = 8

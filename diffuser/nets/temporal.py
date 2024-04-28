@@ -72,7 +72,9 @@ class TemporalUnet(nn.Module):
         returns_to_go: jnp.ndarray = None,
         cost_returns_to_go: jnp.ndarray = None,
         use_dropout: bool = True,
-        force_dropout: bool = False,
+        # force_dropout: bool = False,
+        reward_returns_force_dropout: bool = False,
+        cost_returns_force_droupout: bool = False,
     ):
         act_fn = mish
 
@@ -117,7 +119,8 @@ class TemporalUnet(nn.Module):
                 )
                 returns_embed = returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if reward_returns_force_dropout:
                 returns_embed = returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(returns_embed, 1)], axis=1)
 
@@ -126,9 +129,14 @@ class TemporalUnet(nn.Module):
             cost_returns = cost_returns_to_go.reshape(-1, 1)
             cost_returns_embed = cost_returns_mlp(cost_returns)
             if use_dropout:
+                rng, sample_key = jax.random.split(rng)
+                mask = mask_dist.sample(
+                    seed=sample_key, sample_shape=(returns_embed.shape[0], 1)
+                )
                 cost_returns_embed = cost_returns_embed * mask
 
-            if force_dropout:
+            # if force_dropout:
+            if cost_returns_force_droupout:
                 cost_returns_embed = cost_returns_embed * 0
             emb = jnp.concatenate([emb, jnp.expand_dims(cost_returns_embed, 1)], axis=1)
 
@@ -234,7 +242,7 @@ class DiffusionPlanner(nn.Module):
         cost_returns_to_go=None,
     ):
         batch_size = list(conditions.values())[0].shape[0]
-        return self.diffusion.p_sample_loop_jit(
+        return self.diffusion.p_sample_loop_jit_no_observation(
             rng_key=rng,
             model_forward=self.base_net,
             shape=(batch_size, self.horizon + self.history_horizon, self.sample_dim),
@@ -263,7 +271,9 @@ class DiffusionPlanner(nn.Module):
         )
 
         def wrap_model(model_fn):
-            def wrapped_model_fn(x, t, returns_to_go=None, cost_returns_to_go=None):
+            def wrapped_model_fn(
+                x, t, env_ts, returns_to_go=None, cost_returns_to_go=None
+            ):
                 t = (t - 1.0 / ns.total_N) * ns.total_N
 
                 out = model_fn(

@@ -6,7 +6,7 @@ from diffuser.nets import DiffusionPlanner, InverseDynamic
 from diffuser.policy import DiffuserPolicy
 from diffuser.trainer.base_trainer import BaseTrainer
 from utilities.data_utils import cycle, numpy_collate
-from utilities.utils import set_random_seed, to_arch, str_to_list
+from utilities.utils import set_random_seed, str_to_list, to_arch
 
 
 class DiffuserTrainer(BaseTrainer):
@@ -20,7 +20,8 @@ class DiffuserTrainer(BaseTrainer):
         target_returns = str_to_list(self._cfgs.target_returns)
         assert len(target_returns) == 2, target_returns
         eval_sampler.set_target_returns(target_returns)
-        eval_sampler.env.set_target_cost(target_returns[1])
+        if hasattr(eval_sampler.env, "set_target_cost"):
+            eval_sampler.env.set_target_cost(target_returns[1])
         data_sampler = torch.utils.data.RandomSampler(dataset)
         self._dataloader = cycle(
             torch.utils.data.DataLoader(
@@ -52,6 +53,7 @@ class DiffuserTrainer(BaseTrainer):
             model_mean_type=ModelMeanType.EPSILON,
             model_var_type=ModelVarType.FIXED_SMALL,
             loss_type=LossType.MSE,
+            env_ts_condition=self._cfgs.env_ts_condition,
             returns_condition=self._cfgs.returns_condition,
             cost_returns_condition=self._cfgs.cost_returns_condition,
             condition_guidance_w=self._cfgs.condition_guidance_w,
@@ -70,21 +72,24 @@ class DiffuserTrainer(BaseTrainer):
             plan_sample_dim = self._observation_dim + self._action_dim
             plan_action_dim = self._action_dim
 
-        planner = DiffusionPlanner(
-            diffusion=gd,
-            horizon=self._cfgs.horizon,
-            history_horizon=self._cfgs.history_horizon,
-            sample_dim=plan_sample_dim,
-            action_dim=plan_action_dim,
-            dim=self._cfgs.dim,
-            dim_mults=to_arch(self._cfgs.dim_mults),
-            returns_condition=self._cfgs.returns_condition,
-            cost_returns_condition=self._cfgs.cost_returns_condition,
-            condition_dropout=self._cfgs.condition_dropout,
-            kernel_size=self._cfgs.kernel_size,
-            sample_method=self._cfgs.sample_method,
-            dpm_steps=self._cfgs.algo_cfg.dpm_steps,
-            dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
-            max_traj_length=self._cfgs.max_traj_length,
-        )
+        if self._cfgs.architecture == "Unet":
+            planner = DiffusionPlanner(
+                diffusion=gd,
+                horizon=self._cfgs.horizon,
+                history_horizon=self._cfgs.history_horizon,
+                sample_dim=plan_sample_dim,
+                action_dim=plan_action_dim,
+                dim=self._cfgs.dim,
+                dim_mults=to_arch(self._cfgs.dim_mults),
+                returns_condition=self._cfgs.returns_condition,
+                cost_returns_condition=self._cfgs.cost_returns_condition,
+                condition_dropout=self._cfgs.condition_dropout,
+                kernel_size=self._cfgs.kernel_size,
+                sample_method=self._cfgs.sample_method,
+                dpm_steps=self._cfgs.algo_cfg.dpm_steps,
+                dpm_t_end=self._cfgs.algo_cfg.dpm_t_end,
+                max_traj_length=self._cfgs.max_traj_length,
+            )
+        elif self._cfgs.architecture == "Transformer":
+            raise NotImplementedError
         return planner, inv_model

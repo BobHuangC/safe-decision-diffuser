@@ -7,8 +7,8 @@ import numpy as np
 import optax
 
 from diffuser.diffusion import GaussianDiffusion, ModelMeanType
+from utilities.flax_utils import TrainState, apply_ema_decay, copy_params_to_ema
 from utilities.jax_utils import next_rng, value_and_multi_grad
-from utilities.flax_utils import apply_ema_decay, copy_params_to_ema, TrainState
 
 from .base_algo import Algo
 
@@ -53,15 +53,15 @@ class DecisionDiffuser(Algo):
         planner_params = self.planner.init(
             next_rng(),
             next_rng(),
-            jnp.zeros(
+            samples=jnp.zeros(
                 (10, self.horizon + self.history_horizon, self.planner.sample_dim)
-            ),  # samples
-            {
+            ),
+            conditions={
                 (0, self.history_horizon + 1): jnp.zeros(
                     (10, self.history_horizon + 1, self.observation_dim)
                 )
-            },  # conditions
-            jnp.zeros((10,), dtype=jnp.int32),  # ts
+            },
+            ts=jnp.zeros((10,), dtype=jnp.int32),
             masks=jnp.ones((10, self.horizon + self.history_horizon, 1)),
             env_ts=jnp.zeros((10,), dtype=np.int32),
             returns_to_go=jnp.zeros((10, 1)),
@@ -175,7 +175,7 @@ class DecisionDiffuser(Algo):
             else:
                 samples = batch["samples"]
 
-            conditions = batch["conditions"]
+            conditions = batch["observation_conditions"]
             env_ts = batch["env_ts"]
             returns_to_go = batch.get("returns_to_go", None)
             cost_returns_to_go = batch.get("cost_returns_to_go", None)

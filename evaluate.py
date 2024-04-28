@@ -10,6 +10,7 @@ from utilities.utils import dot_key_dict_to_nested_dicts
 
 
 def main():
+    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     parser = argparse.ArgumentParser()
     parser.add_argument("log_dir", type=str)
     parser.add_argument("-g", type=int, default=0)

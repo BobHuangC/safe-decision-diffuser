@@ -43,7 +43,4 @@ setup(
     ],
     keywords="jax offline reinforcement learning",
     packages=find_packages(exclude=[]),
-    requires=[
-        "black==23.1.0",
-    ],
 )

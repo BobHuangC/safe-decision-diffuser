@@ -14,7 +14,6 @@ def get_base_config():
     config.env = config_dict.required_placeholder(str)
     config.dataset = config_dict.required_placeholder(str)
     config.dataset_class = "SequenceDataset"
-    config.use_padding = True
     config.normalizer = "LimitsNormalizer"
     config.max_traj_length = config_dict.required_placeholder(int)
     config.horizon = config_dict.required_placeholder(int)

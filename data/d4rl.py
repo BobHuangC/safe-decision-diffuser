@@ -8,10 +8,10 @@ from utilities.utils import compose
 
 from .dataset import Dataset
 from .preprocess import (
+    add_discounted_returns,
     clip_actions,
     pad_trajs_to_dataset,
     split_to_trajs,
-    add_discounted_returns,
 )
 
 
@@ -19,7 +19,7 @@ def get_dataset(
     env,
     max_traj_length: int,
     horizon: int,
-    discount: float = 0.99,
+    discount: float = 1.0,
     termination_penalty: float = None,
     include_next_obs: bool = False,
     clip_to_eps: bool = False,  # disable action clip for debugging purpose

@@ -20,6 +20,7 @@ import torch
 from utilities.normalization import DatasetNormalizer
 
 
+# SequenceDataset contains of sequence of only states(observations)
 class SequenceDataset(torch.utils.data.Dataset):
     """DataLoader with customized sampler."""
 
@@ -32,12 +33,16 @@ class SequenceDataset(torch.utils.data.Dataset):
         normalizer: str = "LimitsNormalizer",
         discrete_action: bool = False,
         use_action: bool = True,
+        include_env_ts: bool = True,
         include_returns: bool = True,
         include_cost_returns: bool = True,
+        normalize_returns: bool = True,
         use_inv_dynamic: bool = True,
     ) -> None:
+        self.include_env_ts = include_env_ts
         self.include_returns = include_returns
         self.include_cost_returns = include_cost_returns
+        self.normalize_returns = normalize_returns
         self.use_action = use_action
         self.use_inv_dynamic = use_inv_dynamic
         self.max_traj_length = max_traj_length
@@ -144,19 +149,32 @@ class SequenceDataset(torch.utils.data.Dataset):
             masks[start - history_start : mask_end - history_start] = 1.0
 
         conditions = self.get_conditions(observations)
-        ret_dict = dict(samples=observations, conditions=conditions, masks=masks)
+        ret_dict = dict(
+            samples=observations, observation_conditions=conditions, masks=masks
+        )
 
-        # a little confusing here. Remember that history_start is the original ts in the traj
-        ret_dict["env_ts"] = history_start
+        if self.include_env_ts:
+            # a little confusing here. Note that history_start is the original ts in the traj
+            ret_dict["env_ts"] = history_start
         # returns and cost_returns are not padded, so history_start is used
         if self.include_returns:
-            ret_dict["returns_to_go"] = self._data.normed_returns[
-                path_ind, history_start
-            ].reshape(1, 1)
+            if self.normalize_returns:
+                ret_dict["returns_to_go"] = self._data.normed_returns[
+                    path_ind, history_start
+                ].reshape(1, 1)
+            else:
+                ret_dict["returns_to_go"] = self._data.returns[
+                    path_ind, history_start
+                ].reshape(1, 1)
         if self.include_cost_returns:
-            ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
-                path_ind, history_start
-            ].reshape(1, 1)
+            if self.normalize_returns:
+                ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
+                    path_ind, history_start
+                ].reshape(1, 1)
+            else:
+                ret_dict["cost_returns_to_go"] = self._data.cost_returns[
+                    path_ind, history_start
+                ].reshape(1, 1)
 
         if self.use_action:
             ret_dict["actions"] = actions
@@ -196,7 +214,10 @@ class QLearningDataset(SequenceDataset):
         normed = self.normalizer(array, "observations")
         self._data["normed_next_observations"] = normed.reshape(shape)
 
-    def get_conditions(self, observations):
+    def get_observation_conditions(self, observations):
+        return {}
+
+    def get_action_conditions(self, actions):
         return {}
 
     def __getitem__(self, idx):
@@ -210,8 +231,9 @@ class QLearningDataset(SequenceDataset):
         ].squeeze(0)
         dones = self._data.terminals[path_ind, start:end].squeeze(0)
 
-        conditions = self.get_conditions(observations)
-        next_conditions = self.get_conditions(next_observations)
+        observation_conditions = self.get_observation_conditions(observations)
+        next_observation_conditions = self.get_observation_conditions(next_observations)
+        action_conditions = self.get_action_conditions(actions)
 
         ret_dict = dict(
             observations=observations,
@@ -219,7 +241,29 @@ class QLearningDataset(SequenceDataset):
             rewards=rewards,
             next_observations=next_observations,
             dones=dones,
-            conditions=conditions,
-            next_conditions=next_conditions,
+            observation_conditions=observation_conditions,
+            next_observation_conditions=next_observation_conditions,
+            action_conditions=action_conditions,
         )
+
+        if self.include_env_ts:
+            ret_dict["env_ts"] = start
+        if self.include_returns:
+            if self.normalize_returns:
+                ret_dict["returns_to_go"] = self._data.normed_returns[
+                    path_ind, start:end
+                ].squeeze(0)
+            else:
+                ret_dict["returns_to_go"] = self._data.returns[
+                    path_ind, start:end
+                ].squeeze(0)
+        if self.include_cost_returns:
+            if self.normalize_returns:
+                ret_dict["cost_returns_to_go"] = self._data.normed_cost_returns[
+                    path_ind, start
+                ].squeeze(0)
+            else:
+                ret_dict["cost_returns_to_go"] = self._data.cost_returns[
+                    path_ind, start
+                ].squeeze(0)
         return ret_dict

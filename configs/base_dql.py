@@ -20,10 +20,13 @@ def get_base_config():
     config.horizon = 1
     config.returns_scale = 1.0
     config.returns_condition = False
+    config.cost_returns_condition = False
+    config.env_ts_condition = False
     config.termination_penalty = 0.0
 
     config.seed = 100
     config.batch_size = 256
+    config.discount = 1.0
     config.reward_scale = 1
     config.reward_bias = 0
     config.clip_action = 0.999

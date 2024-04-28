@@ -22,6 +22,7 @@ of beta schedules.
 
 import enum
 import math
+from functools import partial
 
 import flax
 import jax
@@ -155,6 +156,7 @@ class GaussianDiffusion:
         model_mean_type,
         model_var_type,
         loss_type,
+        env_ts_condition=False,
         returns_condition=False,
         cost_returns_condition=False,
         condition_guidance_w=1.2,
@@ -173,6 +175,7 @@ class GaussianDiffusion:
         self.sample_temperature = sample_temperature
         self.loss_weights = None  # now set externally
 
+        self.env_ts_condition = env_ts_condition
         self.returns_condition = returns_condition
         self.cost_returns_condition = cost_returns_condition
         self.condition_guidance_w = condition_guidance_w
@@ -511,7 +514,9 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
+        # x: (..., self.action_dim)
         x = self.sample_temperature * jax.random.normal(sample_key, shape)
+        # x: (..., self.action_dim)
         x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
@@ -519,13 +524,17 @@ class GaussianDiffusion:
             t = np.ones((x.shape[0],), dtype=np.int32) * i
 
             model_kwargs = {}
-            if env_ts is not None:
+            if self.env_ts_condition:
+                assert env_ts is not None
                 model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
+                assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
-                if self.cost_returns_condition:
-                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
+            if self.returns_condition or self.cost_returns_condition:
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
@@ -534,7 +543,8 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    force_dropout=True,
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
                     **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
@@ -549,6 +559,7 @@ class GaussianDiffusion:
             out = self.p_sample(sample_key, model_output, x, t, clip_denoised, cond_fn)
             x = out["sample"]
             x = apply_conditioning(x, conditions, condition_dim)
+        # print('line 565 in diffusion.py for p_sample_loop finish')
         return x
 
     def p_sample_loop_jit(
@@ -558,11 +569,13 @@ class GaussianDiffusion:
         shape,
         conditions,
         condition_dim=None,
+        observations=None,
         env_ts=None,
         returns_to_go=None,
         cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
+        deterministic=None,
     ):
         """
         A loop-jitted version of p_sample_loop().
@@ -582,13 +595,21 @@ class GaussianDiffusion:
             t = np.ones((x.shape[0],), dtype=np.int32) * indices[i]
 
             model_kwargs = {}
-            if env_ts is not None:
+            if observations is not None:
+                mdl = partial(mdl, observations)
+            if deterministic is not None:
+                model_kwargs["deterministic"] = deterministic
+            if self.env_ts_condition:
+                assert env_ts is not None
                 model_kwargs["env_ts"] = env_ts
             if self.returns_condition:
+                assert returns_to_go is not None
                 model_kwargs["returns_to_go"] = returns_to_go
-                if self.cost_returns_condition:
-                    model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
 
+            if self.returns_condition or self.cost_returns_condition:
                 model_output_cond = mdl(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
@@ -597,7 +618,8 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    force_dropout=True,
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
                     **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
@@ -707,8 +729,9 @@ class GaussianDiffusion:
         shape,
         conditions,
         condition_dim=None,
-        returns=None,
-        cost_returns=None,
+        env_ts=None,
+        returns_to_go=None,
+        cost_returns_to_go=None,
         clip_denoised=True,
         cond_fn=None,
         eta=0.0,
@@ -720,17 +743,25 @@ class GaussianDiffusion:
         """
 
         rng_key, sample_key = jax.random.split(rng_key)
-        x = jax.random.normal(sample_key, shape)
+        x = self.sample_temperature * jax.random.normal(sample_key, shape)
         x = apply_conditioning(x, conditions, condition_dim)
 
         indices = list(range(self.num_timesteps))[::-1]
         for i in indices:
             t = np.ones(shape[:-1], dtype=np.int32) * i
-            if self.returns_condition:
-                model_kwargs = dict(returns=returns)
-                if self.cost_returns_condition:
-                    model_kwargs["cost_returns"] = cost_returns
 
+            model_kwargs = {}
+            if self.env_ts_condition:
+                assert env_ts is not None
+                model_kwargs["env_ts"] = env_ts
+            if self.returns_condition:
+                assert returns_to_go is not None
+                model_kwargs["returns_to_go"] = returns_to_go
+            if self.cost_returns_condition:
+                assert cost_returns_to_go is not None
+                model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+
+            if self.returns_condition or self.cost_returns_condition:
                 model_output_cond = model_forward(
                     None, x, self._scale_timesteps(t), use_dropout=False, **model_kwargs
                 )
@@ -739,14 +770,17 @@ class GaussianDiffusion:
                     sample_key,
                     x,
                     self._scale_timesteps(t),
-                    force_dropout=True,
+                    reward_returns_force_dropout=True,
+                    cost_returns_force_droupout=True,
                     **model_kwargs,
                 )
                 model_output = model_output_uncond + self.condition_guidance_w * (
                     model_output_cond - model_output_uncond
                 )
             else:
-                model_output = model_forward(None, x, self._scale_timesteps(t))
+                model_output = model_forward(
+                    None, x, self._scale_timesteps(t), **model_kwargs
+                )
 
             rng_key, sample_key = jax.random.split(rng_key)
             out = self.ddim_sample(
@@ -811,6 +845,7 @@ class GaussianDiffusion:
         condition_dim=None,
         returns_to_go=None,
         cost_returns_to_go=None,
+        deterministic=False,
     ):
         """
         Compute training losses for a single timestep.
@@ -834,6 +869,8 @@ class GaussianDiffusion:
             model_kwargs["returns_to_go"] = returns_to_go
         if self.cost_returns_condition:
             model_kwargs["cost_returns_to_go"] = cost_returns_to_go
+        if deterministic:
+            model_kwargs["deterministic"] = deterministic
 
         rng_key, sample_key = jax.random.split(rng_key)
         model_output = model_forward(

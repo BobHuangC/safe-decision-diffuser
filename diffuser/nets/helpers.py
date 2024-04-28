@@ -108,11 +108,13 @@ def sinusoidal_embedding(timesteps, dim, max_period=10000):
 class TimeEmbedding(nn.Module):
     embed_size: int
     act: callable = mish
+    use_mlp: bool = True
 
     @nn.compact
     def __call__(self, timesteps):
         x = sinusoidal_embedding(timesteps, self.embed_size)
-        x = nn.Dense(self.embed_size * 4)(x)
-        x = self.act(x)
-        x = nn.Dense(self.embed_size)(x)
+        if self.use_mlp:
+            x = nn.Dense(self.embed_size * 4)(x)
+            x = self.act(x)
+            x = nn.Dense(self.embed_size)(x)
         return x

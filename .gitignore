@@ -154,3 +154,8 @@ temp/
 
 .trunk/
 reference_repos/
+
+
+eval_plus_data/
+tmp_script/
+backup/
