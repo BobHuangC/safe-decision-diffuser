@@ -4,7 +4,7 @@ from configs.base_tcdbc import get_base_config
 def get_config():
     config = get_base_config()
     config.exp_name = "tcdbc_dsrl"
-    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}-{normalizer}-normret_{normalize_returns}/{seed}/2024-4-12-1"
+    config.log_dir_format = "{exp_name}/{env}/{architecture}-gw_{condition_guidance_w}-cdp_{condition_dropout}-{normalizer}-normret_{normalize_returns}/{seed}"
     config.eval_log_dir_format = "{log_dir_format}/eval"
 
     config.env = "OfflineBallRun-v0"
@@ -31,7 +31,7 @@ def get_config():
     config.num_eval_envs = 10
 
     # data aug configs
-    # config.aug_percent = 0.0
+    config.aug_percent = 0.0
     config.aug_deg = 2
     config.aug_max_rew_decrease = 200
     config.aug_max_reward = 1400.0
@@ -40,7 +40,7 @@ def get_config():
     config.seed = 300
     config.batch_size = 2048
 
-    config.n_epochs = 2000
+    config.n_epochs = 500
     config.n_train_step_per_epoch = 1000
 
     config.save_period = -1
