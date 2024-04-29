@@ -39,12 +39,12 @@ Table 2. Evaluation results of the normalized reward and cost. The cost threshol
 |              | reward ↑ | cost ↓ | reward ↑                                                 | cost ↓                                       |                                                                                                                                 |
 | Ballrun        | 0.39     | 1.16   | 0.37272396634321475                                      | 0.7641666666666668                           | TCDBC using no data augmentation |
 | CarRun     | 0.99     | 0.65   | 0.989104                                                 | 0.9775                                       |                                                                                                                                 |
-| DroneRun  | 0.63     | 0.79   | 0.5948128719252312 | 0.9675 |                            |
+| DroneRun  | 0.63     | 0.79   | 0.5948128719252312 | 0.9675 |          	TCDBC using no data augmentation                  |
 | AntRun  | 0.72     | 0.91   | 0.71514478                                               | 1.057778                                     |                                                                                                                                 |
 | BallCircle | 0.77     | 1.07   | 0.7641009573775155                                       | 1.02375                                      |                                               |
 | CarCircle  | 0.75     | 0.95   | 0.7282844129731193                                       | 0.9279999999999999                           |   |
 | DroneCircle  | 0.63     | 0.98   | 0.6176245753202573         | 1.2                                          |       |
-| AntCircle     | 0.54     | 1.78   |             0.4156316443576508                                             |                 2.690208333333333      |                                                              |
+| AntCircle     | 0.54     | 1.78   |             0.4156316443576508                                             |                 2.690208333333333      |       	TCDBC using no data augmentation                                                       |
 
 **Mark**: In the implementation of CDT, the author uses data augmentation s.t. the agent can learn to imitate the behavior of the most rewaring and safe trajectories when the desired return $(\rho, \kappa)$ is infeasible.
 While in the trainning of TCDBC, this technique doesn't always work for TCDBC. Thus in some envs, we do not use the data augmentation technique.
